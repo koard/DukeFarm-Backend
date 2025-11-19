@@ -1,6 +1,6 @@
 # DukeFarm Backend
 
-Node.js + TypeScript + Express backend that powers the DukeFarm catfish production platform for Betagro and Kasetsart University. The service exposes a layered architecture (routes → controllers → services → repositories) and uses Prisma ORM with PostgreSQL plus Google Weather API integration for pond-level weather insights.
+Node.js + TypeScript + Express backend that powers the DukeFarm catfish production platform. The service exposes a layered architecture (routes → controllers → services → repositories) and uses Prisma ORM with PostgreSQL plus Google Weather API integration for pond-level weather insights.
 
 ## Tech Stack
 
@@ -21,8 +21,11 @@ src/
   clients/
     prisma.ts           # Prisma client singleton
   controllers/
+    farms.controller.ts
     health.controller.ts
     lineAuth.controller.ts
+    ponds.controller.ts
+    stats.controller.ts
     weather.controller.ts
   middlewares/
     auth.middleware.ts
@@ -32,18 +35,29 @@ src/
   routes/
     index.ts
     auth.routes.ts
+    farms.routes.ts
+    ponds.routes.ts
+    stats.routes.ts
     v1/
       index.ts
       health.routes.ts
       weather.routes.ts
   services/
+    access.service.ts
+    farms.service.ts
     health.service.ts
     lineAuth.service.ts
+    ponds.service.ts
+    stats.service.ts
     weather.service.ts
+  types/
+    farm.ts
+    pond.ts
   utils/
     jwt.ts
     lineApi.ts
     logger.ts
+    number.ts
 prisma/
   schema.prisma         # Database schema
 ```
@@ -69,6 +83,46 @@ npm run prisma:generate
 npm run prisma:migrate
 ```
 
+### Running PostgreSQL with Docker
+
+If you don't have a local PostgreSQL instance, you can spin up one quickly with Docker:
+
+```powershell
+docker run --name dukefarm-postgres ^
+  -e POSTGRES_USER=postgres ^
+  -e POSTGRES_PASSWORD=postgres ^
+  -e POSTGRES_DB=dukefarm ^
+  -p 5432:5432 ^
+  -v ${PWD}/postgres-data:/var/lib/postgresql/data ^
+  -d postgres:14
+```
+
+- Adjust the credentials/DB name if your `.env` uses different values.
+- The mounted `${PWD}/postgres-data` folder persists data across container restarts. On PowerShell 5.1, `${PWD}` expands to the current directory path.
+- Once the container is running, set `DATABASE_URL="postgresql://postgres:postgres@localhost:5432/dukefarm?schema=public"` and run the Prisma commands above.
+
+### LINE Login + ngrok quickstart
+
+1. Start the backend locally:
+
+  ```powershell
+  npm run dev
+  ```
+
+2. Expose the local server to LINE using ngrok (install ngrok first):
+
+  ```powershell
+  ngrok http 4000
+  ```
+
+3. Take the HTTPS forwarding URL (`https://<random>.ngrok-free.app`) and set:
+  - `LINE_REDIRECT_URI=https://<random>.ngrok-free.app/api/auth/line/callback` in `.env`.
+  - The exact same callback URL inside the LINE Developers Console (LINE Login tab → Callback URL → Update).
+
+4. Restart `npm run dev` so the new env vars load, then hit `GET http://localhost:4000/api/auth/line/login` to receive a login URL. Open it in a browser, complete LINE login, and the backend will return `{ token, user }` at `/api/auth/line/callback`.
+
+5. Save the JWT token from the response; use it as a Bearer token for all protected endpoints.
+
 ## Useful Scripts
 
 | Command | Description |
@@ -79,6 +133,39 @@ npm run prisma:migrate
 | `npm run lint` | Type-check only (no emit). |
 | `npm run prisma:generate` | Regenerate Prisma client from schema. |
 | `npm run prisma:migrate` | Create/apply database migrations (interactive). |
+
+## Testing the API
+
+Once you have a JWT token (via LINE Login), you can exercise endpoints directly on `http://localhost:4000` or via your ngrok URL. Examples below use PowerShell's `curl` alias; swap in Postman or any HTTP client you prefer.
+
+```powershell
+# Health check (no auth)
+curl http://localhost:4000/healthz
+
+# List farms for the authenticated user
+curl http://localhost:4000/api/farms `
+  -H "Authorization: Bearer <your-token>"
+
+# Create a farm
+curl -X POST http://localhost:4000/api/farms `
+  -H "Authorization: Bearer <your-token>" `
+  -H "Content-Type: application/json" `
+  -d '{
+        "name": "Demo Farm",
+        "farmType": "GROWOUT",
+        "province": "Chiang Mai"
+      }'
+
+# List ponds within a farm (replace <farmId>)
+curl http://localhost:4000/api/farms/<farmId>/ponds `
+  -H "Authorization: Bearer <your-token>"
+```
+
+Tips:
+
+- All routers are mounted under `/api`, so `/auth`, `/farms`, `/ponds`, and `/cycles` live at `/api/...` paths.
+- Unauthorized requests return `401`; lacking permissions (e.g., accessing another user's farm) returns `403`, confirming the access guards are working.
+- You can keep using `localhost` for everyday development; ngrok is required only for LINE's callback.
 
 ## Environment Variables
 
@@ -100,12 +187,3 @@ npm run prisma:migrate
 3. Run `npm run prisma:migrate` to create tables defined in `prisma/schema.prisma`.
 4. Seed initial data (users, farms, ponds) using Prisma Studio or a custom seed script.
 5. Start the API locally with `npm run dev` and hit `GET http://localhost:4000/api/v1/health` to verify.
-
-## Next Steps
-
-- Flesh out domain modules (users, farms, ponds, production cycles, etc.).
-- Add authentication routes (sign-up, login, token refresh).
-- Implement background jobs for scheduled pond health alerts.
-- Add automated tests (unit + integration) via Vitest or Jest.
-
-Happy building! 🐟
