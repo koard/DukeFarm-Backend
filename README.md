@@ -17,26 +17,6 @@ src/
   app.ts                # Express application wiring
   server.ts             # HTTP bootstrap + graceful shutdown
   config/
-    env.ts              # Environment loading & validation
-  clients/
-    prisma.ts           # Prisma client singleton
-  controllers/
-    farms.controller.ts
-    health.controller.ts
-    lineAuth.controller.ts
-    ponds.controller.ts
-    stats.controller.ts
-    weather.controller.ts
-  middlewares/
-    auth.middleware.ts
-    errorHandler.ts
-  repositories/
-    pond.repository.ts
-  routes/
-    index.ts
-    auth.routes.ts
-    farms.routes.ts
-    ponds.routes.ts
     stats.routes.ts
     v1/
       index.ts
@@ -44,11 +24,11 @@ src/
       weather.routes.ts
   services/
     access.service.ts
-    farms.service.ts
-    health.service.ts
-    lineAuth.service.ts
-    ponds.service.ts
-    stats.service.ts
+- All routers are mounted under `/api`, so `/auth`, `/home`, `/onboarding`, and `/cycles` live at `/api/...` paths.
+- Unauthorized requests return `401`; lacking permissions returns `403`, confirming the access guards are working.
+- You can keep using `localhost` for everyday development; ngrok is required only for LINE's callback.
+- Farmer onboarding now captures farm metadata (including coordinates) directly on the user record; standalone farm/pond CRUD endpoints have been retired.
+- Home overview supports group values `NURSERY_SMALL`, `NURSERY_LARGE`, and `GROWOUT`; pick the one that matches the farm type you want to display on the dashboard.
     weather.service.ts
   types/
     farm.ts
@@ -142,37 +122,17 @@ Once you have a JWT token (via LINE Login), you can exercise endpoints directly 
 # Health check (no auth)
 curl http://localhost:4000/healthz
 
-# List farms for the authenticated user
-curl http://localhost:4000/api/farms `
-  -H "Authorization: Bearer <your-token>"
-
-# Create a farm
-curl -X POST http://localhost:4000/api/farms `
-  -H "Authorization: Bearer <your-token>" `
-  -H "Content-Type: application/json" `
-  -d '{
-        "name": "Demo Farm",
-        "farmType": "GROWOUT",
-        "province": "Chiang Mai",
-        "latitude": 18.795278,
-        "longitude": 99.732778
-      }'
-
-# List ponds within a farm (replace <farmId>)
-curl http://localhost:4000/api/farms/<farmId>/ponds `
+# Fetch home overview for nursery-small farms
+curl http://localhost:4000/api/home/groups/NURSERY_SMALL `
   -H "Authorization: Bearer <your-token>"
 ```
 
 Tips:
 
-
-# Fetch home overview for nursery-small farms
-curl http://localhost:4000/api/home/groups/NURSERY_SMALL `
-  -H "Authorization: Bearer <your-token>"
-- All routers are mounted under `/api`, so `/auth`, `/farms`, `/ponds`, and `/cycles` live at `/api/...` paths.
-- Unauthorized requests return `401`; lacking permissions (e.g., accessing another user's farm) returns `403`, confirming the access guards are working.
+- All routers are mounted under `/api`, so `/auth`, `/home`, `/onboarding`, and `/cycles` live at `/api/...` paths.
+- Unauthorized requests return `401`; lacking permissions returns `403`, confirming the access guards are working.
 - You can keep using `localhost` for everyday development; ngrok is required only for LINE's callback.
-- Pond weather now reuses the parent farm's coordinates. Remember to set `latitude`/`longitude` on each farm; pond payloads no longer accept their own location fields.
+- Farmer onboarding now captures farm metadata (including coordinates) directly on the user record; standalone farm/pond CRUD endpoints have been retired.
 - Home overview supports group values `NURSERY_SMALL`, `NURSERY_LARGE`, and `GROWOUT`; pick the one that matches the farm type you want to display on the dashboard.
 
 ## Environment Variables
@@ -193,5 +153,5 @@ curl http://localhost:4000/api/home/groups/NURSERY_SMALL `
 1. Provision a PostgreSQL database and set `DATABASE_URL` in `.env`.
 2. Enable Google Maps Platform Weather API and place the key in `.env`.
 3. Run `npm run prisma:migrate` to create tables defined in `prisma/schema.prisma`.
-4. Seed initial data (users, farms, ponds) using Prisma Studio or a custom seed script.
+4. Seed initial data (users, production cycles, etc.) using Prisma Studio or a custom seed script.
 5. Start the API locally with `npm run dev` and hit `GET http://localhost:4000/api/v1/health` to verify.

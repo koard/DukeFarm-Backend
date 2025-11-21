@@ -19,15 +19,6 @@ _Last updated: 2025-11-21_
 | POST | `/onboarding/role` | Auth (any) | Select either FARMER or RESEARCHER role from onboarding UI. |
 | POST | `/onboarding/farmer` | Auth (any) | Submit farmer-specific onboarding form. |
 | POST | `/onboarding/researcher` | Auth (any) | Submit researcher-specific onboarding form. |
-| GET | `/farms` | Auth + `ADMIN`/`FARMER`/`RESEARCHER` | List farms (limited to owner unless admin). |
-| POST | `/farms` | Auth + `ADMIN`/`FARMER` | Create a farm owned by requester. |
-| GET | `/farms/:id` | Auth + `ADMIN`/`FARMER`/`RESEARCHER` | Fetch a farm. Non-admins restricted to their own farms. |
-| PATCH | `/farms/:id` | Auth + `ADMIN`/`FARMER` | Update mutable farm fields. |
-| GET | `/farms/:farmId/ponds` | Auth + `ADMIN`/`FARMER` | List ponds for a farm (ownership enforced). |
-| POST | `/farms/:farmId/ponds` | Auth + `ADMIN`/`FARMER` | Create pond under a farm. |
-| GET | `/ponds/:id` | Auth + `ADMIN`/`FARMER` | Fetch pond (ownership enforced). |
-| PATCH | `/ponds/:id` | Auth + `ADMIN`/`FARMER` | Update pond metadata. |
-| GET | `/ponds/:id/weather` | Auth + `ADMIN`/`FARMER` | Live weather snapshot (requires farm coordinates). |
 | GET | `/cycles/:id/stats` | Auth + `ADMIN`/`FARMER`/`RESEARCHER` | Aggregated production-cycle KPIs (FCR, survival, etc.). |
 | GET | `/v1/weather?lat&lng` | Auth (any) | Weather lookup by coordinates (Google Weather proxy). |
 
@@ -194,104 +185,6 @@ Lightweight unauthenticated probe returning `{ "status": "ok" }` when the server
 }
 ```
 - When the user has no farms in that group, `hasData` is `false`, `recentDailyRecords` is empty, and `summary.alertMessage` explains the missing data.
-
-## Farms API
-### GET `/farms`
-- **Auth:** `ADMIN`, `FARMER`, `RESEARCHER`.
-- **Behavior:** Admin sees all farms; others only see farms where `ownerId == user.id`.
-- **Response:**
-```json
-{
-  "data": [
-    {
-      "id": "uuid",
-      "ownerId": "uuid",
-      "name": "Khlong Luang Demo",
-      "farmType": "GROWOUT",
-      "address": "...",
-      "province": "Pathum Thani",
-      "latitude": 14.077,
-      "longitude": 100.608,
-      "areaM2": "3200.00",
-      "createdAt": "2025-11-15T07:00:00.000Z",
-      "updatedAt": "2025-11-15T07:00:00.000Z"
-    }
-  ]
-}
-```
-
-### POST `/farms`
-- **Auth:** `ADMIN`, `FARMER`.
-- **Body:**
-```json
-{
-  "name": "Farm A",
-  "farmType": "NURSERY_SMALL",
-  "address": "optional",
-  "province": "optional",
-  "latitude": 14.077,
-  "longitude": 100.608,
-  "areaM2": 3200
-}
-```
-- **Validation:** `name` and `farmType` required; `farmType` must match listed values; numeric fields must parse to numbers.
-- **Response:** `201 Created` with `{ "data": <farm> }` (same shape as GET).
-
-### GET `/farms/:id`
-- **Auth:** `ADMIN`, `FARMER`, `RESEARCHER` (non-admin must own the farm).
-- **Response:** `{ "data": <farm> }` or `404` if inaccessible/not found.
-
-### PATCH `/farms/:id`
-- **Auth:** `ADMIN`, `FARMER` (owner).
-- **Body:** Any subset of fields from POST payload; at least one valid field is required.
-- **Response:** `{ "data": <updated farm> }`.
-
-## Ponds API
-### GET `/farms/:farmId/ponds`
-- **Auth:** `ADMIN`, `FARMER` (must own farm).
-- **Response:** `{ "data": [<pond>] }` where pond shape matches Prisma `Pond` plus timestamps.
-
-### POST `/farms/:farmId/ponds`
-- **Auth:** `ADMIN`, `FARMER` (must own farm).
-- **Body:**
-```json
-{
-  "name": "Pond 1",
-  "pondType": "EARTHEN",
-  "areaM2": 1200,
-  "maxDepthM": 1.5,
-  "notes": "optional"
-}
-```
-- **Response:** `201 Created` with `{ "data": <pond> }`.
-
-### GET `/ponds/:id`
-- **Auth:** `ADMIN`, `FARMER` (must have access via owning farm).
-- **Response:** `{ "data": <pond> }`.
-
-### PATCH `/ponds/:id`
-- **Auth:** `ADMIN`, `FARMER`.
-- **Body:** Any combination of `name`, `pondType`, `notes`, `areaM2`, `maxDepthM`. Must include at least one valid field.
-- **Response:** `{ "data": <updated pond> }`.
-
-### GET `/ponds/:id/weather`
-- **Auth:** `ADMIN`, `FARMER` (must own pond/farm).
-- **Response:**
-```json
-{
-  "pondId": "uuid",
-  "location": { "latitude": 14.077, "longitude": 100.608 },
-  "weather": {
-    "time": "2025-11-20T10:00:00Z",
-    "temperatureC": 30.2,
-    "humidityPct": 78,
-    "windSpeedKph": 12,
-    "rainMm": 0,
-    "conditionText": "Partly Cloudy"
-  }
-}
-```
-- Returns `400` if the farm lacks coordinates.
 
 ## Production Cycle Stats
 ### GET `/cycles/:id/stats`
