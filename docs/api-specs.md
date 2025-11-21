@@ -16,6 +16,9 @@ _Last updated: 2025-11-21_
 | GET | `/auth/line/callback` | Public | Exchange LINE authorization code for JWT + user payload. |
 | GET | `/v1/health` | Public | Service + DB readiness probe. |
 | GET | `/home/groups/:groupType` | Auth (any) | Farm-group overview dashboard for the authenticated owner. |
+| POST | `/onboarding/role` | Auth (any) | Select either FARMER or RESEARCHER role from onboarding UI. |
+| POST | `/onboarding/farmer` | Auth (any) | Submit farmer-specific onboarding form. |
+| POST | `/onboarding/researcher` | Auth (any) | Submit researcher-specific onboarding form. |
 | GET | `/farms` | Auth + `ADMIN`/`FARMER`/`RESEARCHER` | List farms (limited to owner unless admin). |
 | POST | `/farms` | Auth + `ADMIN`/`FARMER` | Create a farm owned by requester. |
 | GET | `/farms/:id` | Auth + `ADMIN`/`FARMER`/`RESEARCHER` | Fetch a farm. Non-admins restricted to their own farms. |
@@ -55,6 +58,81 @@ Returns the LINE authorization URL plus the server-generated `state`. The client
 }
 ```
 - JWT payload fields: `sub`, `provider`, `displayName`, optional `pictureUrl`, `role`, `registrationStatus`. Token TTL = 7 days.
+
+## Onboarding & Role Selection
+### POST `/onboarding/role`
+- **Auth:** any logged-in user (typically `UNASSIGNED`).
+- **Body:** `{ "role": "FARMER" | "RESEARCHER" }` (case-insensitive).
+- **Behavior:** Updates the user record, clears the opposite profile (e.g., dropping an old researcher profile when selecting farmer), and resets `registrationStatus` to `PENDING`.
+- **Response:**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "role": "FARMER",
+    "registrationStatus": "PENDING"
+  }
+}
+```
+
+### POST `/onboarding/farmer`
+- **Auth:** any logged-in user (role is forced to `FARMER` upon success).
+- **Body:**
+```json
+{
+  "firstName": "Somchai",
+  "lastName": "Prasert",
+  "phone": "0812345678",
+  "farmingGroup": "SMALL_SCALE",
+  "declaredPondCount": 4,
+  "farmLatitude": 14.077,
+  "farmLongitude": 100.608
+}
+```
+- **Validation:** `firstName`, `lastName`, `phone`, `farmingGroup`, `farmLatitude`, and `farmLongitude` required. `farmingGroup` must be one of `SMALL_SCALE`, `LARGE_SCALE`, `MARKET_SUPPLIER` (case-insensitive). `declaredPondCount` must be a non-negative integer when provided. `farmLatitude` must be between -90 and 90, `farmLongitude` between -180 and 180.
+- **Behavior:** Upserts the `farmer_profiles` record, removes any researcher profile, and updates the user to `{ role: FARMER, registrationStatus: COMPLETED }`.
+- **Response:**
+```json
+{
+  "data": {
+    "profile": {
+      "userId": "uuid",
+      "firstName": "Somchai",
+      "lastName": "Prasert",
+      "phone": "0812345678",
+      "farmingGroup": "SMALL_SCALE",
+      "declaredPondCount": 4,
+      "farmLatitude": 14.077,
+      "farmLongitude": 100.608,
+      "createdAt": "2025-11-21T06:30:00.000Z",
+      "updatedAt": "2025-11-21T06:30:00.000Z"
+    },
+    "user": {
+      "id": "uuid",
+      "role": "FARMER",
+      "registrationStatus": "COMPLETED"
+    }
+  }
+}
+```
+
+### POST `/onboarding/researcher`
+- **Auth:** any logged-in user (role forced to `RESEARCHER`).
+- **Body:**
+```json
+{
+  "firstName": "Dr. Ora",
+  "lastName": "Sirikul",
+  "email": "ora@example.com",
+  "phone": "020001234",
+  "organization": "Kasetsart University",
+  "department": "Aquaculture",
+  "jobTitle": "Senior Researcher"
+}
+```
+- **Validation:** `firstName`, `lastName`, `email`, `phone`, `organization` required; `department` and `jobTitle` optional strings.
+- **Behavior:** Upserts the `researcher_profiles` row, removes any farmer profile, and updates the user to `{ role: RESEARCHER, registrationStatus: COMPLETED }`.
+- **Response:** Mirrors the farmer endpoint but with researcher profile fields.
 
 ## Health & Diagnostics
 ### GET `/v1/health`

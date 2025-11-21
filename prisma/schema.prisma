@@ -292,8 +292,8 @@ model FarmerProfile {
   phone             String        @map("phone")
   farmingGroup      FarmingGroup  @map("farming_group")
   declaredPondCount Int?          @map("declared_pond_count")
-  farmRole          String?       @map("farm_role")
-  farmName          String?       @map("farm_name")
+  farmLatitude      Float?        @map("farm_latitude")
+  farmLongitude     Float?        @map("farm_longitude")
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at")
 
