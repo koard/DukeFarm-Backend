@@ -7,6 +7,7 @@ export type AuthenticatedUser = {
   displayName?: string | undefined;
   pictureUrl?: string | undefined;
   role?: string | undefined;
+  registrationStatus?: string | undefined;
 };
 
 export interface AuthenticatedRequest extends Request {
@@ -30,6 +31,7 @@ const authMiddleware = (req: AuthenticatedRequest, res: Response, next: NextFunc
       displayName: payload.displayName,
       pictureUrl: payload.pictureUrl,
       role: payload.role,
+      registrationStatus: payload.registrationStatus,
     };
     next();
   } catch (error) {

@@ -7,6 +7,7 @@ export type DukeFarmJwtPayload = {
   displayName?: string;
   pictureUrl?: string;
   role?: string;
+  registrationStatus?: string;
 };
 
 const defaultOptions: SignOptions = {

@@ -67,8 +67,6 @@ const create = async (req: AuthenticatedRequest, res: Response, next: NextFuncti
 
     const areaM2 = parseOptionalNumber(req.body.areaM2, 'areaM2');
     const maxDepthM = parseOptionalNumber(req.body.maxDepthM, 'maxDepthM');
-    const latitude = parseOptionalNumber(req.body.latitude, 'latitude');
-    const longitude = parseOptionalNumber(req.body.longitude, 'longitude');
 
     const pond = await PondsService.createPond(farmId, {
       name,
@@ -76,8 +74,6 @@ const create = async (req: AuthenticatedRequest, res: Response, next: NextFuncti
       notes: notes ?? null,
       areaM2: areaM2 ?? null,
       maxDepthM: maxDepthM ?? null,
-      latitude: latitude ?? null,
-      longitude: longitude ?? null,
     });
 
     res.status(201).json({ data: pond });
@@ -132,11 +128,9 @@ const update = async (req: AuthenticatedRequest, res: Response, next: NextFuncti
       payload.notes = req.body.notes ?? null;
     }
 
-    const numericFields: Array<{ key: keyof Pick<UpdatePondInput, 'areaM2' | 'maxDepthM' | 'latitude' | 'longitude'>; label: string }> = [
+    const numericFields: Array<{ key: keyof Pick<UpdatePondInput, 'areaM2' | 'maxDepthM'>; label: string }> = [
       { key: 'areaM2', label: 'areaM2' },
       { key: 'maxDepthM', label: 'maxDepthM' },
-      { key: 'latitude', label: 'latitude' },
-      { key: 'longitude', label: 'longitude' },
     ];
 
     numericFields.forEach(({ key, label }) => {
@@ -168,10 +162,10 @@ const getWeather = async (req: AuthenticatedRequest, res: Response, next: NextFu
 
     const pond = await AccessService.ensurePondAccess(id, user);
 
-    const latitude = pond.latitude;
-    const longitude = pond.longitude;
+    const latitude = pond.farm?.latitude;
+    const longitude = pond.farm?.longitude;
     if (latitude === null || latitude === undefined || longitude === null || longitude === undefined) {
-      throw createHttpError(400, 'Pond is missing latitude/longitude coordinates');
+      throw createHttpError(400, 'Farm is missing latitude/longitude coordinates');
     }
 
     const weather = await WeatherService.getCurrentWeather(latitude, longitude);

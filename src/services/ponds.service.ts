@@ -6,8 +6,6 @@ export type CreatePondInput = {
   pondType: PondTypeValue;
   areaM2?: number | null;
   maxDepthM?: number | null;
-  latitude?: number | null;
-  longitude?: number | null;
   notes?: string | null;
 };
 

@@ -4,6 +4,7 @@ import { authRouter } from './auth.routes';
 import { farmsRouter } from './farms.routes';
 import { farmPondsRouter, pondsRouter } from './ponds.routes';
 import { cyclesRouter } from './stats.routes';
+import { homeRouter } from './home.routes';
 
 const router = Router();
 
@@ -13,5 +14,6 @@ router.use('/farms/:farmId/ponds', farmPondsRouter);
 router.use('/farms', farmsRouter);
 router.use('/ponds', pondsRouter);
 router.use('/cycles', cyclesRouter);
+router.use('/', homeRouter);
 
 export { router };

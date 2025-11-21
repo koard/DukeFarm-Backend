@@ -44,7 +44,7 @@ const ensurePondAccess = async (
   const pond = await prisma.pond.findUnique({
     where: { id: pondId },
     include: {
-      farm: { select: { id: true, ownerId: true } },
+      farm: { select: { id: true, ownerId: true, latitude: true, longitude: true } },
     },
   });
 
@@ -77,6 +77,8 @@ const ensureCycleAccess = async (
             select: {
               id: true,
               ownerId: true,
+              latitude: true,
+              longitude: true,
             },
           },
         },

@@ -8,9 +8,21 @@ datasource db {
 }
 
 enum UserRole {
+  UNASSIGNED
   FARMER
   RESEARCHER
   ADMIN
+}
+
+enum RegistrationStatus {
+  PENDING
+  COMPLETED
+}
+
+enum FarmingGroup {
+  SMALL_SCALE
+  LARGE_SCALE
+  MARKET_SUPPLIER
 }
 
 enum FarmType {
@@ -39,39 +51,39 @@ enum LoginProvider {
 }
 
 model User {
-  id           String     @id @default(uuid()) @db.Uuid
-  fullName     String     @map("full_name")
-  phone        String?    @map("phone")
-  email        String?    @unique
-  passwordHash String     @map("password_hash")
-  lineUserId   String?    @unique @map("line_user_id")
-  displayName  String?    @map("display_name")
-  pictureUrl   String?    @map("picture_url")
-  loginProvider LoginProvider @default(LINE) @map("login_provider")
-  role         UserRole   @default(FARMER)
-  farms        Farm[]
-  feedFormulas FeedFormula[]
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at")
+  id                 String             @id @default(uuid()) @db.Uuid
+  passwordHash       String             @map("password_hash")
+  lineUserId         String?            @unique @map("line_user_id")
+  displayName        String?            @map("display_name")
+  pictureUrl         String?            @map("picture_url")
+  loginProvider      LoginProvider      @default(LINE) @map("login_provider")
+  role               UserRole           @default(UNASSIGNED)
+  registrationStatus RegistrationStatus @default(PENDING) @map("registration_status")
+  farms              Farm[]
+  feedFormulas       FeedFormula[]
+  farmerProfile      FarmerProfile?
+  researcherProfile  ResearcherProfile?
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at")
 
   @@map("users")
 }
 
 model Farm {
-  id           String      @id @default(uuid()) @db.Uuid
-  ownerId      String      @map("owner_id") @db.Uuid
-  owner        User        @relation(fields: [ownerId], references: [id])
+  id           String   @id @default(uuid()) @db.Uuid
+  ownerId      String   @map("owner_id") @db.Uuid
+  owner        User     @relation(fields: [ownerId], references: [id])
   name         String
-  farmType     FarmType    @map("farm_type")
+  farmType     FarmType @map("farm_type")
   address      String?
   province     String?
   latitude     Float?
   longitude    Float?
-  areaM2       Decimal?    @map("area_m2") @db.Decimal(10, 2)
+  areaM2       Decimal? @map("area_m2") @db.Decimal(10, 2)
   ponds        Pond[]
   feedFormulas FeedFormula[]
-  createdAt    DateTime    @default(now()) @map("created_at")
-  updatedAt    DateTime    @default(now()) @updatedAt @map("updated_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([ownerId])
   @@map("farms")
@@ -85,8 +97,6 @@ model Pond {
   pondType         PondType           @map("pond_type")
   areaM2           Decimal?           @map("area_m2") @db.Decimal(10, 2)
   maxDepthM        Decimal?           @map("max_depth_m") @db.Decimal(10, 2)
-  latitude         Float?
-  longitude        Float?
   notes            String?
   productionCycles ProductionCycle[]
   createdAt        DateTime           @default(now()) @map("created_at")
@@ -272,4 +282,36 @@ model ResearchSurvey {
 
   @@index([productionCycleId, surveyDate])
   @@map("research_surveys")
+}
+
+model FarmerProfile {
+  userId            String        @id @map("user_id") @db.Uuid
+  user              User          @relation(fields: [userId], references: [id])
+  firstName         String        @map("first_name")
+  lastName          String        @map("last_name")
+  phone             String        @map("phone")
+  farmingGroup      FarmingGroup  @map("farming_group")
+  declaredPondCount Int?          @map("declared_pond_count")
+  farmRole          String?       @map("farm_role")
+  farmName          String?       @map("farm_name")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  @@map("farmer_profiles")
+}
+
+model ResearcherProfile {
+  userId       String   @id @map("user_id") @db.Uuid
+  user         User     @relation(fields: [userId], references: [id])
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  email        String   @map("email")
+  phone        String   @map("phone")
+  organization String   @map("organization")
+  department   String?  @map("department")
+  jobTitle     String?  @map("job_title")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("researcher_profiles")
 }

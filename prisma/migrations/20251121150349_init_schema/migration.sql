@@ -1,5 +1,11 @@
 -- CreateEnum
-CREATE TYPE "UserRole" AS ENUM ('FARMER', 'RESEARCHER', 'ADMIN');
+CREATE TYPE "UserRole" AS ENUM ('UNASSIGNED', 'FARMER', 'RESEARCHER', 'ADMIN');
+
+-- CreateEnum
+CREATE TYPE "RegistrationStatus" AS ENUM ('PENDING', 'COMPLETED');
+
+-- CreateEnum
+CREATE TYPE "FarmingGroup" AS ENUM ('SMALL_SCALE', 'LARGE_SCALE', 'MARKET_SUPPLIER');
 
 -- CreateEnum
 CREATE TYPE "FarmType" AS ENUM ('NURSERY_SMALL', 'NURSERY_LARGE', 'GROWOUT');
@@ -16,15 +22,13 @@ CREATE TYPE "LoginProvider" AS ENUM ('LOCAL', 'LINE');
 -- CreateTable
 CREATE TABLE "users" (
     "id" UUID NOT NULL,
-    "full_name" TEXT NOT NULL,
-    "phone" TEXT,
-    "email" TEXT,
     "password_hash" TEXT NOT NULL,
     "line_user_id" TEXT,
     "display_name" TEXT,
     "picture_url" TEXT,
     "login_provider" "LoginProvider" NOT NULL DEFAULT 'LINE',
-    "role" "UserRole" NOT NULL DEFAULT 'FARMER',
+    "role" "UserRole" NOT NULL DEFAULT 'UNASSIGNED',
+    "registration_status" "RegistrationStatus" NOT NULL DEFAULT 'PENDING',
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -56,8 +60,6 @@ CREATE TABLE "ponds" (
     "pond_type" "PondType" NOT NULL,
     "area_m2" DECIMAL(10,2),
     "max_depth_m" DECIMAL(10,2),
-    "latitude" DOUBLE PRECISION,
-    "longitude" DOUBLE PRECISION,
     "notes" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -220,8 +222,37 @@ CREATE TABLE "research_surveys" (
     CONSTRAINT "research_surveys_pkey" PRIMARY KEY ("id")
 );
 
--- CreateIndex
-CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+-- CreateTable
+CREATE TABLE "farmer_profiles" (
+    "user_id" UUID NOT NULL,
+    "first_name" TEXT NOT NULL,
+    "last_name" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "farming_group" "FarmingGroup" NOT NULL,
+    "declared_pond_count" INTEGER,
+    "farm_role" TEXT,
+    "farm_name" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "farmer_profiles_pkey" PRIMARY KEY ("user_id")
+);
+
+-- CreateTable
+CREATE TABLE "researcher_profiles" (
+    "user_id" UUID NOT NULL,
+    "first_name" TEXT NOT NULL,
+    "last_name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "organization" TEXT NOT NULL,
+    "department" TEXT,
+    "job_title" TEXT,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "researcher_profiles_pkey" PRIMARY KEY ("user_id")
+);
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_line_user_id_key" ON "users"("line_user_id");
@@ -306,3 +337,9 @@ ALTER TABLE "treatments" ADD CONSTRAINT "treatments_production_cycle_id_fkey" FO
 
 -- AddForeignKey
 ALTER TABLE "research_surveys" ADD CONSTRAINT "research_surveys_production_cycle_id_fkey" FOREIGN KEY ("production_cycle_id") REFERENCES "production_cycles"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "farmer_profiles" ADD CONSTRAINT "farmer_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "researcher_profiles" ADD CONSTRAINT "researcher_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

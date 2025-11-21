@@ -1,6 +1,5 @@
 node_modules
 .env
-.env.*
 dist
 .prisma
 npm-debug.log*

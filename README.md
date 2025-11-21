@@ -153,7 +153,9 @@ curl -X POST http://localhost:4000/api/farms `
   -d '{
         "name": "Demo Farm",
         "farmType": "GROWOUT",
-        "province": "Chiang Mai"
+        "province": "Chiang Mai",
+        "latitude": 18.795278,
+        "longitude": 99.732778
       }'
 
 # List ponds within a farm (replace <farmId>)
@@ -163,9 +165,15 @@ curl http://localhost:4000/api/farms/<farmId>/ponds `
 
 Tips:
 
+
+# Fetch home overview for nursery-small farms
+curl http://localhost:4000/api/home/groups/NURSERY_SMALL `
+  -H "Authorization: Bearer <your-token>"
 - All routers are mounted under `/api`, so `/auth`, `/farms`, `/ponds`, and `/cycles` live at `/api/...` paths.
 - Unauthorized requests return `401`; lacking permissions (e.g., accessing another user's farm) returns `403`, confirming the access guards are working.
 - You can keep using `localhost` for everyday development; ngrok is required only for LINE's callback.
+- Pond weather now reuses the parent farm's coordinates. Remember to set `latitude`/`longitude` on each farm; pond payloads no longer accept their own location fields.
+- Home overview supports group values `NURSERY_SMALL`, `NURSERY_LARGE`, and `GROWOUT`; pick the one that matches the farm type you want to display on the dashboard.
 
 ## Environment Variables
 

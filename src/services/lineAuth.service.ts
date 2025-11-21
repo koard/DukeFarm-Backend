@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { RegistrationStatus, UserRole } from '@prisma/client';
 import { prisma } from '../clients/prisma';
 import { env } from '../config/env';
 import { signJwt } from '../utils/jwt';
@@ -8,8 +9,10 @@ type LineLoginResult = {
   token: string;
   user: {
     id: string;
-    displayName?: string | null;
+    displayName: string;
     pictureUrl?: string | null;
+    role: UserRole;
+    registrationStatus: RegistrationStatus;
   };
 };
 
@@ -76,25 +79,29 @@ const handleCallback = async (code: string, state?: string): Promise<LineLoginRe
   const upsertedUser = await prisma.user.upsert({
     where: { lineUserId: profile.userId },
     update: {
-      displayName: profile.displayName,
+      displayName: ensureDisplayName(profile.displayName),
       pictureUrl: profile.pictureUrl ?? null,
     },
     create: {
-      fullName: ensureDisplayName(profile.displayName),
-      email: null,
       passwordHash: crypto.randomBytes(32).toString('hex'),
       lineUserId: profile.userId,
-      displayName: profile.displayName,
+      displayName: ensureDisplayName(profile.displayName),
       pictureUrl: profile.pictureUrl ?? null,
-  loginProvider: 'LINE',
+      loginProvider: 'LINE',
+      role: UserRole.UNASSIGNED,
+      registrationStatus: RegistrationStatus.PENDING,
     },
   });
+
+  const displayName = ensureDisplayName(upsertedUser.displayName);
 
   const tokenPayload = {
     sub: upsertedUser.id,
     provider: 'LINE' as const,
-    displayName: upsertedUser.displayName ?? upsertedUser.fullName,
+    displayName,
     ...(upsertedUser.pictureUrl ? { pictureUrl: upsertedUser.pictureUrl } : {}),
+    role: upsertedUser.role,
+    registrationStatus: upsertedUser.registrationStatus,
   };
 
   const token = signJwt(tokenPayload);
@@ -103,8 +110,10 @@ const handleCallback = async (code: string, state?: string): Promise<LineLoginRe
     token,
     user: {
       id: upsertedUser.id,
-      displayName: upsertedUser.displayName ?? upsertedUser.fullName,
+      displayName,
       pictureUrl: upsertedUser.pictureUrl,
+      role: upsertedUser.role,
+      registrationStatus: upsertedUser.registrationStatus,
     },
   };
 };
