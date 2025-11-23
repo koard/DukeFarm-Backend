@@ -10,37 +10,18 @@ Node.js + TypeScript + Express backend that powers the DukeFarm catfish producti
 - JWT + bcrypt authentication
 - Google Maps Platform Weather API (HTTP client via native `fetch`)
 
-## Project Structure
+## Dashboard Architecture
 
-```
-src/
-  app.ts                # Express application wiring
-  server.ts             # HTTP bootstrap + graceful shutdown
-  config/
-    stats.routes.ts
-    v1/
-      index.ts
-      health.routes.ts
-      weather.routes.ts
-  services/
-    access.service.ts
-- All routers are mounted under `/api`, so `/auth`, `/home`, `/onboarding`, and `/cycles` live at `/api/...` paths.
-- Unauthorized requests return `401`; lacking permissions returns `403`, confirming the access guards are working.
-- You can keep using `localhost` for everyday development; ngrok is required only for LINE's callback.
-- Farmer onboarding now captures farm metadata (including coordinates) directly on the user record; standalone farm/pond CRUD endpoints have been retired.
-- Home overview supports group values `NURSERY_SMALL`, `NURSERY_LARGE`, and `GROWOUT`; pick the one that matches the farm type you want to display on the dashboard.
-    weather.service.ts
-  types/
-    farm.ts
-    pond.ts
-  utils/
-    jwt.ts
-    lineApi.ts
-    logger.ts
-    number.ts
-prisma/
-  schema.prisma         # Database schema
-```
+The home dashboard for each farm group (nursery small/large, growout) follows a data-first architecture:
+
+- **Service Layer** is modular:
+  - `FeedingCalculator` generates 7-day feeding plans adjusted by current temperature and weather forecast.
+  - `NurserySmallDashboardService` (and future group-specific services) orchestrate weather data fetching, temperature analysis, and feeding plan generation.
+  - Optimal temperature ranges (28-32°C comfort range) are hardcoded as constants since they're consistent across all catfish production stages.
+- **HomeService** acts as a router, delegating requests to the appropriate group dashboard service based on `farmType`.
+- **Frontend Responsibility:** All UI text (alert messages, feeding guidance, tips) is rendered client-side. Backend provides only numeric data (`airTemperatureC`, `temperatureDeltaC`, `comfortRangeC`, `recommendedFeedAdjustmentPct`) for the frontend to interpret.
+
+This design separates data/calculations (backend) from presentation/localization (frontend), allowing UI updates without backend changes.
 
 ## Prerequisites
 
@@ -153,5 +134,5 @@ Tips:
 1. Provision a PostgreSQL database and set `DATABASE_URL` in `.env`.
 2. Enable Google Maps Platform Weather API and place the key in `.env`.
 3. Run `npm run prisma:migrate` to create tables defined in `prisma/schema.prisma`.
-4. Seed initial data (users, production cycles, etc.) using Prisma Studio or a custom seed script.
-5. Start the API locally with `npm run dev` and hit `GET http://localhost:4000/api/v1/health` to verify.
+4. Seed initial data (users, farms, production cycles, etc.) as needed for testing.
+6. Start the API locally with `npm run dev` and hit `GET http://localhost:4000/api/v1/health` to verify.

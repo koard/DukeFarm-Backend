@@ -1,6 +1,6 @@
 # DukeFarm API Specification
 
-_Last updated: 2025-11-21_
+_Last updated: 2025-11-23_
 
 ## Overview
 - **Base URL:** `/api`
@@ -144,8 +144,14 @@ Lightweight unauthenticated probe returning `{ "status": "ok" }` when the server
 ### GET `/home/groups/:groupType`
 - **Auth:** any logged-in user.
 - **Path params:** `groupType` must be one of `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT` (case-insensitive).
-- **Behavior:** Aggregates recent `daily_records`, computes average water temperature, attaches preset feeding tips, and fetches weather using the first farm in the group that has coordinates.
-- **Response:**
+- **Behavior:** 
+  - Uses hardcoded optimal temperature ranges (28-32°C comfort, 26-34°C critical) consistent across all catfish production stages.
+  - Fetches current weather via Google Weather API using the first farm in the group that has coordinates.
+  - Computes temperature delta from comfort range and recommended feed adjustment percentage (5% per degree).
+  - Generates a 7-day feeding plan with temperature-adjusted rations (base 5kg for nursery small).
+  - Returns 501 for `NURSERY_LARGE` and `GROWOUT` until those services are implemented.
+  - **Frontend responsibility:** All UI text (alert messages, feeding guidance, tips) is rendered client-side using the numeric data provided.
+- **Response (NURSERY_SMALL):**
 ```json
 {
   "data": {
@@ -153,38 +159,44 @@ Lightweight unauthenticated probe returning `{ "status": "ok" }` when the server
     "hasData": true,
     "summary": {
       "asOf": "2025-11-20T10:15:00.000Z",
-      "averageWaterTemperatureC": 29.5,
-      "alertLevel": "warning",
-      "alertMessage": "อุณหภูมิสูงกว่าช่วงแนะนำ 1.5°C เพิ่มการถ่ายน้ำและให้ออกซิเจน",
-      "tips": ["รักษา DO ให้อยู่เหนือ 5 mg/L"],
+      "airTemperatureC": 37.5,
+      "temperatureDeltaC": 5.5,
+      "comfortRangeC": { "min": 28, "max": 32 },
+      "recommendedFeedAdjustmentPct": 28,
       "weather": {
         "time": "2025-11-20T10:10:00Z",
-        "temperatureC": 30.2,
-        "humidityPct": 78,
-        "windSpeedKph": 12.1,
+        "temperatureC": 37.5,
+        "humidityPct": 65,
+        "windSpeedKph": 10.5,
         "rainMm": 0.0,
-        "conditionText": "Partly Cloudy"
+        "conditionText": "Sunny"
       }
     },
-    "feedingRecommendation": {
-      "stageLabel": "16-30 วัน",
-      "biomassRangeKg": "0.01 - 0.02",
-      "notes": ["ให้อาหารวันละ 4-5 มื้อ ปรับตามพฤติกรรมกิน"]
-    },
-    "recentDailyRecords": [
+    "feedingPlan": [
       {
-        "recordDate": "2025-11-20T10:15:00.000Z",
-        "waterTemperatureC": 30.1,
-        "dissolvedOxygenMgL": 5.8,
-        "ph": 7.6,
-        "ammoniaMgL": 0.02,
-        "nitriteMgL": 0.01
+        "date": "2025-11-20T00:00:00.000Z",
+        "highTemperatureC": 37.5,
+        "lowTemperatureC": 33.5,
+        "recommendedFeedKg": 4.0
+      },
+      {
+        "date": "2025-11-21T00:00:00.000Z",
+        "highTemperatureC": 38.2,
+        "lowTemperatureC": 34.2,
+        "recommendedFeedKg": 3.9
       }
     ]
   }
 }
 ```
-- When the user has no farms in that group, `hasData` is `false`, `recentDailyRecords` is empty, and `summary.alertMessage` explains the missing data.
+- **No-data state:** When the user has no farms in that group, `hasData` is `false`, `temperatureDeltaC` is `null`, and `feedingPlan` uses base feed amounts without temperature adjustment.
+- **Temperature calculations:** 
+  - `temperatureDeltaC`: Difference from comfort boundary (negative = too cold, positive = too hot, 0 = within range, null = no data).
+  - `recommendedFeedAdjustmentPct`: Percentage to adjust feed amount (5% per degree deviation). Positive = increase feed (cold weather), negative = decrease feed (hot weather).
+- **Frontend responsibility:** 
+  - Determine alert severity by checking `temperatureDeltaC` against critical thresholds (e.g., ±2°C from comfort range).
+  - Render localized alert messages, feeding guidance, and tips based on temperature data.
+  - Display feeding stage information (age ranges, pellet size, protein %, feeding frequency) as static content maintained client-side.
 
 ## Production Cycle Stats
 ### GET `/cycles/:id/stats`

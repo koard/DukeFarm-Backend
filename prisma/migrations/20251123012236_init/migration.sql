@@ -230,8 +230,8 @@ CREATE TABLE "farmer_profiles" (
     "phone" TEXT NOT NULL,
     "farming_group" "FarmingGroup" NOT NULL,
     "declared_pond_count" INTEGER,
-    "farm_role" TEXT,
-    "farm_name" TEXT,
+    "farm_latitude" DOUBLE PRECISION,
+    "farm_longitude" DOUBLE PRECISION,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
