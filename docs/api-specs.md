@@ -19,7 +19,7 @@ _Last updated: 2025-11-23_
 | POST | `/onboarding/role` | Auth (any) | Select either FARMER or RESEARCHER role from onboarding UI. |
 | POST | `/onboarding/farmer` | Auth (any) | Submit farmer-specific onboarding form. |
 | POST | `/onboarding/researcher` | Auth (any) | Submit researcher-specific onboarding form. |
-
+| GET | `/auth/me` | Auth (any) | Get current authenticated user with profile data. |
 | GET | `/v1/weather?lat&lng` | Auth (any) | Weather lookup by coordinates (Google Weather proxy). |
 
 > **Note:** Express also exposes `GET /healthz` outside `/api` for container orchestration probes.
@@ -124,6 +124,36 @@ Returns the LINE authorization URL plus the server-generated `state`. The client
 - **Validation:** `firstName`, `lastName`, `email`, `phone`, `organization` required; `department` and `jobTitle` optional strings.
 - **Behavior:** Upserts the `researcher_profiles` row, removes any farmer profile, and updates the user to `{ role: RESEARCHER, registrationStatus: COMPLETED }`.
 - **Response:** Mirrors the farmer endpoint but with researcher profile fields.
+
+## User Profile
+### GET `/auth/me`
+- **Auth:** any logged-in user.
+- **Response:**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "lineUserId": "U123...",
+    "displayName": "John Doe",
+    "pictureUrl": "https://profile.line.me/...",
+    "role": "FARMER",
+    "registrationStatus": "COMPLETED",
+    "createdAt": "2025-11-24T00:00:00.000Z",
+    "farmerProfile": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "phone": "0812345678",
+      "primaryFarmType": "NURSERY_SMALL",
+      "declaredPondCount": 3,
+      "farmLatitude": 13.7563,
+      "farmLongitude": 100.5018
+    },
+    "researcherProfile": null
+  }
+}
+```
+- Returns complete user data including farmer or researcher profile depending on role.
+- `farmerProfile` is `null` if user is not a farmer; `researcherProfile` is `null` if user is not a researcher.
 
 ## Health & Diagnostics
 ### GET `/v1/health`
