@@ -74,13 +74,13 @@ Returns the LINE authorization URL plus the server-generated `state`. The client
   "firstName": "Somchai",
   "lastName": "Prasert",
   "phone": "0812345678",
-  "farmingGroup": "SMALL_SCALE",
+  "primaryFarmType": "NURSERY_SMALL",
   "declaredPondCount": 4,
   "farmLatitude": 14.077,
   "farmLongitude": 100.608
 }
 ```
-- **Validation:** `firstName`, `lastName`, `phone`, `farmingGroup`, `farmLatitude`, and `farmLongitude` required. `farmingGroup` must be one of `SMALL_SCALE`, `LARGE_SCALE`, `MARKET_SUPPLIER` (case-insensitive). `declaredPondCount` must be a non-negative integer when provided. `farmLatitude` must be between -90 and 90, `farmLongitude` between -180 and 180.
+- **Validation:** `firstName`, `lastName`, `phone`, `primaryFarmType`, `farmLatitude`, and `farmLongitude` required. `primaryFarmType` must be one of `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT` (case-insensitive). `declaredPondCount` must be a non-negative integer when provided. `farmLatitude` must be between -90 and 90, `farmLongitude` between -180 and 180.
 - **Behavior:** Upserts the `farmer_profiles` record, removes any researcher profile, and updates the user to `{ role: FARMER, registrationStatus: COMPLETED }`.
 - **Response:**
 ```json
@@ -91,7 +91,7 @@ Returns the LINE authorization URL plus the server-generated `state`. The client
       "firstName": "Somchai",
       "lastName": "Prasert",
       "phone": "0812345678",
-      "farmingGroup": "SMALL_SCALE",
+      "primaryFarmType": "NURSERY_SMALL",
       "declaredPondCount": 4,
       "farmLatitude": 14.077,
       "farmLongitude": 100.608,

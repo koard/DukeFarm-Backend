@@ -10,19 +10,6 @@ Node.js + TypeScript + Express backend that powers the DukeFarm catfish producti
 - JWT + bcrypt authentication
 - Google Maps Platform Weather API (HTTP client via native `fetch`)
 
-## Dashboard Architecture
-
-The home dashboard for each farm group (nursery small/large, growout) follows a data-first architecture:
-
-- **Service Layer** is modular:
-  - `FeedingCalculator` generates 7-day feeding plans adjusted by current temperature and weather forecast.
-  - `NurserySmallDashboardService` (and future group-specific services) orchestrate weather data fetching, temperature analysis, and feeding plan generation.
-  - Optimal temperature ranges (28-32°C comfort range) are hardcoded as constants since they're consistent across all catfish production stages.
-- **HomeService** acts as a router, delegating requests to the appropriate group dashboard service based on `farmType`.
-- **Frontend Responsibility:** All UI text (alert messages, feeding guidance, tips) is rendered client-side. Backend provides only numeric data (`airTemperatureC`, `temperatureDeltaC`, `comfortRangeC`, `recommendedFeedAdjustmentPct`) for the frontend to interpret.
-
-This design separates data/calculations (backend) from presentation/localization (frontend), allowing UI updates without backend changes.
-
 ## Prerequisites
 
 - Node.js 18+

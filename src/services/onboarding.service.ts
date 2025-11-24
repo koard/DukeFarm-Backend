@@ -1,5 +1,4 @@
 import {
-  FarmingGroup,
   RegistrationStatus,
   UserRole,
   FarmerProfile as FarmerProfileModel,
@@ -14,7 +13,7 @@ type FarmerProfilePayload = {
   firstName: string;
   lastName: string;
   phone: string;
-  farmingGroup: FarmingGroup;
+  primaryFarmType: 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT';
   declaredPondCount: number | null;
   farmLatitude: number;
   farmLongitude: number;

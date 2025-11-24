@@ -19,12 +19,6 @@ enum RegistrationStatus {
   COMPLETED
 }
 
-enum FarmingGroup {
-  SMALL_SCALE
-  LARGE_SCALE
-  MARKET_SUPPLIER
-}
-
 enum FarmType {
   NURSERY_SMALL
   NURSERY_LARGE
@@ -290,7 +284,7 @@ model FarmerProfile {
   firstName         String        @map("first_name")
   lastName          String        @map("last_name")
   phone             String        @map("phone")
-  farmingGroup      FarmingGroup  @map("farming_group")
+  primaryFarmType   FarmType      @map("primary_farm_type")
   declaredPondCount Int?          @map("declared_pond_count")
   farmLatitude      Float?        @map("farm_latitude")
   farmLongitude     Float?        @map("farm_longitude")

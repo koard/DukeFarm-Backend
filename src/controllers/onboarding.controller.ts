@@ -1,4 +1,4 @@
-import { FarmingGroup, UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { NextFunction, Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { createHttpError } from '../utils/httpError';
@@ -52,17 +52,19 @@ const parseRole = (raw: unknown): UserRole => {
   return normalized as UserRole;
 };
 
-const parseFarmingGroup = (raw: unknown): FarmingGroup => {
+const parseFarmType = (raw: unknown): 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT' => {
   if (typeof raw !== 'string') {
-    throw createHttpError(400, 'farmingGroup is required');
+    throw createHttpError(400, 'primaryFarmType is required');
   }
 
   const normalized = raw.toUpperCase();
-  if (!(Object.values(FarmingGroup) as string[]).includes(normalized)) {
-    throw createHttpError(400, `farmingGroup must be one of: ${Object.values(FarmingGroup).join(', ')}`);
+  const validTypes = ['NURSERY_SMALL', 'NURSERY_LARGE', 'GROWOUT'];
+  
+  if (!validTypes.includes(normalized)) {
+    throw createHttpError(400, `primaryFarmType must be one of: ${validTypes.join(', ')}`);
   }
 
-  return normalized as FarmingGroup;
+  return normalized as 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT';
 };
 
 const parseDeclaredPondCount = (value: unknown): number | null => {
@@ -123,7 +125,7 @@ const submitFarmerProfile = async (req: AuthenticatedRequest, res: Response, nex
       firstName: requireTrimmedString(req.body?.firstName, 'firstName'),
       lastName: requireTrimmedString(req.body?.lastName, 'lastName'),
       phone: requireTrimmedString(req.body?.phone, 'phone'),
-      farmingGroup: parseFarmingGroup(req.body?.farmingGroup),
+      primaryFarmType: parseFarmType(req.body?.primaryFarmType),
       declaredPondCount: parseDeclaredPondCount(req.body?.declaredPondCount),
       farmLatitude: parseLatitude(req.body?.farmLatitude),
       farmLongitude: parseLongitude(req.body?.farmLongitude),
