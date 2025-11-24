@@ -9,22 +9,41 @@ _Last updated: 2025-11-23_
 - **Response envelope:** Successful business responses use `{ "data": <payload> }` unless noted (e.g., `GET /auth/line/login`). Errors use `{ "message": string }` plus optional validation details.
 - **Roles:** `ADMIN`, `FARMER`, `RESEARCHER`. Role middleware re-fetches the latest role from the database before authorizing each request.
 
-## Endpoint Matrix
+## Endpoint Matrix (User Flow Order)
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
+| GET | `/v1/health` | Public | Service + DB readiness probe. |
 | GET | `/auth/line/login` | Public | Generate LINE Login URL + state nonce. |
 | GET | `/auth/line/callback` | Public | Exchange LINE authorization code for JWT + user payload. |
-| GET | `/v1/health` | Public | Service + DB readiness probe. |
-| GET | `/home/groups/:groupType` | Auth (any) | Farm-group overview dashboard for the authenticated owner. |
+| GET | `/auth/me` | Auth (any) | Get current authenticated user with profile data. |
 | POST | `/onboarding/role` | Auth (any) | Select either FARMER or RESEARCHER role from onboarding UI. |
 | POST | `/onboarding/farmer` | Auth (any) | Submit farmer-specific onboarding form. |
 | POST | `/onboarding/researcher` | Auth (any) | Submit researcher-specific onboarding form. |
-| GET | `/auth/me` | Auth (any) | Get current authenticated user with profile data. |
+| GET | `/home/groups/:groupType` | Auth (any) | Farm-group overview dashboard for the authenticated owner. |
 | GET | `/v1/weather?lat&lng` | Auth (any) | Weather lookup by coordinates (Google Weather proxy). |
 
 > **Note:** Express also exposes `GET /healthz` outside `/api` for container orchestration probes.
 
-## Authentication & User Session
+---
+
+## 1. Health & Diagnostics
+### GET `/v1/health`
+Checks DB connectivity.
+```json
+{
+  "status": "ok",
+  "database": "connected",
+  "uptimeSeconds": 123.45,
+  "host": "api-hostname"
+}
+```
+
+### GET `/healthz`
+Lightweight unauthenticated probe returning `{ "status": "ok" }` when the server is responsive.
+
+---
+
+## 2. Authentication & User Session
 ### GET `/auth/line/login`
 Returns the LINE authorization URL plus the server-generated `state`. The client must persist `state` and send it back to `/auth/line/callback`.
 ```json
@@ -50,7 +69,38 @@ Returns the LINE authorization URL plus the server-generated `state`. The client
 ```
 - JWT payload fields: `sub`, `provider`, `displayName`, optional `pictureUrl`, `role`, `registrationStatus`. Token TTL = 7 days.
 
-## Onboarding & Role Selection
+### GET `/auth/me`
+- **Auth:** any logged-in user.
+- **Response:**
+```json
+{
+  "data": {
+    "id": "uuid",
+    "lineUserId": "U123...",
+    "displayName": "John Doe",
+    "pictureUrl": "https://profile.line.me/...",
+    "role": "FARMER",
+    "registrationStatus": "COMPLETED",
+    "createdAt": "2025-11-24T00:00:00.000Z",
+    "farmerProfile": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "phone": "0812345678",
+      "primaryFarmType": "NURSERY_SMALL",
+      "declaredPondCount": 3,
+      "farmLatitude": 13.7563,
+      "farmLongitude": 100.5018
+    },
+    "researcherProfile": null
+  }
+}
+```
+- Returns complete user data including farmer or researcher profile depending on role.
+- `farmerProfile` is `null` if user is not a farmer; `researcherProfile` is `null` if user is not a researcher.
+
+---
+
+## 3. Onboarding & Role Selection
 ### POST `/onboarding/role`
 - **Auth:** any logged-in user (typically `UNASSIGNED`).
 - **Body:** `{ "role": "FARMER" | "RESEARCHER" }` (case-insensitive).
@@ -125,52 +175,9 @@ Returns the LINE authorization URL plus the server-generated `state`. The client
 - **Behavior:** Upserts the `researcher_profiles` row, removes any farmer profile, and updates the user to `{ role: RESEARCHER, registrationStatus: COMPLETED }`.
 - **Response:** Mirrors the farmer endpoint but with researcher profile fields.
 
-## User Profile
-### GET `/auth/me`
-- **Auth:** any logged-in user.
-- **Response:**
-```json
-{
-  "data": {
-    "id": "uuid",
-    "lineUserId": "U123...",
-    "displayName": "John Doe",
-    "pictureUrl": "https://profile.line.me/...",
-    "role": "FARMER",
-    "registrationStatus": "COMPLETED",
-    "createdAt": "2025-11-24T00:00:00.000Z",
-    "farmerProfile": {
-      "firstName": "John",
-      "lastName": "Doe",
-      "phone": "0812345678",
-      "primaryFarmType": "NURSERY_SMALL",
-      "declaredPondCount": 3,
-      "farmLatitude": 13.7563,
-      "farmLongitude": 100.5018
-    },
-    "researcherProfile": null
-  }
-}
-```
-- Returns complete user data including farmer or researcher profile depending on role.
-- `farmerProfile` is `null` if user is not a farmer; `researcherProfile` is `null` if user is not a researcher.
+---
 
-## Health & Diagnostics
-### GET `/v1/health`
-Checks DB connectivity.
-```json
-{
-  "status": "ok",
-  "database": "connected",
-  "uptimeSeconds": 123.45,
-  "host": "api-hostname"
-}
-```
-
-### GET `/healthz`
-Lightweight unauthenticated probe returning `{ "status": "ok" }` when the server is responsive.
-
-## Home Dashboard
+## 4. Home Dashboard
 ### GET `/home/groups/:groupType`
 - **Auth:** any logged-in user.
 - **Path params:** `groupType` must be one of `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT` (case-insensitive).
@@ -228,11 +235,15 @@ Lightweight unauthenticated probe returning `{ "status": "ok" }` when the server
   - Render localized alert messages, feeding guidance, and tips based on temperature data.
   - Display feeding stage information (age ranges, pellet size, protein %, feeding frequency) as static content maintained client-side.
 
-## Weather Proxy
+---
+
+## 5. Weather Proxy
 ### GET `/v1/weather?lat=<number>&lng=<number>`
 - **Auth:** any authenticated user.
 - **Query params:** both required, numeric.
 - **Response:** `{ "data": CurrentWeather }` from `WeatherService.getCurrentWeather` (same shape as in Home dashboard weather block).
+
+---
 
 ## Error Handling
 - `401` if JWT missing/invalid.
