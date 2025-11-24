@@ -19,7 +19,7 @@ _Last updated: 2025-11-23_
 | POST | `/onboarding/role` | Auth (any) | Select either FARMER or RESEARCHER role from onboarding UI. |
 | POST | `/onboarding/farmer` | Auth (any) | Submit farmer-specific onboarding form. |
 | POST | `/onboarding/researcher` | Auth (any) | Submit researcher-specific onboarding form. |
-| GET | `/cycles/:id/stats` | Auth + `ADMIN`/`FARMER`/`RESEARCHER` | Aggregated production-cycle KPIs (FCR, survival, etc.). |
+
 | GET | `/v1/weather?lat&lng` | Auth (any) | Weather lookup by coordinates (Google Weather proxy). |
 
 > **Note:** Express also exposes `GET /healthz` outside `/api` for container orchestration probes.
@@ -197,25 +197,6 @@ Lightweight unauthenticated probe returning `{ "status": "ok" }` when the server
   - Determine alert severity by checking `temperatureDeltaC` against critical thresholds (e.g., ±2°C from comfort range).
   - Render localized alert messages, feeding guidance, and tips based on temperature data.
   - Display feeding stage information (age ranges, pellet size, protein %, feeding frequency) as static content maintained client-side.
-
-## Production Cycle Stats
-### GET `/cycles/:id/stats`
-- **Auth:** `ADMIN`, `FARMER`, `RESEARCHER` (researchers may access via `AccessService.ensureCycleAccess`).
-- **Response:**
-```json
-{
-  "data": {
-    "cycleId": "uuid",
-    "pondId": "uuid",
-    "totalFeedKg": 1520.5,
-    "firstWeightKg": 0.09,
-    "lastWeightKg": 0.32,
-    "fcr": 1.95,
-    "survivalRatePct": 89.4
-  }
-}
-```
-- `fcr`/`survivalRatePct` become `null` if insufficient inputs (e.g., missing growth measurements or `initialStockCount`).
 
 ## Weather Proxy
 ### GET `/v1/weather?lat=<number>&lng=<number>`

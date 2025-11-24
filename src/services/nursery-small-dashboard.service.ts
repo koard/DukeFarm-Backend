@@ -64,12 +64,18 @@ const fetchWeather = async (
 };
 
 const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
-  const farms = await prisma.farm.findMany({
-    where: { ownerId: userId, farmType: FarmType.NURSERY_SMALL },
-    select: { id: true, latitude: true, longitude: true },
+  // Get farmer profile for location data
+  const farmerProfile = await prisma.farmerProfile.findUnique({
+    where: { userId },
+    select: { 
+      primaryFarmType: true, 
+      farmLatitude: true, 
+      farmLongitude: true 
+    },
   });
 
-  if (!farms.length) {
+  // Check if this user is a farmer with NURSERY_SMALL farm
+  if (!farmerProfile || farmerProfile.primaryFarmType !== FarmType.NURSERY_SMALL) {
     return {
       group: FarmType.NURSERY_SMALL,
       hasData: false,
@@ -90,7 +96,21 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
     };
   }
 
-  const weather = await fetchWeather(farms);
+  // Fetch weather using farmer profile location
+  let weather: CurrentWeather | null = null;
+  if (farmerProfile.farmLatitude !== null && farmerProfile.farmLongitude !== null) {
+    try {
+      weather = await WeatherService.getCurrentWeather(
+        farmerProfile.farmLatitude,
+        farmerProfile.farmLongitude,
+      );
+    } catch (error) {
+      logger.warn('Unable to fetch weather for nursery small dashboard', {
+        userId,
+        error,
+      });
+    }
+  }
   const airTemperatureC = weather?.temperatureC ?? null;
 
   let temperatureDeltaC: number | null = null;
