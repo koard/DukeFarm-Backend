@@ -89,7 +89,7 @@ const handleCallback = async (code: string, state?: string): Promise<LineLoginRe
     update: {
       displayName: ensureDisplayName(profile.displayName),
       pictureUrl: profile.pictureUrl ?? null,
-      ...(role ? { role, registrationStatus: RegistrationStatus.PENDING } : {}),
+      ...(role ? { role } : {}),
     },
     create: {
       passwordHash: crypto.randomBytes(32).toString('hex'),
