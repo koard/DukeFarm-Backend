@@ -115,6 +115,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
   let recommendedFeedAdjustmentPct = 0;
 
   if (airTemperatureC !== null) {
+    // Calculate delta from comfort range
     if (airTemperatureC < COMFORT_TEMP_RANGE.min) {
       temperatureDeltaC = airTemperatureC - COMFORT_TEMP_RANGE.min;
     } else if (airTemperatureC > COMFORT_TEMP_RANGE.max) {
@@ -123,9 +124,12 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
       temperatureDeltaC = 0;
     }
 
-    if (temperatureDeltaC !== 0) {
-      recommendedFeedAdjustmentPct = Math.round(temperatureDeltaC * 0.05 * 100); // 5% per degree
-    }
+    // Use the same logic as feeding plan calculation
+    const { adjustmentPct } = FeedingCalculator.computeFeedAdjustment(
+      airTemperatureC,
+      TEMP_RANGE_FOR_CALC,
+    );
+    recommendedFeedAdjustmentPct = adjustmentPct;
   }
 
   const asOf = new Date().toISOString();
