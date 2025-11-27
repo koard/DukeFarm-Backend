@@ -1,7 +1,5 @@
 # 🐟 DukeFarm Backend API
 
-> **Enterprise-grade backend service** for DukeFarm catfish production management platform, developed for Betagro & Kasetsart University research collaboration.
-
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-22+-green.svg)](https://nodejs.org/)
 [![Express](https://img.shields.io/badge/Express-5.1-lightgrey.svg)](https://expressjs.com/)
