@@ -163,18 +163,19 @@ model FeedType {
 }
 
 model FeedFormula {
-  id             String                   @id @default(uuid()) @db.Uuid
-  name           String
-  description    String?
-  targetStage    String?                  @map("target_stage")
-  farmId         String?                  @map("farm_id") @db.Uuid
-  ownerId        String?                  @map("owner_id") @db.Uuid
-  farm           Farm?                    @relation(fields: [farmId], references: [id])
-  owner          User?                    @relation(fields: [ownerId], references: [id])
-  ingredients    FeedFormulaIngredient[]
-  feedings       Feeding[]
-  createdAt      DateTime                 @default(now()) @map("created_at")
-  updatedAt      DateTime                 @default(now()) @updatedAt @map("updated_at")
+  id              String                   @id @default(uuid()) @db.Uuid
+  name            String
+  description     String?
+  recommendations String?
+  targetStage     String?                  @map("target_stage")
+  farmId          String?                  @map("farm_id") @db.Uuid
+  ownerId         String?                  @map("owner_id") @db.Uuid
+  farm            Farm?                    @relation(fields: [farmId], references: [id])
+  owner           User?                    @relation(fields: [ownerId], references: [id])
+  ingredients     FeedFormulaIngredient[]
+  feedings        Feeding[]
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @default(now()) @updatedAt @map("updated_at")
 
   @@map("feed_formulas")
 }
