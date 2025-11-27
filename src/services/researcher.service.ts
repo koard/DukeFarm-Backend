@@ -1,0 +1,298 @@
+import { prisma } from '../clients/prisma';
+
+type ResearcherListItem = {
+  no: number;
+  userId: string;
+  fullName: string;
+  phone: string;
+  organization: string;
+  department: string | null;
+  registeredAt: string;
+};
+
+type PaginationParams = {
+  page: number;
+  limit: number;
+};
+
+type ResearcherListResponse = {
+  data: ResearcherListItem[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+  };
+};
+
+type ResearchSurveyListItem = {
+  no: number;
+  surveyId: string;
+  surveyDate: string;
+  surveyType: string;
+  farmerName: string;
+  farmType: string;
+  pondCount: number;
+  createdAt: string;
+};
+
+type ResearchSurveyListResponse = {
+  data: ResearchSurveyListItem[];
+  pagination: {
+    currentPage: number;
+    totalPages: number;
+    totalItems: number;
+    itemsPerPage: number;
+  };
+};
+
+type ResearchSurveyDetail = {
+  surveyId: string;
+  surveyDate: string;
+  surveyType: string;
+  conductedBy: string | null;
+  partnerOrganization: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  farmer: {
+    userId: string;
+    fullName: string;
+    phone: string;
+    farmCoordinates: string | null;
+    totalFarmAreaM2: string | null;
+    pondCount: number | null;
+  };
+  farmData: {
+    ageRange: string | null;
+    pondType: string | null;
+    pondCount: number | null;
+    fishCount: number | null;
+  };
+  feedingData: {
+    feedType: string | null;
+    feedAmountKg: string | null;
+  };
+  waterQuality: {
+    dissolvedOxygenMgL: number | null;
+    temperatureC: number | null;
+    ph: number | null;
+    alkalinityMgL: number | null;
+    ammoniaMgL: number | null;
+  };
+};
+
+const getResearcherList = async (params: PaginationParams): Promise<ResearcherListResponse> => {
+  const { page, limit } = params;
+  const skip = (page - 1) * limit;
+
+  const [researchers, totalCount] = await Promise.all([
+    prisma.user.findMany({
+      where: {
+        role: 'RESEARCHER',
+        registrationStatus: 'COMPLETED',
+      },
+      include: {
+        researcherProfile: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip,
+      take: limit,
+    }),
+    prisma.user.count({
+      where: {
+        role: 'RESEARCHER',
+        registrationStatus: 'COMPLETED',
+      },
+    }),
+  ]);
+
+  const data: ResearcherListItem[] = researchers.map((researcher, index) => ({
+    no: skip + index + 1,
+    userId: researcher.id,
+    fullName: researcher.researcherProfile
+      ? `${researcher.researcherProfile.firstName} ${researcher.researcherProfile.lastName}`
+      : researcher.displayName || 'N/A',
+    phone: researcher.researcherProfile?.phone || '-',
+    organization: researcher.researcherProfile?.organization || '-',
+    department: researcher.researcherProfile?.department || null,
+    registeredAt: researcher.createdAt.toISOString(),
+  }));
+
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return {
+    data,
+    pagination: {
+      currentPage: page,
+      totalPages,
+      totalItems: totalCount,
+      itemsPerPage: limit,
+    },
+  };
+};
+
+const getResearchSurveysByResearcher = async (
+  researcherId: string,
+  params: PaginationParams,
+): Promise<ResearchSurveyListResponse> => {
+  const { page, limit } = params;
+  const skip = (page - 1) * limit;
+
+  // Get surveys conducted by this researcher
+  const [surveys, totalCount] = await Promise.all([
+    prisma.researchSurvey.findMany({
+      where: {
+        conductedBy: researcherId,
+      },
+      include: {
+        productionCycle: {
+          include: {
+            pond: {
+              include: {
+                farm: {
+                  include: {
+                    owner: {
+                      include: {
+                        farmerProfile: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        surveyDate: 'desc',
+      },
+      skip,
+      take: limit,
+    }),
+    prisma.researchSurvey.count({
+      where: {
+        conductedBy: researcherId,
+      },
+    }),
+  ]);
+
+  const data: ResearchSurveyListItem[] = surveys.map((survey, index) => {
+    const farmer = survey.productionCycle.pond.farm.owner;
+    const farmerProfile = farmer.farmerProfile;
+
+    return {
+      no: skip + index + 1,
+      surveyId: survey.id,
+      surveyDate: survey.surveyDate.toISOString(),
+      surveyType: survey.surveyType,
+      farmerName: farmerProfile
+        ? `${farmerProfile.firstName} ${farmerProfile.lastName}`
+        : farmer.displayName || 'N/A',
+      farmType: survey.productionCycle.pond.farm.farmType,
+      pondCount: farmerProfile?.declaredPondCount || 0,
+      createdAt: survey.createdAt.toISOString(),
+    };
+  });
+
+  const totalPages = Math.ceil(totalCount / limit);
+
+  return {
+    data,
+    pagination: {
+      currentPage: page,
+      totalPages,
+      totalItems: totalCount,
+      itemsPerPage: limit,
+    },
+  };
+};
+
+const getResearchSurveyDetail = async (surveyId: string): Promise<ResearchSurveyDetail | null> => {
+  const survey = await prisma.researchSurvey.findUnique({
+    where: { id: surveyId },
+    include: {
+      productionCycle: {
+        include: {
+          pond: {
+            include: {
+              farm: {
+                include: {
+                  owner: {
+                    include: {
+                      farmerProfile: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!survey) {
+    return null;
+  }
+
+  const farmer = survey.productionCycle.pond.farm.owner;
+  const farmerProfile = farmer.farmerProfile;
+  const pond = survey.productionCycle.pond;
+  const farm = pond.farm;
+
+  // Parse dataPayload (stored as JSON)
+  const payload = (survey.dataPayload as any) || {};
+
+  // Construct farm coordinates string
+  const farmCoordinates =
+    farmerProfile?.farmLatitude && farmerProfile?.farmLongitude
+      ? `${farmerProfile.farmLatitude},${farmerProfile.farmLongitude}`
+      : null;
+
+  return {
+    surveyId: survey.id,
+    surveyDate: survey.surveyDate.toISOString(),
+    surveyType: survey.surveyType,
+    conductedBy: survey.conductedBy,
+    partnerOrganization: survey.partnerOrganization,
+    notes: survey.notes,
+    createdAt: survey.createdAt.toISOString(),
+    updatedAt: survey.updatedAt.toISOString(),
+    farmer: {
+      userId: farmer.id,
+      fullName: farmerProfile
+        ? `${farmerProfile.firstName} ${farmerProfile.lastName}`
+        : farmer.displayName || 'N/A',
+      phone: farmerProfile?.phone || '-',
+      farmCoordinates,
+      totalFarmAreaM2: farm.areaM2?.toString() || null,
+      pondCount: farmerProfile?.declaredPondCount || null,
+    },
+    farmData: {
+      ageRange: payload.farmData?.ageRange || null,
+      pondType: pond.pondType || null,
+      pondCount: payload.farmData?.pondCount || null,
+      fishCount: survey.productionCycle.initialStockCount || null,
+    },
+    feedingData: {
+      feedType: payload.feedingData?.feedType || null,
+      feedAmountKg: payload.feedingData?.feedAmountKg || null,
+    },
+    waterQuality: {
+      dissolvedOxygenMgL: payload.waterQuality?.dissolvedOxygenMgL || null,
+      temperatureC: payload.waterQuality?.temperatureC || null,
+      ph: payload.waterQuality?.ph || null,
+      alkalinityMgL: payload.waterQuality?.alkalinityMgL || null,
+      ammoniaMgL: payload.waterQuality?.ammoniaMgL || null,
+    },
+  };
+};
+
+export const ResearcherService = {
+  getResearcherList,
+  getResearchSurveysByResearcher,
+  getResearchSurveyDetail,
+};

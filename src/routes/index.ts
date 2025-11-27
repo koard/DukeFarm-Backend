@@ -5,6 +5,7 @@ import { homeRouter } from './home.routes';
 import { onboardingRouter } from './onboarding.routes';
 import { farmerRouter } from './farmer.routes';
 import { feedFormulaRouter } from './feed-formula.routes';
+import { researcherRouter } from './researcher.routes';
 
 const router = Router();
 
@@ -13,6 +14,7 @@ router.use('/auth', authRouter);
 router.use('/onboarding', onboardingRouter);
 router.use('/farmers', farmerRouter);
 router.use('/feed-formulas', feedFormulaRouter);
+router.use('/researchers', researcherRouter);
 router.use('/', homeRouter);
 
 export { router };
