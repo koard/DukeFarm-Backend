@@ -1,6 +1,6 @@
 # DukeFarm API Specification
 
-_Last updated: 2025-11-23_
+_Last updated: 2025-11-27_
 
 ## Overview
 - **Base URL:** `/api`
@@ -13,7 +13,7 @@ _Last updated: 2025-11-23_
 | Method | Path | Auth | Description |
 | --- | --- | --- | --- |
 | GET | `/v1/health` | Public | Service + DB readiness probe. |
-| GET | `/auth/line/login` | Public | Generate LINE Login URL + state nonce. |
+| GET | `/auth/line/login?role=<optional>` | Public | Generate LINE Login URL with optional role pre-selection. |
 | GET | `/auth/line/callback` | Public | Exchange LINE authorization code for JWT + user payload. |
 | GET | `/auth/me` | Auth (any) | Get current authenticated user with profile data. |
 | POST | `/onboarding/role` | Auth (any) | Select either FARMER or RESEARCHER role from onboarding UI. |
@@ -23,6 +23,25 @@ _Last updated: 2025-11-23_
 | GET | `/v1/weather?lat&lng` | Auth (any) | Weather lookup by coordinates (Google Weather proxy). |
 
 > **Note:** Express also exposes `GET /healthz` outside `/api` for container orchestration probes.
+
+## User Flow Options
+
+### Flow A: Standard (User selects role after login)
+1. **Health Check** → `GET /v1/health` - Verify service availability
+2. **Login** → `GET /auth/line/login` - Get LINE OAuth URL (no role parameter)
+3. **Callback** → `GET /auth/line/callback` - Exchange code for JWT token (role = UNASSIGNED)
+4. **Check Profile** → `GET /auth/me` - Verify user role and registration status
+5. **Select Role** → `POST /onboarding/role` - Choose FARMER or RESEARCHER
+6. **Complete Profile** → `POST /onboarding/farmer` or `POST /onboarding/researcher`
+7. **View Dashboard** → `GET /home/groups/:groupType` - Access main dashboard
+
+### Flow B: Express (Pre-select role at login)
+1. **Health Check** → `GET /v1/health` - Verify service availability
+2. **Login with Role** → `GET /auth/line/login?role=farmer` - Get LINE OAuth URL with role
+3. **Callback** → `GET /auth/line/callback` - Exchange code for JWT token (role = FARMER)
+4. **Check Profile** → `GET /auth/me` - Verify registration status (role already set)
+5. **Complete Profile** → `POST /onboarding/farmer` - Skip role selection, go straight to profile form
+6. **View Dashboard** → `GET /home/groups/:groupType` - Access main dashboard
 
 ---
 
@@ -44,8 +63,25 @@ Lightweight unauthenticated probe returning `{ "status": "ok" }` when the server
 ---
 
 ## 2. Authentication & User Session
-### GET `/auth/line/login`
+### GET `/auth/line/login?role=<optional>`
 Returns the LINE authorization URL plus the server-generated `state`. The client must persist `state` and send it back to `/auth/line/callback`.
+
+**Query Parameters:**
+- `role` (optional): Pre-select user role. Values: `farmer` or `researcher` (case-insensitive)
+  - If provided, user will be assigned this role immediately after login
+  - If omitted, user role will be `UNASSIGNED` and must select role via `/onboarding/role`
+
+**Examples:**
+```bash
+# Without role (standard flow - user selects role later)
+GET /api/auth/line/login
+
+# With role (skip role selection step)
+GET /api/auth/line/login?role=farmer
+GET /api/auth/line/login?role=researcher
+```
+
+**Response:**
 ```json
 {
   "url": "https://access.line.me/oauth2/v2.1/authorize?response_type=code&..."
@@ -54,6 +90,7 @@ Returns the LINE authorization URL plus the server-generated `state`. The client
 
 ### GET `/auth/line/callback?code=...&state=...`
 - Validates `state`, exchanges the code for LINE profile, then upserts `users` row.
+- If role was specified in login URL, user will be created/updated with that role.
 - Response:
 ```json
 {
@@ -62,12 +99,13 @@ Returns the LINE authorization URL plus the server-generated `state`. The client
     "id": "uuid",
     "displayName": "LINE User",
     "pictureUrl": "https://profile.line.me/...",
-    "role": "UNASSIGNED",
+    "role": "FARMER",
     "registrationStatus": "PENDING"
   }
 }
 ```
 - JWT payload fields: `sub`, `provider`, `displayName`, optional `pictureUrl`, `role`, `registrationStatus`. Token TTL = 7 days.
+- `role` will be `UNASSIGNED` if no role was specified, or `FARMER`/`RESEARCHER` if pre-selected.
 
 ### GET `/auth/me`
 - **Auth:** any logged-in user.
