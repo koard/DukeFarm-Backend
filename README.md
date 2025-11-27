@@ -1,20 +1,20 @@
 # DukeFarm Backend
 
-Node.js + TypeScript + Express backend that powers the DukeFarm catfish production platform. The service exposes a layered architecture (routes → controllers → services → repositories) and uses Prisma ORM with PostgreSQL plus Google Weather API integration for pond-level weather insights.
+Node.js + TypeScript + Express backend that powers the DukeFarm catfish production platform. The service exposes a layered architecture (routes → controllers → services → repositories) and uses Prisma ORM with PostgreSQL plus Open-Meteo API integration for weather data.
 
 ## Tech Stack
 
 - Node.js (TypeScript)
 - Express 5
 - Prisma ORM + PostgreSQL
-- JWT + bcrypt authentication
-- Google Maps Platform Weather API (HTTP client via native `fetch`)
+- JWT authentication via LINE Login OAuth
+- Open-Meteo Weather API (free, no API key required)
 
 ## Prerequisites
 
-- Node.js 18+
+- Node.js 22+
 - PostgreSQL 14+
-- Google Maps Platform Weather API key (enable via Google Cloud Console)
+- LINE Login channel (LINE Developers Console)
 
 ## Setup
 
@@ -24,7 +24,7 @@ npm install
 
 # 2. Copy environment template
 copy .env.example .env
-#    (update DATABASE_URL, GOOGLE_WEATHER_API_KEY, JWT_SECRET)
+#    (update DATABASE_URL, JWT_SECRET, LINE_CHANNEL_ID, LINE_CHANNEL_SECRET, LINE_REDIRECT_URI, FRONTEND_CALLBACK_URL)
 
 # 3. Generate Prisma client & create DB schema
 npm run prisma:generate
@@ -108,18 +108,22 @@ Tips:
 | Variable | Description |
 | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection string used by Prisma. |
-| `GOOGLE_WEATHER_API_KEY` | API key for Google Maps Platform Weather API. |
 | `JWT_SECRET` | Symmetric secret for signing + verifying JWT tokens. |
 | `LINE_CHANNEL_ID` | LINE Login channel ID. |
 | `LINE_CHANNEL_SECRET` | LINE Login channel secret. |
 | `LINE_REDIRECT_URI` | Callback URL registered with LINE Login (e.g. `https://your-domain.com/api/auth/line/callback`). |
+| `FRONTEND_CALLBACK_URL` | Frontend URL where users are redirected after LINE login (e.g. `http://localhost:3000/auth/callback`). |
 | `PORT` | (Optional) HTTP port, defaults to 4000. |
 | `NODE_ENV` | `development`, `test`, or `production`. |
+
+**Note:** Weather data is provided by Open-Meteo API (https://open-meteo.com), which is free and doesn't require an API key.
 
 ## First Run Checklist
 
 1. Provision a PostgreSQL database and set `DATABASE_URL` in `.env`.
-2. Enable Google Maps Platform Weather API and place the key in `.env`.
-3. Run `npm run prisma:migrate` to create tables defined in `prisma/schema.prisma`.
-4. Seed initial data (users, farms, production cycles, etc.) as needed for testing.
-6. Start the API locally with `npm run dev` and hit `GET http://localhost:4000/api/v1/health` to verify.
+2. Register a LINE Login channel and configure callback URL in LINE Developers Console.
+3. Set LINE credentials (`LINE_CHANNEL_ID`, `LINE_CHANNEL_SECRET`, `LINE_REDIRECT_URI`) in `.env`.
+4. Run `npm run prisma:migrate` to create tables defined in `prisma/schema.prisma`.
+5. Start the API locally with `npm run dev` and hit `GET http://localhost:4000/api/v1/health` to verify.
+
+**Weather Data:** The app uses Open-Meteo API for weather forecasts. No API key setup required - it's free and unlimited.

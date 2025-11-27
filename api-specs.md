@@ -20,7 +20,7 @@ _Last updated: 2025-11-27_
 | POST | `/onboarding/farmer` | Auth (any) | Submit farmer-specific onboarding form. |
 | POST | `/onboarding/researcher` | Auth (any) | Submit researcher-specific onboarding form. |
 | GET | `/home/groups/:groupType` | Auth (any) | Farm-group overview dashboard for the authenticated owner. |
-| GET | `/v1/weather?lat&lng` | Auth (any) | Weather lookup by coordinates (Google Weather proxy). |
+| GET | `/v1/weather?lat&lng` | Auth (any) | Weather lookup by coordinates (Open-Meteo API proxy). |
 
 > **Note:** Express also exposes `GET /healthz` outside `/api` for container orchestration probes.
 
@@ -231,8 +231,9 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - **Auth:** any logged-in user.
 - **Path params:** `groupType` must be one of `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT` (case-insensitive).
 - **Behavior:** 
-  - Fetches current **air temperature** from weather API (not water temperature - typically 3-8°C higher than water)
+  - Fetches current **air temperature** from Open-Meteo API (free, no API key required)
   - Uses farmer profile location (farmLatitude, farmLongitude) to get weather data
+  - Air temperature typically 3-8°C higher than water temperature
   - Generates 7-day feeding plan with **percentage adjustments** instead of absolute kg amounts
   - Returns 501 for `NURSERY_LARGE` and `GROWOUT` until those services are implemented
   - **Data-driven approach:** Backend sends only numeric data; frontend handles all UI text and localization
@@ -325,11 +326,16 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - Show specific advice for extreme temperatures (> 40°C: add aerators, feed morning/evening only)
 
 ---
-
 ## 5. Weather Proxy
 ### GET `/v1/weather?lat=<number>&lng=<number>`
 - **Auth:** any authenticated user.
 - **Query params:** both required, numeric.
+- **Weather Provider:** Open-Meteo API (https://open-meteo.com)
+  - Free, unlimited usage, no API key required
+  - Returns `temperature_2m` (air temperature at 2m height - standard meteorological measurement)
+  - WMO weather codes mapped to readable condition text (e.g., "Sunny", "Rain", "Thunderstorm")
+  - Timezone: Asia/Bangkok
+- **Response:** `{ "data": CurrentWeather }` from `WeatherService.getCurrentWeather` (same shape as in Home dashboard weather block).
 - **Response:** `{ "data": CurrentWeather }` from `WeatherService.getCurrentWeather` (same shape as in Home dashboard weather block).
 
 ---

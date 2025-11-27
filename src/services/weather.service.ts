@@ -1,27 +1,22 @@
 import axios from 'axios';
-import { env } from '../config/env';
 
-const GOOGLE_WEATHER_BASE_URL = 'https://weather.googleapis.com/v1/currentConditions:lookup';
+const OPEN_METEO_BASE_URL = 'https://api.open-meteo.com/v1/forecast';
 
-type Measurement = {
-  value?: number | string;
-  unit?: string;
-};
-
-type CurrentConditionsPayload = {
-  observationTime?: string;
-  timestamp?: string;
-  temperature?: Measurement;
-  humidity?: Measurement;
-  windSpeed?: Measurement;
-  precipitationLastHour?: Measurement;
-  weatherCode?: string;
-  weatherText?: string;
-  conditionDescription?: string;
-};
-
-type CurrentWeatherApiResponse = {
-  currentConditions?: CurrentConditionsPayload;
+type OpenMeteoResponse = {
+  current: {
+    time: string;
+    temperature_2m: number;
+    relative_humidity_2m: number;
+    wind_speed_10m: number;
+    precipitation: number;
+    weather_code: number;
+  };
+  current_units: {
+    temperature_2m: string;
+    relative_humidity_2m: string;
+    wind_speed_10m: string;
+    precipitation: string;
+  };
 };
 
 export type CurrentWeather = {
@@ -33,122 +28,73 @@ export type CurrentWeather = {
   conditionText?: string;
 };
 
-const coerceNumber = (value: unknown): number | undefined => {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : undefined;
-  }
-
-  if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  }
-
-  return undefined;
-};
-
-const toCelsius = (measurement?: Measurement): number | undefined => {
-  const value = coerceNumber(measurement?.value);
-  if (value === undefined) {
-    return undefined;
-  }
-
-  switch (measurement?.unit) {
-    case 'FAHRENHEIT':
-    case 'Fahrenheit':
-      return ((value - 32) * 5) / 9;
-    case 'KELVIN':
-    case 'Kelvin':
-      return value - 273.15;
-    default:
-      return value;
-  }
-};
-
-const toKph = (measurement?: Measurement): number | undefined => {
-  const value = coerceNumber(measurement?.value);
-  if (value === undefined) {
-    return undefined;
-  }
-
-  switch (measurement?.unit) {
-    case 'METERS_PER_SECOND':
-    case 'm/s':
-      return value * 3.6;
-    case 'MILES_PER_HOUR':
-    case 'mph':
-      return value * 1.60934;
-    default:
-      return value;
-  }
-};
-
-const toMillimeters = (measurement?: Measurement): number | undefined => {
-  const value = coerceNumber(measurement?.value);
-  if (value === undefined) {
-    return undefined;
-  }
-
-  switch (measurement?.unit) {
-    case 'INCHES':
-    case 'in':
-      return value * 25.4;
-    default:
-      return value;
-  }
-};
-
-const mapCurrentConditions = (conditions: CurrentConditionsPayload): CurrentWeather => {
-  const temperatureC = toCelsius(conditions.temperature);
-
-  if (temperatureC === undefined) {
-    throw new Error('Weather API returned no temperature reading');
-  }
-
-  const payload: CurrentWeather = {
-    time: conditions.observationTime ?? conditions.timestamp ?? new Date().toISOString(),
-    temperatureC,
+/**
+ * Map Open-Meteo WMO Weather codes to text descriptions
+ * Reference: https://open-meteo.com/en/docs
+ */
+const getWeatherDescription = (code: number): string => {
+  const weatherCodes: Record<number, string> = {
+    0: 'Clear sky',
+    1: 'Mainly clear',
+    2: 'Partly cloudy',
+    3: 'Overcast',
+    45: 'Foggy',
+    48: 'Depositing rime fog',
+    51: 'Light drizzle',
+    53: 'Moderate drizzle',
+    55: 'Dense drizzle',
+    61: 'Slight rain',
+    63: 'Moderate rain',
+    65: 'Heavy rain',
+    71: 'Slight snow',
+    73: 'Moderate snow',
+    75: 'Heavy snow',
+    77: 'Snow grains',
+    80: 'Slight rain showers',
+    81: 'Moderate rain showers',
+    82: 'Violent rain showers',
+    85: 'Slight snow showers',
+    86: 'Heavy snow showers',
+    95: 'Thunderstorm',
+    96: 'Thunderstorm with slight hail',
+    99: 'Thunderstorm with heavy hail',
   };
 
-  const humidity = coerceNumber(conditions.humidity?.value);
-  if (humidity !== undefined) {
-    payload.humidityPct = humidity;
-  }
-
-  const wind = toKph(conditions.windSpeed);
-  if (wind !== undefined) {
-    payload.windSpeedKph = wind;
-  }
-
-  const rain = toMillimeters(conditions.precipitationLastHour);
-  if (rain !== undefined) {
-    payload.rainMm = rain;
-  }
-
-  const conditionText =
-    conditions.weatherText ?? conditions.conditionDescription ?? conditions.weatherCode;
-  if (conditionText) {
-    payload.conditionText = conditionText;
-  }
-
-  return payload;
+  return weatherCodes[code] ?? `Weather code ${code}`;
 };
 
 const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeather> => {
   try {
-    const response = await axios.get<CurrentWeatherApiResponse>(GOOGLE_WEATHER_BASE_URL, {
+    const response = await axios.get<OpenMeteoResponse>(OPEN_METEO_BASE_URL, {
       params: {
-        key: env.googleWeatherApiKey,
-        'location.latitude': lat,
-        'location.longitude': lng,
+        latitude: lat,
+        longitude: lng,
+        current: [
+          'temperature_2m',
+          'relative_humidity_2m',
+          'precipitation',
+          'wind_speed_10m',
+          'weather_code',
+        ].join(','),
+        timezone: 'Asia/Bangkok',
       },
     });
 
-    const conditions = response.data.currentConditions;
-    if (!conditions) {
+    const { current } = response.data;
+    if (!current) {
       throw new Error('Weather API returned no current conditions');
     }
 
-    return mapCurrentConditions(conditions);
+    const payload: CurrentWeather = {
+      time: current.time,
+      temperatureC: current.temperature_2m,
+      humidityPct: current.relative_humidity_2m,
+      windSpeedKph: current.wind_speed_10m,
+      rainMm: current.precipitation,
+      conditionText: getWeatherDescription(current.weather_code),
+    };
+
+    return payload;
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status ?? 'network';

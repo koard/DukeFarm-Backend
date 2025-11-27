@@ -8,7 +8,6 @@ type EnvShape = {
   nodeEnv: NodeEnv;
   port: number;
   databaseUrl: string;
-  googleWeatherApiKey: string;
   jwtSecret: string;
   lineChannelId: string;
   lineChannelSecret: string;
@@ -18,7 +17,6 @@ type EnvShape = {
 
 const requiredVars: Array<keyof Omit<EnvShape, 'nodeEnv' | 'port'>> = [
   'databaseUrl',
-  'googleWeatherApiKey',
   'jwtSecret',
   'lineChannelId',
   'lineChannelSecret',
@@ -37,7 +35,6 @@ const buildEnv = (): EnvShape => {
     nodeEnv: (process.env.NODE_ENV as NodeEnv) ?? 'development',
     port: normalizePort(process.env.PORT, 4000),
     databaseUrl: process.env.DATABASE_URL ?? '',
-    googleWeatherApiKey: process.env.GOOGLE_WEATHER_API_KEY ?? '',
     jwtSecret: process.env.JWT_SECRET ?? '',
     lineChannelId: process.env.LINE_CHANNEL_ID ?? '',
     lineChannelSecret: process.env.LINE_CHANNEL_SECRET ?? '',
