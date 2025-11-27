@@ -681,36 +681,49 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
         "humidityPct": 65,
         "windSpeedKph": 10.5,
         "rainMm": 0.0,
-        "conditionText": "Sunny"
+        "weatherCode": 0,
+        "conditionText": "Clear sky"
       }
     },
     "feedingPlan": [
       {
         "date": "2025-11-27T00:00:00.000Z",
+        "meanTemperatureC": 35.5,
         "highTemperatureC": 37.5,
         "lowTemperatureC": 33.5,
+        "weatherCode": 0,
+        "conditionText": "Clear sky",
         "feedAdjustmentPct": -8,
         "feedingRecommendation": "decrease"
       },
       {
         "date": "2025-11-28T00:00:00.000Z",
+        "meanTemperatureC": 28.0,
         "highTemperatureC": 30.0,
         "lowTemperatureC": 26.0,
+        "weatherCode": 3,
+        "conditionText": "Overcast",
         "feedAdjustmentPct": 0,
         "feedingRecommendation": "normal"
       },
       {
         "date": "2025-11-29T00:00:00.000Z",
+        "meanTemperatureC": 24.0,
         "highTemperatureC": 26.0,
         "lowTemperatureC": 22.0,
-        "feedAdjustmentPct": -5,
+        "weatherCode": 61,
+        "conditionText": "Light rain",
+        "feedAdjustmentPct": -40,
         "feedingRecommendation": "decrease"
       },
       {
         "date": "2025-11-30T00:00:00.000Z",
+        "meanTemperatureC": 38.5,
         "highTemperatureC": 40.5,
         "lowTemperatureC": 36.5,
-        "feedAdjustmentPct": -17,
+        "weatherCode": 1,
+        "conditionText": "Mainly clear",
+        "feedAdjustmentPct": -30,
         "feedingRecommendation": "decrease"
       }
     ]
@@ -728,20 +741,39 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 
 **Feeding plan fields:**
 - `date`: ISO date string for each day
-- `highTemperatureC`: Forecasted high air temperature
-- `lowTemperatureC`: Forecasted low air temperature
-- `feedAdjustmentPct`: **Percentage to adjust feed** (e.g., -15 = reduce 15%, +10 = increase 10%, 0 = normal)
+- `meanTemperatureC`: Daily mean air temperature (used for feed calculations)
+- `highTemperatureC`: Forecasted high air temperature (for farmer reference)
+- `lowTemperatureC`: Forecasted low air temperature (for farmer reference)
+- `weatherCode`: WMO weather code (0-99) for icon display (optional)
+- `conditionText`: Human-readable weather condition (e.g., "Sunny", "Rain") (optional)
+- `feedAdjustmentPct`: **Percentage to adjust feed** (e.g., -15 = reduce 15%, 0 = normal)
 - `feedingRecommendation`: **Action keyword** - `"increase"`, `"decrease"`, or `"normal"`
 
-**Air Temperature Logic (adjusted for tropical conditions):**
-- **28-35°C air**: Optimal (0% adjustment) - water likely 25-30°C
-- **< 20°C air**: Cold weather, reduce 30% - water likely below 18°C
-- **20-24°C air**: Cool weather, reduce 20% - water likely 20-22°C
-- **24-28°C air**: Slightly cool, reduce 2.5% per degree
-- **35-38°C air**: Hot weather, reduce 3% per degree - water likely 30-32°C
-- **38-40°C air**: Very hot, reduce 20% - water likely 32-34°C (stress)
-- **40-42°C air**: Extreme heat, reduce 30% - water likely 34-36°C (critical)
-- **> 42°C air**: Severe heat, reduce 50% - water likely 36-38°C (dangerous)
+**Air Temperature Logic (tuned for Pathum Thani, Thailand):**
+
+The feeding adjustment algorithm uses **daily mean air temperature** from Open-Meteo API. Air temperature in tropical ponds is typically 5-7°C higher than water temperature.
+
+**Temperature Zones:**
+- **< 18°C air**: Extreme cold, reduce 80% (water ~13°C, rare 1-2 days/year)
+- **18-21°C air**: Very cold, reduce 60% (water ~15°C, Dec-Jan coldest mornings)
+- **21-24°C air**: Cold, reduce 40% (water ~18°C, occasional Nov-Feb)
+- **24-26°C air**: Cool, reduce 40-50% (water ~20°C, common Nov-Feb)
+- **26-28°C air**: Mild, reduce 3% per degree (water ~22°C, very common mornings)
+- **28-35°C air**: 🟢 OPTIMAL ZONE, 0% adjustment (water 23-30°C)
+- **35-37°C air**: Entering stress, reduce 6% per degree (water ~30°C)
+- **37-39°C air**: Moderate stress, reduce 30% (water ~32°C, reduced dissolved oxygen)
+- **39-41°C air**: Severe stress, reduce 60% (water ~34°C, low dissolved oxygen)
+- **> 41°C air**: Critical, reduce 85% (water >36°C, survival mode)
+
+**Research Basis:**
+- Tucker & Hargreaves (2004): Channel catfish feeding behavior and temperature
+- Boyd & Tucker (1998): Pond Aquaculture Water Quality Management
+- Thailand DOF (2018): Catfish farming best practices for Central region
+
+**Air-Water Temperature Correlation:**
+- Based on shallow pond studies in tropical climates
+- Air temp = Water temp + 5-7°C (typical)
+- Pathum Thani climate: 28-35°C air for ~80% of year (optimal range)
 
 **Frontend responsibility:** 
 - Render UI text based on `feedingRecommendation`: 
@@ -759,9 +791,99 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - **Weather Provider:** Open-Meteo API (https://open-meteo.com)
   - Free, unlimited usage, no API key required
   - Returns `temperature_2m` (air temperature at 2m height - standard meteorological measurement)
-  - WMO weather codes mapped to readable condition text (e.g., "Sunny", "Rain", "Thunderstorm")
+  - Returns `weather_code` (WMO standard codes 0-99)
   - Timezone: Asia/Bangkok
-- **Response:** `{ "data": CurrentWeather }` from `WeatherService.getCurrentWeather` (same shape as in Home dashboard weather block).
+- **Response:** `{ "data": CurrentWeather }` from `WeatherService.getCurrentWeather`
+- **Response fields:**
+  - `time`: ISO timestamp of weather observation
+  - `temperatureC`: Air temperature in Celsius
+  - `humidityPct`: Relative humidity percentage
+  - `windSpeedKph`: Wind speed in km/h
+  - `rainMm`: Precipitation in millimeters
+  - `weatherCode`: WMO weather code (0-99) for icon display (optional)
+  - `conditionText`: Human-readable condition (e.g., "Sunny", "Rain") (optional)
+
+### WMO Weather Code Reference
+
+Weather codes follow the World Meteorological Organization (WMO) standard. Use these codes to display appropriate weather icons in your frontend.
+
+| Code | Condition | Icon Suggestion | Description |
+|------|-----------|----------------|-------------|
+| **Clear** |
+| 0 | Clear sky | ☀️ | Sunny, no clouds |
+| **Cloudy** |
+| 1 | Mainly clear | 🌤️ | Mostly sunny, few clouds |
+| 2 | Partly cloudy | ⛅ | Partly cloudy |
+| 3 | Overcast | ☁️ | Completely cloudy |
+| **Fog** |
+| 45 | Fog | 🌫️ | Foggy |
+| 48 | Depositing rime fog | 🌫️ | Foggy with frost |
+| **Drizzle** |
+| 51 | Light drizzle | 🌦️ | Light drizzle |
+| 53 | Moderate drizzle | 🌦️ | Moderate drizzle |
+| 55 | Dense drizzle | 🌦️ | Heavy drizzle |
+| 56 | Light freezing drizzle | 🌧️ | Freezing drizzle |
+| 57 | Dense freezing drizzle | 🌧️ | Heavy freezing drizzle |
+| **Rain** |
+| 61 | Slight rain | 🌧️ | Light rain |
+| 63 | Moderate rain | 🌧️ | Moderate rain |
+| 65 | Heavy rain | 🌧️ | Heavy rain |
+| 66 | Light freezing rain | 🌧️ | Freezing rain |
+| 67 | Heavy freezing rain | 🌧️ | Heavy freezing rain |
+| **Snow** |
+| 71 | Slight snow | ❄️ | Light snow |
+| 73 | Moderate snow | ❄️ | Moderate snow |
+| 75 | Heavy snow | ❄️ | Heavy snow |
+| 77 | Snow grains | ❄️ | Snow grains |
+| **Showers** |
+| 80 | Slight rain showers | 🌦️ | Light rain showers |
+| 81 | Moderate rain showers | 🌦️ | Moderate rain showers |
+| 82 | Violent rain showers | 🌧️ | Heavy rain showers |
+| 85 | Slight snow showers | 🌨️ | Light snow showers |
+| 86 | Heavy snow showers | 🌨️ | Heavy snow showers |
+| **Thunderstorm** |
+| 95 | Thunderstorm | ⛈️ | Thunderstorm |
+| 96 | Thunderstorm with slight hail | ⛈️ | Thunderstorm with hail |
+| 99 | Thunderstorm with heavy hail | ⛈️ | Thunderstorm with heavy hail |
+
+**Frontend Icon Mapping Example:**
+
+```javascript
+const weatherIcons = {
+  0: '☀️',        // Clear sky
+  1: '🌤️',       // Mainly clear
+  2: '⛅',       // Partly cloudy
+  3: '☁️',       // Overcast
+  45: '🌫️',      // Fog
+  48: '🌫️',      // Rime fog
+  51: '🌦️',      // Light drizzle
+  53: '🌦️',      // Moderate drizzle
+  55: '🌦️',      // Dense drizzle
+  61: '🌧️',      // Slight rain
+  63: '🌧️',      // Moderate rain
+  65: '🌧️',      // Heavy rain
+  71: '❄️',      // Slight snow
+  73: '❄️',      // Moderate snow
+  75: '❄️',      // Heavy snow
+  80: '🌦️',      // Light rain showers
+  81: '🌦️',      // Moderate rain showers
+  82: '🌧️',      // Heavy rain showers
+  85: '🌨️',      // Light snow showers
+  86: '🌨️',      // Heavy snow showers
+  95: '⛈️',      // Thunderstorm
+  96: '⛈️',      // Thunderstorm with slight hail
+  99: '⛈️',      // Thunderstorm with heavy hail
+};
+
+// Usage
+const icon = weatherIcons[weatherCode] || '🌡️';
+```
+
+**Recommended Icon Libraries:**
+- [Lucide React](https://lucide.dev/) - Modern icon set with `<Cloud>`, `<CloudRain>`, `<Sun>`, etc.
+- [Weather Icons](https://erikflowers.github.io/weather-icons/) - Dedicated weather icon font
+- [Font Awesome](https://fontawesome.com/) - Weather category icons
+- [React Icons](https://react-icons.github.io/react-icons/) - Includes weather icons from multiple sets
 
 ---
 
@@ -1034,6 +1156,33 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 
 ## 📅 Changelog
 
+### Version 1.0.1 (2025-11-28)
+
+**🌤️ Weather Enhancement Update**
+
+**Added:**
+- WMO weather codes (0-99) to all weather responses for icon display
+- `weatherCode` field in `CurrentWeather` type
+- `weatherCode` field in `DailyForecast` type
+- `weatherCode` and `conditionText` fields in feeding plan items
+- `meanTemperatureC` field in feeding plan (primary calculation temperature)
+- Comprehensive WMO weather code reference table with icon suggestions
+- Frontend integration examples for weather icon mapping
+
+**Improved:**
+- Feeding algorithm now uses daily mean temperature (more accurate than max)
+- Formula specifically tuned for Pathum Thani climate conditions
+- Progressive reduction curves for temperature zones
+- Adjustment range expanded: -90% to 0% (was -50% to +10%)
+- Better handling of extreme temperatures (< 18°C and > 41°C)
+
+**Technical:**
+- Air-water temperature correlation documented (air = water + 5-7°C)
+- Research references added (Tucker & Hargreaves 2004, Boyd & Tucker 1998, Thailand DOF 2018)
+- Temperature zones aligned with Pathum Thani seasonal patterns
+
+---
+
 ### Version 1.0.0 (2025-11-27)
 
 **🎉 Initial Release**
@@ -1057,7 +1206,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - Migrated from Google Weather API to Open-Meteo (free, unlimited)
 - Unified feeding calculation logic across summary and 7-day plan
 - Air temperature-based feeding recommendations (28-35°C optimal range)
-- Percentage-based feeding adjustments (-50% to +10%)
+- JWT tokens with no expiration (permanent tokens)
 
 **Database:**
 - Added `recommendations` field to `FeedFormula` model

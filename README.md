@@ -55,8 +55,9 @@ DukeFarm Backend provides a comprehensive RESTful API for managing catfish farmi
 - Real-time weather data from Open-Meteo API (no API key required)
 - Air temperature monitoring (optimal range: 28-35°C)
 - 7-day weather forecast with feeding plan generation
-- Percentage-based feeding adjustments (-50% to +10%)
+- Percentage-based feeding adjustments (-90% to 0%)
 - Temperature-to-feeding logic based on agricultural research
+- WMO weather codes (0-99) for weather icon display in frontend
 
 ### Research & Data Collection
 - Research survey creation and management
@@ -628,7 +629,17 @@ DukeFarm-Backend/
 **Open-Meteo Weather API**: Free weather forecast service with unlimited usage. No API key required.
 - Documentation: https://open-meteo.com/en/docs
 - Timezone: `Asia/Bangkok`
-- Data: Air temperature, humidity, wind speed, precipitation, weather codes
+- Data: Air temperature (mean/max/min), humidity, wind speed, precipitation
+- Weather codes: WMO standard codes (0-99) for condition display
+  - 0: Clear sky ☀️
+  - 1-3: Partly cloudy 🌤️⛅☁️
+  - 45-48: Fog 🌫️
+  - 51-57: Drizzle 🌦️
+  - 61-67: Rain 🌧️
+  - 71-77: Snow ❄️
+  - 80-82: Rain showers 🌦️
+  - 85-86: Snow showers 🌨️
+  - 95-99: Thunderstorm ⛈️
 
 ## ✅ First Run Checklist
 
