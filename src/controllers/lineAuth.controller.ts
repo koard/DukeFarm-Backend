@@ -3,10 +3,25 @@ import { LineAuthService } from '../services/lineAuth.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { prisma } from '../clients/prisma';
 import { createHttpError } from '../utils/httpError';
+import { UserRole } from '@prisma/client';
 
-const getLineLoginUrl = (_req: Request, res: Response, next: NextFunction) => {
+const getLineLoginUrl = (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { url } = LineAuthService.createLoginUrl();
+    const roleParam = req.query.role as string | undefined;
+    let role: UserRole | undefined;
+
+    if (roleParam) {
+      const normalized = roleParam.toUpperCase();
+      if (normalized === 'FARMER') {
+        role = UserRole.FARMER;
+      } else if (normalized === 'RESEARCHER') {
+        role = UserRole.RESEARCHER;
+      } else {
+        return res.status(400).json({ message: 'Invalid role parameter. Must be FARMER or RESEARCHER' });
+      }
+    }
+
+    const { url } = LineAuthService.createLoginUrl(role);
     res.json({ url });
   } catch (error) {
     next(error);

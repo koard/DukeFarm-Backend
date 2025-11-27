@@ -18,7 +18,7 @@ type LineLoginResult = {
 
 const LINE_AUTHORIZE_ENDPOINT = 'https://access.line.me/oauth2/v2.1/authorize';
 const STATE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const pendingStates = new Map<string, { nonce: string; createdAt: number }>();
+const pendingStates = new Map<string, { nonce: string; createdAt: number; role?: UserRole }>();
 
 const purgeExpiredStates = () => {
   const expiry = Date.now() - STATE_TTL_MS;
@@ -31,12 +31,20 @@ const purgeExpiredStates = () => {
 
 const createRandomHex = () => crypto.randomBytes(16).toString('hex');
 
-const createLoginUrl = () => {
+const createLoginUrl = (role?: UserRole) => {
   purgeExpiredStates();
   const state = createRandomHex();
   const nonce = createRandomHex();
 
-  pendingStates.set(state, { nonce, createdAt: Date.now() });
+  const stateData: { nonce: string; createdAt: number; role?: UserRole } = {
+    nonce,
+    createdAt: Date.now(),
+  };
+  if (role) {
+    stateData.role = role;
+  }
+
+  pendingStates.set(state, stateData);
 
   const params = new URLSearchParams({
     response_type: 'code',
@@ -65,13 +73,13 @@ const validateState = (state?: string) => {
   }
 
   pendingStates.delete(state);
-  return entry.nonce;
+  return { nonce: entry.nonce, role: entry.role };
 };
 
 const ensureDisplayName = (displayName?: string | null) => displayName ?? 'LINE User';
 
 const handleCallback = async (code: string, state?: string): Promise<LineLoginResult> => {
-  validateState(state);
+  const { role } = validateState(state);
 
   const tokenResponse = await exchangeCodeForTokens(code);
   const profile = await fetchLineProfile(tokenResponse.access_token);
@@ -81,6 +89,7 @@ const handleCallback = async (code: string, state?: string): Promise<LineLoginRe
     update: {
       displayName: ensureDisplayName(profile.displayName),
       pictureUrl: profile.pictureUrl ?? null,
+      ...(role ? { role, registrationStatus: RegistrationStatus.PENDING } : {}),
     },
     create: {
       passwordHash: crypto.randomBytes(32).toString('hex'),
@@ -88,7 +97,7 @@ const handleCallback = async (code: string, state?: string): Promise<LineLoginRe
       displayName: ensureDisplayName(profile.displayName),
       pictureUrl: profile.pictureUrl ?? null,
       loginProvider: 'LINE',
-      role: UserRole.UNASSIGNED,
+      role: role ?? UserRole.UNASSIGNED,
       registrationStatus: RegistrationStatus.PENDING,
     },
   });
