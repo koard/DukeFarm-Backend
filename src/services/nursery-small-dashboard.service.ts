@@ -7,7 +7,6 @@ import { logger } from '../utils/logger';
 // Optimal temperature range for catfish (consistent across all stages)
 const COMFORT_TEMP_RANGE = { min: 28, max: 32 };
 const TEMP_RANGE_FOR_CALC = { minComfortC: 28, maxComfortC: 32 };
-const BASE_DAILY_FEED_KG = 5.0;
 
 type TemperatureRange = {
   min: number;
@@ -91,7 +90,6 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
         new Date(),
         null,
         TEMP_RANGE_FOR_CALC,
-        BASE_DAILY_FEED_KG,
       ),
     };
   }
@@ -147,7 +145,6 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
       new Date(asOf),
       airTemperatureC,
       TEMP_RANGE_FOR_CALC,
-      BASE_DAILY_FEED_KG,
     ),
   };
 };
