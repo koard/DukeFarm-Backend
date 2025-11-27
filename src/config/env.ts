@@ -13,6 +13,7 @@ type EnvShape = {
   lineChannelId: string;
   lineChannelSecret: string;
   lineRedirectUri: string;
+  frontendCallbackUrl: string;
 };
 
 const requiredVars: Array<keyof Omit<EnvShape, 'nodeEnv' | 'port'>> = [
@@ -22,6 +23,7 @@ const requiredVars: Array<keyof Omit<EnvShape, 'nodeEnv' | 'port'>> = [
   'lineChannelId',
   'lineChannelSecret',
   'lineRedirectUri',
+  'frontendCallbackUrl',
 ];
 
 const normalizePort = (value: string | undefined, fallback = 4000): number => {
@@ -40,6 +42,7 @@ const buildEnv = (): EnvShape => {
     lineChannelId: process.env.LINE_CHANNEL_ID ?? '',
     lineChannelSecret: process.env.LINE_CHANNEL_SECRET ?? '',
     lineRedirectUri: process.env.LINE_REDIRECT_URI ?? '',
+    frontendCallbackUrl: process.env.FRONTEND_CALLBACK_URL ?? '',
   };
 
   requiredVars.forEach((key) => {

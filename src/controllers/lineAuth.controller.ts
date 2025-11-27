@@ -41,7 +41,24 @@ const handleLineCallback = async (req: Request, res: Response, next: NextFunctio
     }
 
     const result = await LineAuthService.handleCallback(code as string, state as string | undefined);
-    res.json(result);
+    
+    // Redirect to frontend with query parameters
+    const { env } = await import('../config/env');
+    const userJson = JSON.stringify({
+      id: result.user.id,
+      displayName: result.user.displayName,
+      pictureUrl: result.user.pictureUrl,
+    });
+    
+    const params = new URLSearchParams({
+      token: result.token,
+      user: userJson,
+      registrationStatus: result.user.registrationStatus,
+      role: result.user.role.toLowerCase(),
+    });
+
+    const redirectUrl = `${env.frontendCallbackUrl}?${params.toString()}`;
+    res.redirect(redirectUrl);
   } catch (error) {
     next(error);
   }

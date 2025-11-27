@@ -91,21 +91,32 @@ GET /api/auth/line/login?role=researcher
 ### GET `/auth/line/callback?code=...&state=...`
 - Validates `state`, exchanges the code for LINE profile, then upserts `users` row.
 - If role was specified in login URL, user will be created/updated with that role.
-- Response:
-```json
-{
-  "token": "<jwt>",
-  "user": {
-    "id": "uuid",
-    "displayName": "LINE User",
-    "pictureUrl": "https://profile.line.me/...",
-    "role": "FARMER",
-    "registrationStatus": "PENDING"
-  }
-}
+- **Redirects to frontend** with query parameters instead of returning JSON.
+
+**Redirect URL:**
 ```
-- JWT payload fields: `sub`, `provider`, `displayName`, optional `pictureUrl`, `role`, `registrationStatus`. Token TTL = 7 days.
-- `role` will be `UNASSIGNED` if no role was specified, or `FARMER`/`RESEARCHER` if pre-selected.
+http://localhost:3000/auth/callback?token=xxx&user=xxx&registrationStatus=xxx&role=xxx
+```
+
+**Query Parameters:**
+- `token` - JWT token (TTL = 7 days)
+- `user` - User object as URL-encoded JSON string: `{"id":"uuid","displayName":"LINE User","pictureUrl":"https://..."}`
+- `registrationStatus` - Either `PENDING` or `COMPLETED`
+- `role` - Either `unassigned`, `farmer`, or `researcher` (lowercase)
+
+**Example:**
+```
+http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc123%22%2C%22displayName%22%3A%22John%22%7D&registrationStatus=PENDING&role=farmer
+```
+
+**Frontend should:**
+1. Parse query parameters
+2. Decode `user` JSON string
+3. Store `token` in localStorage/cookie
+4. Redirect based on `registrationStatus` and `role`:
+   - `PENDING` + `unassigned` → Role selection page
+   - `PENDING` + `farmer/researcher` → Profile form
+   - `COMPLETED` → Dashboard
 
 ### GET `/auth/me`
 - **Auth:** any logged-in user.
