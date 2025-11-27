@@ -12,11 +12,14 @@ router.get('/', (_req: Request, res: Response) => {
     endpoints: {
       health: '/api/v1/health',
       authentication: '/api/auth/line/login',
+      register: '/api/register/*',
+      dashboard: '/api/dashboard/*',
+      farmers: '/api/farmers',
+      feedFormulas: '/api/feed-formulas',
+      researchers: '/api/researchers',
       documentation: 'https://github.com/koard/DukeFarm-Backend',
     },
   });
 });
-
-router.get('/home/groups/:groupType', authMiddleware, HomeController.getGroupOverview);
 
 export { router as homeRouter };
