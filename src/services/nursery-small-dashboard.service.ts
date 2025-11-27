@@ -1,6 +1,6 @@
 import { FarmType } from '@prisma/client';
 import { prisma } from '../clients/prisma';
-import { WeatherService, type CurrentWeather } from './weather.service';
+import { WeatherService, type CurrentWeather, type DailyForecast } from './weather.service';
 import { FeedingCalculator, type FeedingPlanRow } from './feeding-calculator.service';
 import { logger } from '../utils/logger';
 
@@ -96,6 +96,8 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
 
   // Fetch weather using farmer profile location
   let weather: CurrentWeather | null = null;
+  let dailyForecast: DailyForecast[] = [];
+
   if (farmerProfile.farmLatitude !== null && farmerProfile.farmLongitude !== null) {
     try {
       weather = await WeatherService.getCurrentWeather(
@@ -103,7 +105,19 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
         farmerProfile.farmLongitude,
       );
     } catch (error) {
-      logger.warn('Unable to fetch weather for nursery small dashboard', {
+      logger.warn('Unable to fetch current weather for nursery small dashboard', {
+        userId,
+        error,
+      });
+    }
+
+    try {
+      dailyForecast = await WeatherService.getDailyForecast(
+        farmerProfile.farmLatitude,
+        farmerProfile.farmLongitude,
+      );
+    } catch (error) {
+      logger.warn('Unable to fetch daily forecast for nursery small dashboard', {
         userId,
         error,
       });
@@ -134,6 +148,35 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
 
   const asOf = new Date().toISOString();
 
+  const baseFeedingPlan = FeedingCalculator.generateFeedingPlan(
+    new Date(asOf),
+    airTemperatureC,
+    TEMP_RANGE_FOR_CALC,
+  );
+
+  const feedingPlan: FeedingPlanRow[] = baseFeedingPlan.map((row, index) => {
+    const forecast = dailyForecast[index];
+    if (!forecast) {
+      return row;
+    }
+
+    const { adjustmentPct, recommendation } = FeedingCalculator.computeFeedAdjustment(
+      forecast.temperatureMeanC,
+      TEMP_RANGE_FOR_CALC,
+    );
+
+    return {
+      ...row,
+      meanTemperatureC: forecast.temperatureMeanC,
+      highTemperatureC: forecast.temperatureMaxC,
+      lowTemperatureC: forecast.temperatureMinC,
+      weatherCode: forecast.weatherCode,
+      conditionText: forecast.conditionText,
+      feedAdjustmentPct: adjustmentPct,
+      feedingRecommendation: recommendation,
+    };
+  });
+
   return {
     group: FarmType.NURSERY_SMALL,
     hasData: airTemperatureC !== null,
@@ -145,11 +188,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
       recommendedFeedAdjustmentPct,
       weather,
     },
-    feedingPlan: FeedingCalculator.generateFeedingPlan(
-      new Date(asOf),
-      airTemperatureC,
-      TEMP_RANGE_FOR_CALC,
-    ),
+    feedingPlan,
   };
 };
 
