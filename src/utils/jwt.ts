@@ -11,7 +11,8 @@ export type DukeFarmJwtPayload = {
 };
 
 const defaultOptions: SignOptions = {
-  expiresIn: '7d',
+  // No expiration - token never expires
+  // expiresIn: '30d',
 };
 
 const signJwt = (payload: DukeFarmJwtPayload, options?: SignOptions) =>

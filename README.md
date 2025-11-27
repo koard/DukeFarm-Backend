@@ -41,7 +41,7 @@ DukeFarm Backend provides a comprehensive RESTful API for managing catfish farmi
 
 ### Authentication & Authorization
 - LINE Login OAuth 2.0 social authentication
-- JWT-based session management (7-day TTL)
+- JWT-based session management (no expiration)
 - Role-based access control: `ADMIN`, `FARMER`, `RESEARCHER`
 - Dynamic role assignment with pre-selection support
 

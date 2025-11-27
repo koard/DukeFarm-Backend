@@ -48,7 +48,7 @@ The DukeFarm API provides a comprehensive backend service for managing catfish f
 
 - **Framework**: Express 5 + TypeScript
 - **Database**: PostgreSQL 14+ via Prisma ORM
-- **Authentication**: JWT (7-day TTL)
+- **Authentication**: JWT (no expiration)
 - **External APIs**: LINE Login OAuth, Open-Meteo Weather
 
 ---
@@ -67,8 +67,8 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 1. **Obtain Token**: Complete LINE OAuth flow (`GET /auth/line/login` → `/auth/line/callback`)
 2. **Use Token**: Include in `Authorization` header for all protected endpoints
-3. **Token Expiry**: 7 days from issuance
-4. **Renewal**: Re-authenticate via LINE Login when token expires
+3. **Token Expiry**: Never expires (permanent token)
+4. **Revocation**: Token can only be invalidated by changing JWT_SECRET or implementing token blacklist
 
 ### User Roles
 
@@ -372,7 +372,7 @@ https://app.example.com/auth/callback?token=xxx&user=xxx&role=xxx&registrationSt
 
 | Parameter | Type | Description | Example |
 | --- | --- | --- | --- |
-| `token` | string | JWT token (7-day TTL) | `eyJhbGciOiJIUzI1NiIs...` |
+| `token` | string | JWT token (no expiration) | `eyJhbGciOiJIUzI1NiIs...` |
 | `user` | string | URL-encoded JSON user object | `%7B%22id%22%3A%22...` |
 | `role` | string | User role (lowercase) | `farmer`, `researcher`, `unassigned` |
 | `registrationStatus` | string | Registration state | `PENDING`, `COMPLETED` |
@@ -525,7 +525,7 @@ http://localhost:3000/auth/callback?token=xxx&user=xxx&registrationStatus=xxx&ro
 ```
 
 **Query Parameters:**
-- `token` - JWT token (TTL = 7 days)
+- `token` - JWT token (no expiration)
 - `user` - User object as URL-encoded JSON string: `{"id":"uuid","displayName":"LINE User","pictureUrl":"https://..."}`
 - `registrationStatus` - Either `PENDING` or `COMPLETED`
 - `role` - Either `unassigned`, `farmer`, or `researcher` (lowercase)
@@ -995,7 +995,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 
 #### Authentication
 - **Store tokens securely**: Use httpOnly cookies or secure localStorage
-- **Refresh before expiry**: JWT tokens expire after 7 days - implement refresh logic
+- **Token never expires**: Tokens remain valid indefinitely unless JWT_SECRET is changed
 - **Handle 401 gracefully**: Redirect to login on token expiration
 
 #### Error Handling
