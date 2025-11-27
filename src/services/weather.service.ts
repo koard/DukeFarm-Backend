@@ -19,13 +19,38 @@ type OpenMeteoResponse = {
   };
 };
 
+type OpenMeteoDailyResponse = {
+  daily: {
+    time: string[];
+    temperature_2m_max: number[];
+    temperature_2m_min: number[];
+    temperature_2m_mean: number[];
+    weather_code: number[];
+  };
+  daily_units: {
+    temperature_2m_max: string;
+    temperature_2m_min: string;
+    temperature_2m_mean: string;
+  };
+};
+
 export type CurrentWeather = {
   time: string;
   temperatureC: number;
   humidityPct?: number;
   windSpeedKph?: number;
   rainMm?: number;
+  weatherCode?: number;
   conditionText?: string;
+};
+
+export type DailyForecast = {
+  date: string;
+  temperatureMeanC: number;
+  temperatureMaxC: number;
+  temperatureMinC: number;
+  weatherCode: number;
+  conditionText: string;
 };
 
 /**
@@ -91,6 +116,7 @@ const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeath
       humidityPct: current.relative_humidity_2m,
       windSpeedKph: current.wind_speed_10m,
       rainMm: current.precipitation,
+      weatherCode: current.weather_code,
       conditionText: getWeatherDescription(current.weather_code),
     };
 
@@ -110,6 +136,58 @@ const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeath
   }
 };
 
+/**
+ * Get 7-day daily forecast with mean, max, min temperatures
+ * Uses Open-Meteo daily aggregations for accurate feeding calculations
+ */
+const getDailyForecast = async (lat: number, lng: number, days: number = 7): Promise<DailyForecast[]> => {
+  try {
+    const response = await axios.get<OpenMeteoDailyResponse>(OPEN_METEO_BASE_URL, {
+      params: {
+        latitude: lat,
+        longitude: lng,
+        daily: [
+          'temperature_2m_max',
+          'temperature_2m_min',
+          'temperature_2m_mean',
+          'weather_code',
+        ].join(','),
+        timezone: 'Asia/Bangkok',
+        forecast_days: days,
+      },
+    });
+
+    const { daily } = response.data;
+    if (!daily || !daily.time || daily.time.length === 0) {
+      throw new Error('Weather API returned no daily forecast data');
+    }
+
+    const forecasts: DailyForecast[] = daily.time.map((date, index) => ({
+      date,
+      temperatureMeanC: daily.temperature_2m_mean[index] ?? 0,
+      temperatureMaxC: daily.temperature_2m_max[index] ?? 0,
+      temperatureMinC: daily.temperature_2m_min[index] ?? 0,
+      weatherCode: daily.weather_code[index] ?? 0,
+      conditionText: getWeatherDescription(daily.weather_code[index] ?? 0),
+    }));
+
+    return forecasts;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status ?? 'network';
+      const message =
+        typeof error.response?.data === 'string'
+          ? error.response.data
+          : JSON.stringify(error.response?.data ?? {});
+
+      throw new Error(`Weather API error (${status}): ${message || error.message}`);
+    }
+
+    throw error;
+  }
+};
+
 export const WeatherService = {
   getCurrentWeather,
+  getDailyForecast,
 };
