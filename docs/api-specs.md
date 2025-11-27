@@ -231,12 +231,11 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - **Auth:** any logged-in user.
 - **Path params:** `groupType` must be one of `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT` (case-insensitive).
 - **Behavior:** 
-  - Uses hardcoded optimal temperature ranges (28-32°C comfort, 26-34°C critical) consistent across all catfish production stages.
-  - Fetches current weather via Google Weather API using the first farm in the group that has coordinates.
-  - Computes temperature delta from comfort range and recommended feed adjustment percentage (5% per degree).
-  - Generates a 7-day feeding plan with temperature-adjusted rations (base 5kg for nursery small).
-  - Returns 501 for `NURSERY_LARGE` and `GROWOUT` until those services are implemented.
-  - **Frontend responsibility:** All UI text (alert messages, feeding guidance, tips) is rendered client-side using the numeric data provided.
+  - Fetches current **air temperature** from weather API (not water temperature - typically 3-8°C higher than water)
+  - Uses farmer profile location (farmLatitude, farmLongitude) to get weather data
+  - Generates 7-day feeding plan with **percentage adjustments** instead of absolute kg amounts
+  - Returns 501 for `NURSERY_LARGE` and `GROWOUT` until those services are implemented
+  - **Data-driven approach:** Backend sends only numeric data; frontend handles all UI text and localization
 - **Response (NURSERY_SMALL):**
 ```json
 {
@@ -260,29 +259,70 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
     },
     "feedingPlan": [
       {
-        "date": "2025-11-20T00:00:00.000Z",
+        "date": "2025-11-27T00:00:00.000Z",
         "highTemperatureC": 37.5,
         "lowTemperatureC": 33.5,
-        "recommendedFeedKg": 4.0
+        "feedAdjustmentPct": -8,
+        "feedingRecommendation": "decrease"
       },
       {
-        "date": "2025-11-21T00:00:00.000Z",
-        "highTemperatureC": 38.2,
-        "lowTemperatureC": 34.2,
-        "recommendedFeedKg": 3.9
+        "date": "2025-11-28T00:00:00.000Z",
+        "highTemperatureC": 30.0,
+        "lowTemperatureC": 26.0,
+        "feedAdjustmentPct": 0,
+        "feedingRecommendation": "normal"
+      },
+      {
+        "date": "2025-11-29T00:00:00.000Z",
+        "highTemperatureC": 26.0,
+        "lowTemperatureC": 22.0,
+        "feedAdjustmentPct": -5,
+        "feedingRecommendation": "decrease"
+      },
+      {
+        "date": "2025-11-30T00:00:00.000Z",
+        "highTemperatureC": 40.5,
+        "lowTemperatureC": 36.5,
+        "feedAdjustmentPct": -17,
+        "feedingRecommendation": "decrease"
       }
     ]
   }
 }
 ```
-- **No-data state:** When the user has no farms in that group, `hasData` is `false`, `temperatureDeltaC` is `null`, and `feedingPlan` uses base feed amounts without temperature adjustment.
-- **Temperature calculations:** 
-  - `temperatureDeltaC`: Difference from comfort boundary (negative = too cold, positive = too hot, 0 = within range, null = no data).
-  - `recommendedFeedAdjustmentPct`: Percentage to adjust feed amount (5% per degree deviation). Positive = increase feed (cold weather), negative = decrease feed (hot weather).
-- **Frontend responsibility:** 
-  - Determine alert severity by checking `temperatureDeltaC` against critical thresholds (e.g., ±2°C from comfort range).
-  - Render localized alert messages, feeding guidance, and tips based on temperature data.
-  - Display feeding stage information (age ranges, pellet size, protein %, feeding frequency) as static content maintained client-side.
+**Field Descriptions:**
+
+**Summary fields:**
+- `hasData`: `true` if farmer has GPS coordinates and weather data available
+- `airTemperatureC`: Current air temperature from weather API (null if no data)
+- `temperatureDeltaC`: Degrees away from optimal range (negative = below 28°C, positive = above 32°C, 0 = optimal, null = no data)
+- `comfortRangeC`: Optimal air temperature range { min: 28, max: 32 }
+- `recommendedFeedAdjustmentPct`: Overall feed adjustment % based on current temperature
+
+**Feeding plan fields:**
+- `date`: ISO date string for each day
+- `highTemperatureC`: Forecasted high air temperature
+- `lowTemperatureC`: Forecasted low air temperature
+- `feedAdjustmentPct`: **Percentage to adjust feed** (e.g., -15 = reduce 15%, +10 = increase 10%, 0 = normal)
+- `feedingRecommendation`: **Action keyword** - `"increase"`, `"decrease"`, or `"normal"`
+
+**Air Temperature Logic (adjusted for tropical conditions):**
+- **28-35°C air**: Optimal (0% adjustment) - water likely 25-30°C
+- **< 20°C air**: Cold weather, reduce 30% - water likely below 18°C
+- **20-24°C air**: Cool weather, reduce 20% - water likely 20-22°C
+- **24-28°C air**: Slightly cool, reduce 2.5% per degree
+- **35-38°C air**: Hot weather, reduce 3% per degree - water likely 30-32°C
+- **38-40°C air**: Very hot, reduce 20% - water likely 32-34°C (stress)
+- **40-42°C air**: Extreme heat, reduce 30% - water likely 34-36°C (critical)
+- **> 42°C air**: Severe heat, reduce 50% - water likely 36-38°C (dangerous)
+
+**Frontend responsibility:** 
+- Render UI text based on `feedingRecommendation`: 
+  - `"increase"` → "อากาศเย็น ควรเพิ่มอาหาร +X%"
+  - `"decrease"` → "อากาศร้อน/เย็น ควรลดอาหาร X%"
+  - `"normal"` → "อุณหภูมิเหมาะสม ให้ตามปกติ"
+- Display color-coded indicators (blue=increase, green=normal, red=decrease)
+- Show specific advice for extreme temperatures (> 40°C: add aerators, feed morning/evening only)
 
 ---
 
