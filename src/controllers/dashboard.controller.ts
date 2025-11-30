@@ -1,29 +1,29 @@
 import { NextFunction, Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { createHttpError } from '../utils/httpError';
-import { HomeService } from '../services/home.service';
+import { DashboardService } from '../services/dashboard.service';
 
-const getGroupOverview = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+const getDashboardByFarmType = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const user = req.user;
     if (!user) {
       throw createHttpError(401, 'Unauthorized');
     }
 
-    let groupType;
+    let farmType;
     try {
-      groupType = HomeService.parseGroupParam(req.params.groupType);
+      farmType = DashboardService.parseFarmTypeParam(req.params.groupType);
     } catch (parseError) {
       throw createHttpError(400, (parseError as Error).message);
     }
-    const overview = await HomeService.getGroupOverview(user.id, groupType);
+    const dashboard = await DashboardService.getDashboard(user.id, farmType);
 
-    res.json({ data: overview });
+    res.json({ data: dashboard });
   } catch (error) {
     next(error);
   }
 };
 
-export const HomeController = {
-  getGroupOverview,
+export const DashboardController = {
+  getDashboardByFarmType,
 };

@@ -661,7 +661,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
   - Uses farmer profile location (farmLatitude, farmLongitude) to get weather data
   - Air temperature typically 3-8°C higher than water temperature
   - Generates 7-day feeding plan with **percentage adjustments** instead of absolute kg amounts
-  - Returns 501 for `GROWOUT` until service is implemented
+  - All three farm types (NURSERY_SMALL, NURSERY_LARGE, GROWOUT) are fully implemented
   - **Data-driven approach:** Backend sends only numeric data; frontend handles all UI text and localization
 - **Response (NURSERY_SMALL):**
 ```json
@@ -730,7 +730,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
   }
 }
 ```
-- **Response (NURSERY_LARGE):**
+- **Response (NURSERY_LARGE / GROWOUT):**
 ```json
 {
   "data": {
@@ -796,6 +796,8 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 }
 ```
 
+**Note:** GROWOUT dashboard returns identical structure with `"group": "GROWOUT"`
+
 **Field Descriptions:**
 
 **Summary fields:**
@@ -804,11 +806,11 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - `temperatureDeltaC`: Degrees away from optimal range (negative = below 28°C, positive = above 32°C, 0 = optimal, null = no data)
 - `comfortRangeC`: Optimal air temperature range { min: 28, max: 32 }
 - `recommendedFeedAdjustmentPct`: Overall feed adjustment % based on current temperature
-- `averageFishWeight`: Average weight per fish in kg (NURSERY_LARGE only)
-- `weightChange`: Weight change percentage vs previous period (NURSERY_LARGE only)
-- `pelletFoodCost`: Total pellet food cost in baht (NURSERY_LARGE only)
-- `freshFoodCost`: Total fresh food cost in baht (NURSERY_LARGE only)
-- `monthlyFeedingData`: Array of 12 months of feeding data in kg (NURSERY_LARGE only)
+- `averageFishWeight`: Average weight per fish in kg (NURSERY_LARGE and GROWOUT only)
+- `weightChange`: Weight change percentage vs previous period (NURSERY_LARGE and GROWOUT only)
+- `pelletFoodCost`: Total pellet food cost in baht (NURSERY_LARGE and GROWOUT only)
+- `freshFoodCost`: Total fresh food cost in baht (NURSERY_LARGE and GROWOUT only)
+- `monthlyFeedingData`: Array of 12 months of feeding data in kg (NURSERY_LARGE and GROWOUT only)
   - `month`: Month abbreviation (Jan-Dec)
   - `value`: Total feed amount in kg
 
@@ -1231,7 +1233,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ### Version 1.0.2 (2025-11-30)
 
-**🔬 NURSERY_LARGE Dashboard Update**
+**🔬 NURSERY_LARGE & GROWOUT Dashboard Update**
 
 **Added:**
 - **NURSERY_LARGE Dashboard API** - Complete implementation with extended metrics
@@ -1240,7 +1242,10 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   - `pelletFoodCost`: Total pellet food cost in baht
   - `freshFoodCost`: Total fresh food cost in baht
   - `monthlyFeedingData`: Array of 12 months of feeding data (Jan-Dec, rotated from current month)
-- 7-day feeding plan with same weather integration as NURSERY_SMALL
+- **GROWOUT Dashboard API** - Complete implementation with same extended metrics as NURSERY_LARGE
+  - Identical structure and features to NURSERY_LARGE dashboard
+  - Optimized for market-size fish production stage
+- 7-day feeding plan with same weather integration as NURSERY_SMALL for both new farm types
 - Mock data generators for fish weight and costs (with TODO comments for database integration)
 
 **Technical:**
@@ -1248,18 +1253,21 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   - `generateMonthlyFeedingData()`: Creates 12-month array rotated from current month
   - `calculateAverageFishWeight()`: Returns fish weight with % change
   - `calculateFoodCosts()`: Returns pellet and fresh food costs
+- Created `GrowoutDashboardService` with identical structure to NURSERY_LARGE
 - Integrated with existing WeatherService and FeedingCalculator
-- Updated routing in `HomeService` to direct NURSERY_LARGE requests to new service
+- Updated routing in `HomeService` to direct NURSERY_LARGE and GROWOUT requests to respective services
 
 **Improved:**
 - Dashboard endpoint matrix documentation updated
-- Response examples added for NURSERY_LARGE
-- Field descriptions enhanced with NURSERY_LARGE-specific fields
+- Response examples added for NURSERY_LARGE and GROWOUT
+- Field descriptions enhanced with farm type-specific fields
 
 **Status:**
 - NURSERY_SMALL: ✅ Complete
 - NURSERY_LARGE: ✅ Complete
-- GROWOUT: ⏳ Returns 501 Not Implemented
+- GROWOUT: ✅ Complete
+
+**All three farm type dashboards are now fully operational!**
 
 ---
 

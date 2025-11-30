@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { authMiddleware } from '../middlewares/auth.middleware';
-import { HomeController } from '../controllers/home.controller';
+import { DashboardController } from '../controllers/dashboard.controller';
 
 const router = Router();
 
-router.get('/groups/:groupType', authMiddleware, HomeController.getGroupOverview);
+router.get('/groups/:groupType', authMiddleware, DashboardController.getDashboardByFarmType);
 
 export { router as dashboardRouter };
