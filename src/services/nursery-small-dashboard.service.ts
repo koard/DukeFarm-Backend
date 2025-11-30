@@ -90,6 +90,8 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
         new Date(),
         null,
         TEMP_RANGE_FOR_CALC,
+        7,
+        'NURSERY_SMALL',
       ),
     };
   }
@@ -152,6 +154,8 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
     new Date(asOf),
     airTemperatureC,
     TEMP_RANGE_FOR_CALC,
+    dailyForecast.length || 7,
+    'NURSERY_SMALL',
   );
 
   const feedingPlan: FeedingPlanRow[] = baseFeedingPlan.map((row, index) => {

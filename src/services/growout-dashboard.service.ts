@@ -139,6 +139,8 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
         new Date(),
         null,
         TEMP_RANGE_FOR_CALC,
+        7,
+        'GROWOUT',
       ),
     };
   }
@@ -202,6 +204,8 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
     new Date(asOf),
     airTemperatureC,
     TEMP_RANGE_FOR_CALC,
+    dailyForecast.length || 7,
+    'GROWOUT',
   );
 
   const feedingPlan: FeedingPlanRow[] = baseFeedingPlan.map((row, index) => {

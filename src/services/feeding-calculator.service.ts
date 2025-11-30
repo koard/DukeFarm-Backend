@@ -3,6 +3,8 @@ type TemperatureRange = {
   maxComfortC: number;
 };
 
+export type FarmType = 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT';
+
 export type FeedingPlanRow = {
   date: string;
   meanTemperatureC: number | null;
@@ -27,6 +29,26 @@ const formatDateISO = (date: Date): string => date.toISOString();
 /**
  * Calculate feed adjustment based on DAILY MEAN AIR TEMPERATURE
  * 
+ * AGE-SPECIFIC ADJUSTMENTS:
+ * Different fish age groups have different temperature sensitivity:
+ * 
+ * 1. NURSERY_SMALL (0-30 days): Most sensitive
+ *    - Narrow optimal range: 28-34°C air (water 23-29°C)
+ *    - Q10 = 2.8-3.2 (metabolism changes rapidly)
+ *    - Critical temp: <26°C or >35°C → high mortality risk
+ *    - Immune system immature, stress easily
+ * 
+ * 2. NURSERY_LARGE (31-120 days): Moderate tolerance
+ *    - Wider optimal range: 27-35°C air (water 22-30°C)
+ *    - Q10 = 2.3-2.6 (moderate metabolism changes)
+ *    - Developing immune system, better stress tolerance
+ * 
+ * 3. GROWOUT (121+ days): Most tolerant
+ *    - Widest optimal range: 26-36°C air (water 21-31°C)
+ *    - Q10 = 2.0-2.2 (metabolism changes slowly)
+ *    - Mature immune system, high stress tolerance
+ *    - Can survive brief cold/hot extremes
+ * 
  * CRITICAL: This function uses AIR temperature but thresholds are adjusted based on
  * water temperature research. Air temp is typically 5-7°C higher than water temp in
  * tropical pond conditions (Thailand).
@@ -42,32 +64,6 @@ const formatDateISO = (date: Date): string => date.toISOString();
  * - Mean temperature best represents daily pond conditions
  * - FCR (Feed Conversion Ratio) correlates with daily mean temperature
  * 
- * Temperature Zones (Air temp → Estimated water temp → Feeding adjustment):
- * 
- * COLD ZONE (tuned for Pathum Thani climate):
- * - <18°C air → ~11-13°C water → -80% (extreme cold, rare: 1-2 days/year)
- * - 18-21°C air → ~13-16°C water → -60% (very cold, coldest mornings Dec-Jan)
- * - 21-24°C air → ~16-19°C water → -40% (cold, occasional in Nov-Feb)
- * - 24-26°C air → ~19-21°C water → -40% to -50% (cool, common in Nov-Feb)
- * - 26-28°C air → ~21-23°C water → -3% per degree (mild, very common mornings)
- * 
- * OPTIMAL ZONE:
- * - 28-35°C air → ~23-30°C water → 0% (OPTIMAL - normal feeding) ✅
- *   Research shows catfish optimal water temp: 26-30°C
- *   Converted to air: 31-35°C (adding ~5°C)
- * 
- * HOT ZONE:
- * - 35-37°C air → ~30-32°C water → -6% per degree (entering stress)
- * - 37-39°C air → ~32-34°C water → -30% (moderate stress, reduced DO)
- * - 39-41°C air → ~34-36°C water → -60% (severe stress, low DO)
- * - >41°C air → >36°C water → -85% (critical, survival mode)
- * 
- * Biological Basis:
- * - Q10 rule: Metabolic rate changes exponentially with temperature
- * - Cold: Metabolism slows → reduced digestion → must reduce feeding
- * - Hot: Dissolved oxygen drops → stress → must reduce feeding
- * - Optimal: Maximum feed conversion efficiency
- * 
  * Research References:
  * - Tucker & Hargreaves (2004): "Biology and Culture of Channel Catfish"
  * - Boyd & Tucker (1998): "Pond Aquaculture Water Quality Management"
@@ -78,6 +74,7 @@ const formatDateISO = (date: Date): string => date.toISOString();
 const computeFeedAdjustment = (
   temperatureC: number | null,
   range: TemperatureRange,
+  farmType: FarmType = 'NURSERY_SMALL', // Default to most sensitive
 ): { adjustmentPct: number; recommendation: 'increase' | 'decrease' | 'normal' } => {
   if (temperatureC === null) {
     return { adjustmentPct: 0, recommendation: 'normal' };
@@ -86,72 +83,80 @@ const computeFeedAdjustment = (
   let adjustmentPct = 0;
   let recommendation: 'increase' | 'decrease' | 'normal' = 'normal';
 
-  // OPTIMAL ZONE: 28-35°C air (water ~23-30°C)
-  // This is where catfish feed efficiently
-  if (temperatureC >= 28 && temperatureC <= 35) {
+  // Age-specific optimal temperature ranges (air temperature)
+  const optimalRanges = {
+    NURSERY_SMALL: { min: 28, max: 34 },  // 0-30 days: narrow range, most sensitive
+    NURSERY_LARGE: { min: 27, max: 35 },  // 31-120 days: moderate range
+    GROWOUT: { min: 26, max: 36 },        // 121+ days: wide range, most tolerant
+  };
+
+  const optimal = optimalRanges[farmType];
+
+  // OPTIMAL ZONE: Age-specific optimal range
+  if (temperatureC >= optimal.min && temperatureC <= optimal.max) {
     adjustmentPct = 0;
     recommendation = 'normal';
   }
-  // COLD ZONE: Below 28°C air
+  // COLD ZONE: Below optimal range
   // Water temp drops, metabolism slows, reduce feeding
-  else if (temperatureC < 28) {
+  else if (temperatureC < optimal.min) {
+    // Age-specific cold sensitivity multipliers
+    const coldMultiplier = {
+      NURSERY_SMALL: 1.3,  // Most sensitive - reduce more aggressively
+      NURSERY_LARGE: 1.0,  // Standard reduction
+      GROWOUT: 0.7,        // Most tolerant - reduce less
+    }[farmType];
+
     if (temperatureC < 18) {
       // Extreme cold: <18°C air → ~11-13°C water
-      // Very rare in Pathum Thani (1-2 days/year)
-      // Catfish barely feed, high FCR, risk of disease
-      adjustmentPct = -80;
+      adjustmentPct = Math.round(-80 * coldMultiplier);
       recommendation = 'decrease';
     } else if (temperatureC < 21) {
       // Very cold: 18-21°C air → ~13-16°C water
-      // Rare in Pathum Thani (coldest mornings Dec-Jan)
-      // Significant metabolism reduction
-      adjustmentPct = -60;
+      adjustmentPct = Math.round(-60 * coldMultiplier);
       recommendation = 'decrease';
     } else if (temperatureC < 24) {
       // Cold: 21-24°C air → ~16-19°C water
-      // Occasional in cool season (Nov-Feb mornings)
-      // Feed intake notably reduced
-      adjustmentPct = -40;
+      adjustmentPct = Math.round(-40 * coldMultiplier);
       recommendation = 'decrease';
     } else if (temperatureC < 26) {
       // Cool: 24-26°C air → ~19-21°C water
-      // Common in cool season (Nov-Feb)
-      // Moderate reduction, 5% per degree
       const delta = 26 - temperatureC;
-      adjustmentPct = -Math.round(40 + delta * 5);
+      adjustmentPct = Math.round(-(40 + delta * 5) * coldMultiplier);
       recommendation = 'decrease';
     } else {
-      // Mild cool: 26-28°C air → ~21-23°C water
-      // Very common in Pathum Thani mornings (Nov-Feb)
-      // Catfish still feed well, gentle reduction
-      const delta = 28 - temperatureC;
-      adjustmentPct = -Math.round(delta * 3); // 3% per degree (was 4%)
+      // Mild cool: approaching optimal range
+      const delta = optimal.min - temperatureC;
+      adjustmentPct = Math.round(-delta * 3 * coldMultiplier);
       recommendation = 'decrease';
     }
   }
-  // HOT ZONE: Above 35°C air
+  // HOT ZONE: Above optimal range
   // Water temp rises, stress increases, DO drops, reduce feeding
-  else if (temperatureC > 35) {
+  else if (temperatureC > optimal.max) {
+    // Age-specific heat sensitivity multipliers
+    const heatMultiplier = {
+      NURSERY_SMALL: 1.4,  // Most sensitive - reduce more aggressively
+      NURSERY_LARGE: 1.0,  // Standard reduction
+      GROWOUT: 0.8,        // Most tolerant - reduce less
+    }[farmType];
+
     if (temperatureC >= 41) {
       // Critical heat: >41°C air → >36°C water
-      // Near-lethal conditions, minimal feeding to avoid mortality
-      adjustmentPct = -85;
+      adjustmentPct = Math.round(-85 * heatMultiplier);
       recommendation = 'decrease';
     } else if (temperatureC >= 39) {
       // Severe stress: 39-41°C air → ~34-36°C water
-      // High stress, very low DO, significant reduction
-      adjustmentPct = -60;
+      adjustmentPct = Math.round(-60 * heatMultiplier);
       recommendation = 'decrease';
     } else if (temperatureC >= 37) {
       // Moderate stress: 37-39°C air → ~32-34°C water
-      // DO starts dropping, stress increases
-      adjustmentPct = -30;
+      adjustmentPct = Math.round(-30 * heatMultiplier);
       recommendation = 'decrease';
     } else {
-      // Entering stress: 35-37°C air → ~30-32°C water
-      // Upper optimal limit, gradual reduction
-      const delta = temperatureC - 35;
-      adjustmentPct = -Math.round(delta * 6); // 6% per degree
+      // Entering stress: just above optimal
+      const delta = temperatureC - optimal.max;
+      adjustmentPct = Math.round(-delta * 6 * heatMultiplier);
       recommendation = 'decrease';
     }
   }
@@ -167,6 +172,7 @@ const generateMockForecast = (
   baseTemperatureC: number | null,
   range: TemperatureRange,
   days: number,
+  farmType: FarmType,
 ): FeedingPlanRow[] => {
   const midpoint = (range.minComfortC + range.maxComfortC) / 2;
   const baseTemp = baseTemperatureC ?? midpoint;
@@ -176,7 +182,7 @@ const generateMockForecast = (
     const mean = clampToOneDecimal(baseTemp + variance);
     const high = clampToOneDecimal(mean + 3);
     const low = clampToOneDecimal(mean - 3);
-    const { adjustmentPct, recommendation } = computeFeedAdjustment(mean, range);
+    const { adjustmentPct, recommendation } = computeFeedAdjustment(mean, range, farmType);
 
     return {
       date: formatDateISO(addDays(startDate, index)),
@@ -194,8 +200,9 @@ const generateFeedingPlan = (
   currentTemperatureC: number | null,
   range: TemperatureRange,
   days: number = 7,
+  farmType: FarmType = 'NURSERY_SMALL',
 ): FeedingPlanRow[] => {
-  return generateMockForecast(startDate, currentTemperatureC, range, days);
+  return generateMockForecast(startDate, currentTemperatureC, range, days, farmType);
 };
 
 export const FeedingCalculator = {
