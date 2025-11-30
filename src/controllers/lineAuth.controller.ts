@@ -42,13 +42,45 @@ const handleLineCallback = async (req: Request, res: Response, next: NextFunctio
 
     const result = await LineAuthService.handleCallback(code as string, state as string | undefined);
     
+    // Fetch full user data with profile
+    const fullUserData = await prisma.user.findUnique({
+      where: { id: result.user.id },
+      select: {
+        id: true,
+        lineUserId: true,
+        displayName: true,
+        pictureUrl: true,
+        role: true,
+        registrationStatus: true,
+        createdAt: true,
+        farmerProfile: {
+          select: {
+            firstName: true,
+            lastName: true,
+            phone: true,
+            primaryFarmType: true,
+            declaredPondCount: true,
+            farmLatitude: true,
+            farmLongitude: true,
+          },
+        },
+        researcherProfile: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            organization: true,
+            department: true,
+            jobTitle: true,
+          },
+        },
+      },
+    });
+    
     // Redirect to frontend with query parameters
     const { env } = await import('../config/env');
-    const userJson = JSON.stringify({
-      id: result.user.id,
-      displayName: result.user.displayName,
-      pictureUrl: result.user.pictureUrl,
-    });
+    const userJson = JSON.stringify(fullUserData);
     
     const params = new URLSearchParams({
       token: result.token,
