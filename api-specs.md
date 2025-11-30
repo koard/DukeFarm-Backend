@@ -661,7 +661,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
   - Uses farmer profile location (farmLatitude, farmLongitude) to get weather data
   - Air temperature typically 3-8°C higher than water temperature
   - Generates 7-day feeding plan with **percentage adjustments** instead of absolute kg amounts
-  - Returns 501 for `NURSERY_LARGE` and `GROWOUT` until those services are implemented
+  - Returns 501 for `GROWOUT` until service is implemented
   - **Data-driven approach:** Backend sends only numeric data; frontend handles all UI text and localization
 - **Response (NURSERY_SMALL):**
 ```json
@@ -730,6 +730,72 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
   }
 }
 ```
+- **Response (NURSERY_LARGE):**
+```json
+{
+  "data": {
+    "group": "NURSERY_LARGE",
+    "hasData": true,
+    "summary": {
+      "asOf": "2025-11-30T10:15:00.000Z",
+      "airTemperatureC": 31.5,
+      "temperatureDeltaC": 0,
+      "comfortRangeC": { "min": 28, "max": 32 },
+      "recommendedFeedAdjustmentPct": 0,
+      "weather": {
+        "time": "2025-11-30T10:10:00Z",
+        "temperatureC": 31.5,
+        "humidityPct": 68,
+        "windSpeedKph": 8.2,
+        "rainMm": 0.0,
+        "weatherCode": 1,
+        "conditionText": "Mainly clear"
+      },
+      "averageFishWeight": 0.3,
+      "weightChange": -2.0,
+      "pelletFoodCost": 15000,
+      "freshFoodCost": 8000,
+      "monthlyFeedingData": [
+        { "month": "Dec", "value": 0.25 },
+        { "month": "Jan", "value": 0.5 },
+        { "month": "Feb", "value": 0.65 },
+        { "month": "Mar", "value": 0.95 },
+        { "month": "Apr", "value": 0.8 },
+        { "month": "May", "value": 2.0 },
+        { "month": "Jun", "value": 1.2 },
+        { "month": "Jul", "value": 1.4 },
+        { "month": "Aug", "value": 1.6 },
+        { "month": "Sep", "value": 1.8 },
+        { "month": "Oct", "value": 1.5 },
+        { "month": "Nov", "value": 1.3 }
+      ]
+    },
+    "feedingPlan": [
+      {
+        "date": "2025-11-30T00:00:00.000Z",
+        "meanTemperatureC": 30.0,
+        "highTemperatureC": 32.5,
+        "lowTemperatureC": 27.5,
+        "weatherCode": 1,
+        "conditionText": "Mainly clear",
+        "feedAdjustmentPct": 0,
+        "feedingRecommendation": "normal"
+      },
+      {
+        "date": "2025-12-01T00:00:00.000Z",
+        "meanTemperatureC": 29.5,
+        "highTemperatureC": 32.0,
+        "lowTemperatureC": 27.0,
+        "weatherCode": 2,
+        "conditionText": "Partly cloudy",
+        "feedAdjustmentPct": 0,
+        "feedingRecommendation": "normal"
+      }
+    ]
+  }
+}
+```
+
 **Field Descriptions:**
 
 **Summary fields:**
@@ -738,6 +804,13 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - `temperatureDeltaC`: Degrees away from optimal range (negative = below 28°C, positive = above 32°C, 0 = optimal, null = no data)
 - `comfortRangeC`: Optimal air temperature range { min: 28, max: 32 }
 - `recommendedFeedAdjustmentPct`: Overall feed adjustment % based on current temperature
+- `averageFishWeight`: Average weight per fish in kg (NURSERY_LARGE only)
+- `weightChange`: Weight change percentage vs previous period (NURSERY_LARGE only)
+- `pelletFoodCost`: Total pellet food cost in baht (NURSERY_LARGE only)
+- `freshFoodCost`: Total fresh food cost in baht (NURSERY_LARGE only)
+- `monthlyFeedingData`: Array of 12 months of feeding data in kg (NURSERY_LARGE only)
+  - `month`: Month abbreviation (Jan-Dec)
+  - `value`: Total feed amount in kg
 
 **Feeding plan fields:**
 - `date`: ISO date string for each day
@@ -1155,6 +1228,40 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 ---
 
 ## 📅 Changelog
+
+### Version 1.0.2 (2025-11-30)
+
+**🔬 NURSERY_LARGE Dashboard Update**
+
+**Added:**
+- **NURSERY_LARGE Dashboard API** - Complete implementation with extended metrics
+  - `averageFishWeight`: Average weight per fish in kg (calculated from pond records)
+  - `weightChange`: Weight change percentage vs previous period
+  - `pelletFoodCost`: Total pellet food cost in baht
+  - `freshFoodCost`: Total fresh food cost in baht
+  - `monthlyFeedingData`: Array of 12 months of feeding data (Jan-Dec, rotated from current month)
+- 7-day feeding plan with same weather integration as NURSERY_SMALL
+- Mock data generators for fish weight and costs (with TODO comments for database integration)
+
+**Technical:**
+- Created `NurseryLargeDashboardService` with three helper functions:
+  - `generateMonthlyFeedingData()`: Creates 12-month array rotated from current month
+  - `calculateAverageFishWeight()`: Returns fish weight with % change
+  - `calculateFoodCosts()`: Returns pellet and fresh food costs
+- Integrated with existing WeatherService and FeedingCalculator
+- Updated routing in `HomeService` to direct NURSERY_LARGE requests to new service
+
+**Improved:**
+- Dashboard endpoint matrix documentation updated
+- Response examples added for NURSERY_LARGE
+- Field descriptions enhanced with NURSERY_LARGE-specific fields
+
+**Status:**
+- NURSERY_SMALL: ✅ Complete
+- NURSERY_LARGE: ✅ Complete
+- GROWOUT: ⏳ Returns 501 Not Implemented
+
+---
 
 ### Version 1.0.1 (2025-11-28)
 
