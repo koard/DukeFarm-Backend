@@ -169,6 +169,7 @@ model FeedFormula {
   description     String?
   recommendations String?
   targetStage     String?                  @map("target_stage")
+  farmType        FarmType?                @map("farm_type")
   farmId          String?                  @map("farm_id") @db.Uuid
   ownerId         String?                  @map("owner_id") @db.Uuid
   farm            Farm?                    @relation(fields: [farmId], references: [id])

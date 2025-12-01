@@ -3,6 +3,7 @@ import { prisma } from '../clients/prisma';
 type CreateFeedFormulaInput = {
   name: string;
   targetStage: string;
+  farmType?: 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT';
   description?: string;
   recommendations?: string;
   createdBy: string; // Admin user ID
@@ -11,6 +12,7 @@ type CreateFeedFormulaInput = {
 type UpdateFeedFormulaInput = {
   name?: string;
   targetStage?: string;
+  farmType?: 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT';
   description?: string;
   recommendations?: string;
 };
@@ -19,6 +21,7 @@ type FeedFormulaListItem = {
   id: string;
   name: string;
   targetStage: string;
+  farmType: string | null;
   description: string | null;
   recommendations: string | null;
   createdBy: string;
@@ -46,6 +49,7 @@ const createFeedFormula = async (input: CreateFeedFormulaInput) => {
     data: {
       name: input.name,
       targetStage: input.targetStage,
+      farmType: input.farmType || null,
       description: input.description || null,
       recommendations: input.recommendations || null,
       ownerId: input.createdBy,
@@ -83,6 +87,7 @@ const getFeedFormulaList = async (params: PaginationParams): Promise<FeedFormula
     id: formula.id,
     name: formula.name,
     targetStage: formula.targetStage || '',
+    farmType: formula.farmType,
     description: formula.description,
     recommendations: formula.recommendations,
     createdBy: formula.ownerId || '',
@@ -116,6 +121,7 @@ const getFeedFormulaById = async (id: string) => {
     id: formula.id,
     name: formula.name,
     targetStage: formula.targetStage,
+    farmType: formula.farmType,
     description: formula.description,
     recommendations: formula.recommendations,
     createdBy: formula.ownerId || '',
@@ -130,6 +136,7 @@ const updateFeedFormula = async (id: string, input: UpdateFeedFormulaInput) => {
     data: {
       ...(input.name && { name: input.name }),
       ...(input.targetStage && { targetStage: input.targetStage }),
+      ...(input.farmType !== undefined && { farmType: input.farmType || null }),
       ...(input.description !== undefined && { description: input.description || null }),
       ...(input.recommendations !== undefined && { recommendations: input.recommendations || null }),
     },
@@ -139,6 +146,7 @@ const updateFeedFormula = async (id: string, input: UpdateFeedFormulaInput) => {
     id: formula.id,
     name: formula.name,
     targetStage: formula.targetStage,
+    farmType: formula.farmType,
     description: formula.description,
     recommendations: formula.recommendations,
     createdBy: formula.ownerId || '',
