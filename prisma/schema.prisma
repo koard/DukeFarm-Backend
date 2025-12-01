@@ -57,6 +57,7 @@ model User {
   feedFormulas       FeedFormula[]
   farmerProfile      FarmerProfile?
   researcherProfile  ResearcherProfile?
+  farmDataEntries    FarmDataEntry[]
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at")
 
@@ -309,6 +310,28 @@ model ResearcherProfile {
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@map("researcher_profiles")
+}
+
+model FarmDataEntry {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String    @map("user_id") @db.Uuid
+  user               User      @relation(fields: [userId], references: [id])
+  farmType           FarmType  @map("farm_type")
+  recordedAt         DateTime  @map("recorded_at")
+  fishAgeLabel       String    @map("fish_age_label")
+  pondType           PondType? @map("pond_type")
+  pondCount          Int?      @map("pond_count")
+  fishCount          Int?      @map("fish_count")
+  fishCountText      String?   @map("fish_count_text")
+  weatherTemperatureC Float?   @map("weather_temperature_c")
+  weatherRainMm      Float?    @map("weather_rain_mm")
+  weatherHumidityPct Float?    @map("weather_humidity_pct")
+  notes              String?
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([userId, recordedAt])
+  @@map("farm_data_entries")
 }
 
 
