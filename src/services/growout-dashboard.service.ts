@@ -28,6 +28,7 @@ type DashboardSummary = {
   hourlyForecast: HourlyForecast[];
   averageFishWeight: number | null;
   weightChange: number | null;
+  latestFishAgeLabel: string | null;
   pelletFoodCost: number;
   freshFoodCost: number;
   monthlyFeedingData: MonthlyFeedingData[];
@@ -61,7 +62,7 @@ const calculateWeightChangePct = (current: number | null, previous: number | nul
 
 const buildGrowthSeries = async (
   userId: string,
-): Promise<{ points: MonthlyFeedingData[]; latestWeightKg: number | null; previousWeightKg: number | null }> => {
+): Promise<{ points: MonthlyFeedingData[] }> => {
   const since = new Date(Date.now() - GRAPH_LOOKBACK_DAYS * DAY_IN_MS);
 
   const entries = await prisma.farmDataEntry.findMany({
@@ -92,17 +93,54 @@ const buildGrowthSeries = async (
     };
   });
 
-  if (entries.length === 0) {
-    return { points, latestWeightKg: null, previousWeightKg: null };
+  return { points };
+};
+
+const getLatestFishMetrics = async (
+  userId: string,
+): Promise<{ averageFishWeight: number | null; weightChange: number | null; latestFishAgeLabel: string | null }> => {
+  const recentEntries = await prisma.farmDataEntry.findMany({
+    where: {
+      userId,
+      farmType: FarmType.GROWOUT,
+    },
+    select: {
+      recordedAt: true,
+      fishAgeLabel: true,
+      averageFishWeightGr: true,
+    },
+    orderBy: {
+      recordedAt: 'desc',
+    },
+    take: 10,
+  });
+
+  if (!recentEntries.length) {
+    return {
+      averageFishWeight: null,
+      weightChange: null,
+      latestFishAgeLabel: null,
+    };
   }
 
-  const latest = entries[entries.length - 1]!;
-  const previous = entries.length > 1 ? entries[entries.length - 2]! : null;
+  const latestFishAgeLabel = recentEntries[0]?.fishAgeLabel ?? null;
+
+  const weightEntries = recentEntries.filter((entry) => entry.averageFishWeightGr !== null);
+  const latestWeightEntry = weightEntries[0];
+  const previousWeightEntry = weightEntries[1];
+
+  const latestWeightKg = latestWeightEntry?.averageFishWeightGr
+    ? Number(latestWeightEntry.averageFishWeightGr) / 1000
+    : null;
+
+  const previousWeightKg = previousWeightEntry?.averageFishWeightGr
+    ? Number(previousWeightEntry.averageFishWeightGr) / 1000
+    : null;
 
   return {
-    points,
-    latestWeightKg: latest.averageFishWeightGr ? Number(latest.averageFishWeightGr) / 1000 : null,
-    previousWeightKg: previous && previous.averageFishWeightGr ? Number(previous.averageFishWeightGr) / 1000 : null,
+    averageFishWeight: latestWeightKg,
+    weightChange: calculateWeightChangePct(latestWeightKg, previousWeightKg),
+    latestFishAgeLabel,
   };
 };
 
@@ -129,9 +167,8 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
     },
   });
 
-  const { points: monthlyFeedingData, latestWeightKg, previousWeightKg } = await buildGrowthSeries(userId);
-  const averageFishWeight = latestWeightKg;
-  const weightChange = calculateWeightChangePct(latestWeightKg, previousWeightKg);
+  const { points: monthlyFeedingData } = await buildGrowthSeries(userId);
+  const { averageFishWeight, weightChange, latestFishAgeLabel } = await getLatestFishMetrics(userId);
   
   // Calculate food costs
   const { pelletCost, freshCost } = calculateFoodCosts();
@@ -151,6 +188,7 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
         hourlyForecast: [],
         averageFishWeight,
         weightChange,
+        latestFishAgeLabel,
         pelletFoodCost: pelletCost,
         freshFoodCost: freshCost,
         monthlyFeedingData,
@@ -264,6 +302,7 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
       hourlyForecast,
       averageFishWeight,
       weightChange,
+      latestFishAgeLabel,
       pelletFoodCost: pelletCost,
       freshFoodCost: freshCost,
       monthlyFeedingData,
