@@ -1,6 +1,6 @@
 import { FarmType } from '@prisma/client';
 import { prisma } from '../clients/prisma';
-import { WeatherService, type CurrentWeather, type DailyForecast } from './weather.service';
+import { WeatherService, type CurrentWeather, type DailyForecast, type HourlyForecast, type LocationInfo } from './weather.service';
 import { FeedingCalculator, type FeedingPlanRow } from './feeding-calculator.service';
 import { logger } from '../utils/logger';
 
@@ -25,6 +25,8 @@ type DashboardSummary = {
   comfortRangeC: TemperatureRange;
   recommendedFeedAdjustmentPct: number;
   weather: CurrentWeather | null;
+  hourlyForecast: HourlyForecast[];
+  location: LocationInfo | null;
   averageFishWeight: number;
   weightChange: number;
   pelletFoodCost: number;
@@ -129,6 +131,8 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
         comfortRangeC: COMFORT_TEMP_RANGE,
         recommendedFeedAdjustmentPct: 0,
         weather: null,
+        hourlyForecast: [],
+        location: null,
         averageFishWeight,
         weightChange,
         pelletFoodCost: pelletCost,
@@ -148,27 +152,32 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
   // Fetch weather using farmer profile location
   let weather: CurrentWeather | null = null;
   let dailyForecast: DailyForecast[] = [];
+  let hourlyForecast: HourlyForecast[] = [];
+  let location: LocationInfo | null = null;
 
   if (farmerProfile.farmLatitude !== null && farmerProfile.farmLongitude !== null) {
     try {
-      weather = await WeatherService.getCurrentWeather(
-        farmerProfile.farmLatitude,
-        farmerProfile.farmLongitude,
-      );
+      [weather, dailyForecast, hourlyForecast, location] = await Promise.all([
+        WeatherService.getCurrentWeather(
+          farmerProfile.farmLatitude,
+          farmerProfile.farmLongitude,
+        ),
+        WeatherService.getDailyForecast(
+          farmerProfile.farmLatitude,
+          farmerProfile.farmLongitude,
+        ),
+        WeatherService.getHourlyForecast(
+          farmerProfile.farmLatitude,
+          farmerProfile.farmLongitude,
+          24,
+        ),
+        WeatherService.getLocationName(
+          farmerProfile.farmLatitude,
+          farmerProfile.farmLongitude,
+        ),
+      ]);
     } catch (error) {
-      logger.warn('Unable to fetch current weather for growout dashboard', {
-        userId,
-        error,
-      });
-    }
-
-    try {
-      dailyForecast = await WeatherService.getDailyForecast(
-        farmerProfile.farmLatitude,
-        farmerProfile.farmLongitude,
-      );
-    } catch (error) {
-      logger.warn('Unable to fetch daily forecast for growout dashboard', {
+      logger.warn('Unable to fetch weather data for growout dashboard', {
         userId,
         error,
       });
@@ -241,6 +250,8 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
       comfortRangeC: COMFORT_TEMP_RANGE,
       recommendedFeedAdjustmentPct,
       weather,
+      hourlyForecast,
+      location,
       averageFishWeight,
       weightChange,
       pelletFoodCost: pelletCost,

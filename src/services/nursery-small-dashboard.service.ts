@@ -1,6 +1,6 @@
 import { FarmType } from '@prisma/client';
 import { prisma } from '../clients/prisma';
-import { WeatherService, type CurrentWeather, type DailyForecast } from './weather.service';
+import { WeatherService, type CurrentWeather, type DailyForecast, type HourlyForecast, type LocationInfo } from './weather.service';
 import { FeedingCalculator, type FeedingPlanRow } from './feeding-calculator.service';
 import { logger } from '../utils/logger';
 
@@ -20,6 +20,8 @@ type DashboardSummary = {
   comfortRangeC: TemperatureRange;
   recommendedFeedAdjustmentPct: number;
   weather: CurrentWeather | null;
+  hourlyForecast: HourlyForecast[];
+  location: LocationInfo | null;
 };
 
 export type NurserySmallDashboard = {
@@ -99,27 +101,32 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
   // Fetch weather using farmer profile location
   let weather: CurrentWeather | null = null;
   let dailyForecast: DailyForecast[] = [];
+  let hourlyForecast: HourlyForecast[] = [];
+  let location: LocationInfo | null = null;
 
   if (farmerProfile.farmLatitude !== null && farmerProfile.farmLongitude !== null) {
     try {
-      weather = await WeatherService.getCurrentWeather(
-        farmerProfile.farmLatitude,
-        farmerProfile.farmLongitude,
-      );
+      [weather, dailyForecast, hourlyForecast, location] = await Promise.all([
+        WeatherService.getCurrentWeather(
+          farmerProfile.farmLatitude,
+          farmerProfile.farmLongitude,
+        ),
+        WeatherService.getDailyForecast(
+          farmerProfile.farmLatitude,
+          farmerProfile.farmLongitude,
+        ),
+        WeatherService.getHourlyForecast(
+          farmerProfile.farmLatitude,
+          farmerProfile.farmLongitude,
+          24,
+        ),
+        WeatherService.getLocationName(
+          farmerProfile.farmLatitude,
+          farmerProfile.farmLongitude,
+        ),
+      ]);
     } catch (error) {
-      logger.warn('Unable to fetch current weather for nursery small dashboard', {
-        userId,
-        error,
-      });
-    }
-
-    try {
-      dailyForecast = await WeatherService.getDailyForecast(
-        farmerProfile.farmLatitude,
-        farmerProfile.farmLongitude,
-      );
-    } catch (error) {
-      logger.warn('Unable to fetch daily forecast for nursery small dashboard', {
+      logger.warn('Unable to fetch weather data for nursery small dashboard', {
         userId,
         error,
       });
@@ -191,6 +198,8 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
       comfortRangeC: COMFORT_TEMP_RANGE,
       recommendedFeedAdjustmentPct,
       weather,
+      hourlyForecast,
+      location,
     },
     feedingPlan,
   };

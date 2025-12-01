@@ -34,6 +34,15 @@ type OpenMeteoDailyResponse = {
   };
 };
 
+type OpenMeteoHourlyResponse = {
+  hourly: {
+    time: string[];
+    temperature_2m: number[];
+    precipitation_probability: number[];
+    weather_code: number[];
+  };
+};
+
 export type CurrentWeather = {
   time: string;
   temperatureC: number;
@@ -51,6 +60,21 @@ export type DailyForecast = {
   temperatureMinC: number;
   weatherCode: number;
   conditionText: string;
+};
+
+export type HourlyForecast = {
+  time: string;
+  temperatureC: number;
+  precipitationProbability: number;
+  weatherCode: number;
+  conditionText: string;
+};
+
+export type LocationInfo = {
+  name: string;
+  district: string;
+  city: string;
+  country: string;
 };
 
 /**
@@ -187,7 +211,96 @@ const getDailyForecast = async (lat: number, lng: number, days: number = 7): Pro
   }
 };
 
+/**
+ * Get hourly forecast for next 24 hours
+ */
+const getHourlyForecast = async (lat: number, lng: number, hours: number = 24): Promise<HourlyForecast[]> => {
+  try {
+    const response = await axios.get<OpenMeteoHourlyResponse>(OPEN_METEO_BASE_URL, {
+      params: {
+        latitude: lat,
+        longitude: lng,
+        hourly: [
+          'temperature_2m',
+          'precipitation_probability',
+          'weather_code',
+        ].join(','),
+        timezone: 'Asia/Bangkok',
+        forecast_hours: hours,
+      },
+    });
+
+    const { hourly } = response.data;
+    if (!hourly || !hourly.time || hourly.time.length === 0) {
+      throw new Error('Weather API returned no hourly forecast data');
+    }
+
+    const forecasts: HourlyForecast[] = hourly.time.slice(0, hours).map((time, index) => ({
+      time,
+      temperatureC: hourly.temperature_2m[index] ?? 0,
+      precipitationProbability: hourly.precipitation_probability[index] ?? 0,
+      weatherCode: hourly.weather_code[index] ?? 0,
+      conditionText: getWeatherDescription(hourly.weather_code[index] ?? 0),
+    }));
+
+    return forecasts;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status ?? 'network';
+      const message =
+        typeof error.response?.data === 'string'
+          ? error.response.data
+          : JSON.stringify(error.response?.data ?? {});
+
+      throw new Error(`Weather API error (${status}): ${message || error.message}`);
+    }
+
+    throw error;
+  }
+};
+
+/**
+ * Get location name from coordinates using Nominatim (OpenStreetMap)
+ */
+const getLocationName = async (lat: number, lng: number): Promise<LocationInfo> => {
+  try {
+    const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
+      params: {
+        format: 'json',
+        lat,
+        lon: lng,
+        'accept-language': 'th',
+      },
+      headers: {
+        'User-Agent': 'DukeFarm/1.0',
+      },
+    });
+
+    const address = response.data.address || {};
+    const district = address.suburb || address.city_district || address.town || '';
+    const city = address.city || address.state || '';
+    const country = address.country || 'Thailand';
+
+    return {
+      name: district && city ? `${district}, ${city}` : city || district || 'Unknown location',
+      district,
+      city,
+      country,
+    };
+  } catch (error) {
+    // Fallback if geocoding fails
+    return {
+      name: `${lat.toFixed(2)}, ${lng.toFixed(2)}`,
+      district: '',
+      city: '',
+      country: '',
+    };
+  }
+};
+
 export const WeatherService = {
   getCurrentWeather,
   getDailyForecast,
+  getHourlyForecast,
+  getLocationName,
 };
