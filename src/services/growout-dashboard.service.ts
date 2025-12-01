@@ -26,8 +26,8 @@ type DashboardSummary = {
   recommendedFeedAdjustmentPct: number;
   weather: CurrentWeather | null;
   hourlyForecast: HourlyForecast[];
-  averageFishWeight: number;
-  weightChange: number;
+  averageFishWeight: number | null;
+  weightChange: number | null;
   pelletFoodCost: number;
   freshFoodCost: number;
   monthlyFeedingData: MonthlyFeedingData[];
@@ -40,49 +40,69 @@ export type GrowoutDashboard = {
   feedingPlan: FeedingPlanRow[];
 };
 
-/**
- * Generate mock monthly feeding data for the past 12 months
- * Values are in kilograms (Kg) and show typical feeding patterns for GROWOUT stage
- */
-const generateMonthlyFeedingData = (): MonthlyFeedingData[] => {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const currentMonth = new Date().getMonth();
-  
-  // Base values with seasonal variation (higher values for growout stage)
-  const baseValues = [0.25, 0.5, 0.65, 0.95, 0.8, 2.0, 1.2, 1.4, 1.6, 1.8, 1.5, 1.3];
-  
-  // Rotate array to start from current month going back
-  const rotatedMonths: MonthlyFeedingData[] = [];
-  for (let i = 0; i < 12; i++) {
-    const monthIndex = (currentMonth - 11 + i + 12) % 12;
-    rotatedMonths.push({
-      month: months[monthIndex]!,
-      value: baseValues[monthIndex]!,
-    });
+const GRAPH_LOOKBACK_DAYS = 30;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const formatGraphLabel = (date: Date): string =>
+  date.toLocaleDateString('th-TH', {
+    day: '2-digit',
+    month: 'short',
+  });
+
+const calculateWeightChangePct = (current: number | null, previous: number | null): number | null => {
+  if (current === null || previous === null || previous === 0) {
+    return null;
   }
-  
-  return rotatedMonths;
+
+  const diff = current - previous;
+  const pct = (diff / previous) * 100;
+  return Math.round(pct * 10) / 10;
 };
 
-/**
- * Calculate average fish weight based on farm records
- * For now returns mock data, can be extended to query actual pond records
- */
-const calculateAverageFishWeight = async (userId: string): Promise<{ weight: number; change: number }> => {
-  // TODO: Query actual pond records when available
-  // const ponds = await prisma.pond.findMany({
-  //   where: { farm: { farmerProfile: { userId } } },
-  //   include: { latestMeasurement: true }
-  // });
-  
-  // Mock data for demonstration (growout stage has larger fish)
-  const currentWeight = 0.3; // kg
-  const previousWeight = 0.306; // kg (2% higher)
-  const change = ((currentWeight - previousWeight) / previousWeight) * 100;
-  
+const buildGrowthSeries = async (
+  userId: string,
+): Promise<{ points: MonthlyFeedingData[]; latestWeightKg: number | null; previousWeightKg: number | null }> => {
+  const since = new Date(Date.now() - GRAPH_LOOKBACK_DAYS * DAY_IN_MS);
+
+  const entries = await prisma.farmDataEntry.findMany({
+    where: {
+      userId,
+      farmType: FarmType.GROWOUT,
+      averageFishWeightGr: {
+        not: null,
+      },
+      recordedAt: {
+        gte: since,
+      },
+    },
+    select: {
+      recordedAt: true,
+      averageFishWeightGr: true,
+    },
+    orderBy: {
+      recordedAt: 'asc',
+    },
+  });
+
+  const points: MonthlyFeedingData[] = entries.map((entry) => {
+    const grams = entry.averageFishWeightGr ? Number(entry.averageFishWeightGr) : null;
+    return {
+      month: formatGraphLabel(entry.recordedAt),
+      value: grams ? grams / 1000 : 0,
+    };
+  });
+
+  if (entries.length === 0) {
+    return { points, latestWeightKg: null, previousWeightKg: null };
+  }
+
+  const latest = entries[entries.length - 1]!;
+  const previous = entries.length > 1 ? entries[entries.length - 2]! : null;
+
   return {
-    weight: currentWeight,
-    change: Math.round(change * 10) / 10, // Round to 1 decimal
+    points,
+    latestWeightKg: latest.averageFishWeightGr ? Number(latest.averageFishWeightGr) / 1000 : null,
+    previousWeightKg: previous && previous.averageFishWeightGr ? Number(previous.averageFishWeightGr) / 1000 : null,
   };
 };
 
@@ -109,11 +129,9 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
     },
   });
 
-  // Generate monthly feeding data
-  const monthlyFeedingData = generateMonthlyFeedingData();
-  
-  // Calculate fish weight metrics
-  const { weight: averageFishWeight, change: weightChange } = await calculateAverageFishWeight(userId);
+  const { points: monthlyFeedingData, latestWeightKg, previousWeightKg } = await buildGrowthSeries(userId);
+  const averageFishWeight = latestWeightKg;
+  const weightChange = calculateWeightChangePct(latestWeightKg, previousWeightKg);
   
   // Calculate food costs
   const { pelletCost, freshCost } = calculateFoodCosts();
@@ -235,7 +253,7 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
 
   return {
     group: FarmType.GROWOUT,
-    hasData: airTemperatureC !== null,
+    hasData: monthlyFeedingData.length > 0,
     summary: {
       asOf,
       airTemperatureC,

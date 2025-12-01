@@ -323,6 +323,7 @@ model FarmDataEntry {
   pondCount          Int?      @map("pond_count")
   fishCount          Int?      @map("fish_count")
   fishCountText      String?   @map("fish_count_text")
+  averageFishWeightGr Decimal? @map("average_fish_weight_gr") @db.Decimal(10, 2)
   weatherTemperatureC Float?   @map("weather_temperature_c")
   weatherRainMm      Float?    @map("weather_rain_mm")
   weatherHumidityPct Float?    @map("weather_humidity_pct")

@@ -34,6 +34,27 @@ export type CreateEntryInput = {
   notes?: string | null;
 };
 
+const AGE_WEIGHT_MAP: Record<string, number> = {
+  '0-15วัน': 4,     // fingerling (~4 g)
+  '16-30วัน': 15,   // post-larvae (~15 g)
+  '31-60วัน': 80,   // early grow-out (~80 g)
+  '61-90วัน': 180,  // mid grow-out (~180 g)
+  '91-120วัน': 300, // late grow-out (~300 g)
+  '>120วัน': 500,   // market size (~500 g)
+};
+
+const normalizeAgeLabelKey = (label: string): string =>
+  label
+    .replace(/[()]/g, '')
+    .replace(/–|−/g, '-')
+    .replace(/\s+/g, '')
+    .toLowerCase();
+
+const resolveAverageWeightForAge = (label: string): number | null => {
+  const key = normalizeAgeLabelKey(label);
+  return AGE_WEIGHT_MAP[key] ?? null;
+};
+
 const fetchWeatherSnapshot = async (
   userId: string,
 ): Promise<{ weather: WeatherSnapshot | null; locationAvailable: boolean }> => {
@@ -131,6 +152,7 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
   const normalizedFishAge = input.fishAgeLabel.trim();
   const normalizedFishCountText = input.fishCountText?.trim() || null;
   const numericFishCount = parseFishCount(normalizedFishCountText);
+  const averageFishWeightGr = resolveAverageWeightForAge(normalizedFishAge);
 
   return prisma.farmDataEntry.create({
     data: {
@@ -142,6 +164,7 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
       pondCount: applyNumeric(input.pondCount ?? null),
       fishCount: numericFishCount,
       fishCountText: normalizedFishCountText,
+      averageFishWeightGr,
       weatherTemperatureC: applyNumeric(input.weather?.temperatureC ?? null),
       weatherRainMm: applyNumeric(input.weather?.rainMm ?? null),
       weatherHumidityPct: applyNumeric(input.weather?.humidityPct ?? null),
