@@ -1,6 +1,6 @@
 import { FarmType } from '@prisma/client';
 import { prisma } from '../clients/prisma';
-import { WeatherService, type CurrentWeather, type DailyForecast, type HourlyForecast, type LocationInfo } from './weather.service';
+import { WeatherService, type CurrentWeather, type DailyForecast, type HourlyForecast } from './weather.service';
 import { FeedingCalculator, type FeedingPlanRow } from './feeding-calculator.service';
 import { logger } from '../utils/logger';
 
@@ -26,7 +26,6 @@ type DashboardSummary = {
   recommendedFeedAdjustmentPct: number;
   weather: CurrentWeather | null;
   hourlyForecast: HourlyForecast[];
-  location: LocationInfo | null;
   averageFishWeight: number;
   weightChange: number;
   pelletFoodCost: number;
@@ -132,7 +131,6 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
         recommendedFeedAdjustmentPct: 0,
         weather: null,
         hourlyForecast: [],
-        location: null,
         averageFishWeight,
         weightChange,
         pelletFoodCost: pelletCost,
@@ -153,11 +151,10 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
   let weather: CurrentWeather | null = null;
   let dailyForecast: DailyForecast[] = [];
   let hourlyForecast: HourlyForecast[] = [];
-  let location: LocationInfo | null = null;
 
   if (farmerProfile.farmLatitude !== null && farmerProfile.farmLongitude !== null) {
     try {
-      [weather, dailyForecast, hourlyForecast, location] = await Promise.all([
+      [weather, dailyForecast, hourlyForecast] = await Promise.all([
         WeatherService.getCurrentWeather(
           farmerProfile.farmLatitude,
           farmerProfile.farmLongitude,
@@ -170,10 +167,6 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
           farmerProfile.farmLatitude,
           farmerProfile.farmLongitude,
           24,
-        ),
-        WeatherService.getLocationName(
-          farmerProfile.farmLatitude,
-          farmerProfile.farmLongitude,
         ),
       ]);
     } catch (error) {
@@ -251,7 +244,6 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
       recommendedFeedAdjustmentPct,
       weather,
       hourlyForecast,
-      location,
       averageFishWeight,
       weightChange,
       pelletFoodCost: pelletCost,
