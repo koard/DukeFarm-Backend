@@ -87,6 +87,8 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
         comfortRangeC: COMFORT_TEMP_RANGE,
         recommendedFeedAdjustmentPct: 0,
         weather: null,
+        hourlyForecast: [],
+        location: null,
       },
       feedingPlan: FeedingCalculator.generateFeedingPlan(
         new Date(),
