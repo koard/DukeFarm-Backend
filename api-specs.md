@@ -39,7 +39,7 @@ The DukeFarm API provides a comprehensive backend service for managing catfish f
 
 - **🔐 OAuth 2.0 Authentication**: LINE Login integration with JWT session management
 - **👥 Role-Based Access Control**: Three user roles (Admin, Farmer, Researcher)
-- **🌤️ Weather Intelligence**: Real-time weather data via Open-Meteo API
+- **🌤️ Weather Intelligence**: Real-time weather data via Open-Meteo API (free, unlimited)
 - **📊 Smart Dashboards**: Farm group overviews with feeding recommendations
 - **🔬 Research Tools**: Survey management and data collection
 - **📈 Analytics**: Temperature-based feeding adjustments
@@ -49,7 +49,7 @@ The DukeFarm API provides a comprehensive backend service for managing catfish f
 - **Framework**: Express 5 + TypeScript
 - **Database**: PostgreSQL 14+ via Prisma ORM
 - **Authentication**: JWT (no expiration)
-- **External APIs**: LINE Login OAuth, Open-Meteo Weather
+- **External APIs**: LINE Login OAuth, Open-Meteo Weather API (free, no API key required)
 
 ---
 
@@ -246,6 +246,8 @@ Complete overview of all available API endpoints organized by feature domain.
 | `GET` | `/auth/line/login` | None | 10/min | Generate LINE Login OAuth URL |
 | `GET` | `/auth/line/callback` | None | 10/min | LINE OAuth callback handler (redirects to frontend) |
 | `GET` | `/auth/me` | Required | 60/min | Get current authenticated user profile |
+| `POST` | `/auth/admin/create` | None | 5/min | Create admin account (requires secret) |
+| `POST` | `/auth/admin/login` | None | 10/min | Admin login with email/password |
 
 ### 📝 Registration & Onboarding
 
@@ -573,6 +575,63 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - Returns complete user data including farmer or researcher profile depending on role.
 - `farmerProfile` is `null` if user is not a farmer; `researcherProfile` is `null` if user is not a researcher.
 
+### POST `/auth/admin/create`
+- **Auth:** None (public endpoint, but requires knowledge of system).
+- **Body:**
+```json
+{
+  "email": "admin@example.com",
+  "password": "SecurePassword123",
+  "firstName": "Admin",
+  "lastName": "User",
+  "phone": "0812345678",
+  "organization": "DukeFarm"
+}
+```
+- **Validation:** All fields required. Email must be unique. Password minimum 8 characters.
+- **Behavior:** Creates a user with `role: ADMIN` and `registrationStatus: COMPLETED`. Admin profile stored in `researcher_profiles` table with the email.
+- **Response:**
+```json
+{
+  "data": {
+    "user": {
+      "id": "uuid",
+      "role": "ADMIN",
+      "displayName": "Admin User"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+- **Note:** This endpoint is typically used once during initial system setup. Consider adding authentication or restricting in production.
+
+### POST `/auth/admin/login`
+- **Auth:** None (public endpoint).
+- **Body:**
+```json
+{
+  "email": "admin@example.com",
+  "password": "SecurePassword123"
+}
+```
+- **Behavior:** Validates email/password against `researcher_profiles` table, verifies user has `ADMIN` role.
+- **Response:**
+```json
+{
+  "data": {
+    "user": {
+      "id": "uuid",
+      "role": "ADMIN",
+      "displayName": "Admin User",
+      "email": "admin@example.com"
+    },
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+}
+```
+- **Error (401):** Invalid email or password
+- **Error (403):** User exists but is not an admin
+
 ---
 
 ## 3. Registration & Role Selection
@@ -865,8 +924,9 @@ The feeding adjustment algorithm uses **daily mean air temperature** from Open-M
 - **Query params:** both required, numeric.
 - **Weather Provider:** Open-Meteo API (https://open-meteo.com)
   - Free, unlimited usage, no API key required
-  - Returns `temperature_2m` (air temperature at 2m height - standard meteorological measurement)
+  - Returns `temperature_2m` (air temperature at 2m height)
   - Returns `weather_code` (WMO standard codes 0-99)
+  - Includes humidity, wind speed, precipitation data
   - Timezone: Asia/Bangkok
 - **Response:** `{ "data": CurrentWeather }` from `WeatherService.getCurrentWeather`
 - **Response fields:**
@@ -1006,9 +1066,11 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   "name": "สูตรลูกปลา 16-30 วัน",
   "targetStage": "16-30 วัน",
   "description": "อาหารเม็ดเล็ก ขนาด 0.5-1.0 มม. โปรตีน 35-40%",
-  "recommendations": "ให้ 2 ครั้งต่อวัน เช้า-เย็น\nเพิ่มส่วนผสมพรีไบโอติก\nติดตาม FCR"
+  "recommendations": "ให้ 2 ครั้งต่อวัน เช้า-เย็น\nเพิ่มส่วนผสมพรีไบโอติก\nติดตาม FCR",
+  "farmType": "NURSERY_SMALL"
 }
 ```
+- **Validation:** `farmType` is optional. Values: `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT` (case-insensitive).
 - **Response:**
 ```json
 {
@@ -1018,6 +1080,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
     "targetStage": "16-30 วัน",
     "description": "อาหารเม็ดเล็ก ขนาด 0.5-1.0 มม. โปรตีน 35-40%",
     "recommendations": "ให้ 2 ครั้งต่อวัน เช้า-เย็น\nเพิ่มส่วนผสมพรีไบโอติก\nติดตาม FCR",
+    "farmType": "NURSERY_SMALL",
     "createdBy": "admin-id",
     "createdAt": "2025-11-27T12:00:00.000Z",
     "updatedAt": "2025-11-27T12:00:00.000Z"
@@ -1231,6 +1294,34 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ## 📅 Changelog
 
+### Version 1.0.3 (2025-12-02)
+
+**🔐 Admin Authentication & Database Updates**
+
+**Added:**
+- **Admin Authentication System**:
+  - `POST /auth/admin/create` - Create admin accounts with email/password
+  - `POST /auth/admin/login` - Admin login endpoint (separate from LINE OAuth)
+  - Admin profiles stored in `researcher_profiles` table with email field
+- **Feed Formula Enhancement**:
+  - `farmType` field added to feed formulas (optional)
+  - Values: `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT`
+  - Allows farm-type-specific feed recommendations
+
+**Database:**
+- Added `farm_type` column to `feed_formulas` table
+- Added migration: `20251202095500_add_farm_type_to_feed_formula`
+
+**Deployment:**
+- Updated Render Start Command: `npx prisma db push && node dist/server.js`
+- Ensures schema sync on deployment without shell access
+
+**Technical:**
+- Weather service continues using Open-Meteo API (free, no API key required)
+- WMO weather codes (0-99) for frontend weather icon display
+
+---
+
 ### Version 1.0.2 (2025-11-30)
 
 **🔬 NURSERY_LARGE & GROWOUT Dashboard Update**
@@ -1309,7 +1400,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 - Farmers management API (list with pagination)
 - Feed formulas CRUD operations
 - Researchers and surveys management
-- Weather proxy via Open-Meteo API
+- Weather service integration
 - Health check endpoints for monitoring
 - Comprehensive API documentation
 
@@ -1318,7 +1409,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 - `/api/home/groups/:groupType` → `/api/dashboard/groups/:groupType` (consistent naming)
 
 **Technical:**
-- Migrated from Google Weather API to Open-Meteo (free, unlimited)
+- Weather service integration for real-time air temperature monitoring
 - Unified feeding calculation logic across summary and 7-day plan
 - Air temperature-based feeding recommendations (28-35°C optimal range)
 - JWT tokens with no expiration (permanent tokens)
@@ -1347,7 +1438,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 - Dashboard feeding plan now uses **percentage adjustments** instead of absolute kg amounts
 - Added `feedingRecommendation` field with values: `increase`, `decrease`, `normal`
-- Weather data now from Open-Meteo API (field names unchanged)
+- Weather data structure maintained for backward compatibility
 
 **Action Required:**
 1. Update frontend to use new endpoint paths

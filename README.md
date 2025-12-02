@@ -52,7 +52,7 @@ DukeFarm Backend provides a comprehensive RESTful API for managing catfish farmi
 - Production cycle tracking
 
 ### Weather & Feeding Intelligence
-- Real-time weather data from Open-Meteo API (no API key required)
+- Real-time weather data from Open-Meteo API (free, no API key required)
 - Air temperature monitoring (optimal range: 28-35°C)
 - 7-day weather forecast with feeding plan generation
 - Percentage-based feeding adjustments (-90% to 0%)
@@ -363,6 +363,8 @@ Full API documentation is available in [`api-specs.md`](./api-specs.md).
 - `GET /auth/line/login?role=farmer` - Get LINE OAuth URL
 - `GET /auth/line/callback` - LINE OAuth callback
 - `GET /auth/me` - Get current user profile
+- `POST /auth/admin/create` - Create admin account
+- `POST /auth/admin/login` - Admin login
 
 #### Registration
 - `POST /register/role` - Select user role
@@ -472,6 +474,12 @@ Authorization: Bearer {{token}}
    FRONTEND_CALLBACK_URL=https://your-frontend.com/auth/callback
    NODE_ENV=production
    ```
+
+   **Important:** For Render free tier (no shell access), update Start Command to:
+   ```
+   npx prisma db push && node dist/server.js
+   ```
+   This ensures database schema is synced on every deployment without manual migration.
 
 4. **Run Database Migrations**
    ```powershell
