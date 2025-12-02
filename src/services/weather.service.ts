@@ -1,47 +1,9 @@
 import axios from 'axios';
 import { env } from '../config/env';
 
+import { env } from '../config/env';
+
 const GOOGLE_WEATHER_BASE_URL = 'https://weather.googleapis.com/v1';
-
-type GoogleWeatherCurrentResponse = {
-  current: {
-    time: string;
-    values: {
-      temperature: number;
-      humidity: number;
-      windSpeed: number;
-      precipitationIntensity: number;
-      weatherCode: number;
-    };
-  };
-};
-
-type GoogleWeatherForecastResponse = {
-  forecast: {
-    daily: Array<{
-      time: string;
-      values: {
-        temperatureAvg: number;
-        temperatureMax: number;
-        temperatureMin: number;
-        weatherCode: number;
-      };
-    }>;
-  };
-};
-
-type GoogleWeatherHourlyResponse = {
-  forecast: {
-    hourly: Array<{
-      time: string;
-      values: {
-        temperature: number;
-        precipitationProbability: number;
-        weatherCode: number;
-      };
-    }>;
-  };
-};
 
 export type CurrentWeather = {
   time: string;
@@ -78,8 +40,42 @@ export type LocationInfo = {
 };
 
 /**
- * Map Google Weather API codes to text descriptions
- * Reference: https://developers.google.com/maps/documentation/weather
+ * Map Google Weather Condition types to WMO Weather codes
+ * This ensures compatibility with existing frontend icons
+ */
+const mapGoogleConditionToWMO = (conditionType: string): number => {
+  const mapping: Record<string, number> = {
+    'CLEAR': 0,
+    'MOSTLY_CLEAR': 1,
+    'PARTLY_CLOUDY': 2,
+    'CLOUDY': 3,
+    'OVERCAST': 3,
+    'FOG': 45,
+    'MIST': 45,
+    'HAZE': 45,
+    'LIGHT_RAIN': 61,
+    'DRIZZLE': 51,
+    'RAIN': 63,
+    'SHOWERS': 80,
+    'RAIN_SHOWERS': 80,
+    'SCATTERED_SHOWERS': 80,
+    'HEAVY_RAIN': 65,
+    'SNOW': 71,
+    'LIGHT_SNOW': 71,
+    'HEAVY_SNOW': 75,
+    'SNOW_SHOWERS': 85,
+    'SLEET': 71, // Mixed rain/snow
+    'FREEZING_RAIN': 66,
+    'THUNDERSTORM': 95,
+    'TORNADO': 99,
+    'HURRICANE': 99,
+  };
+
+  return mapping[conditionType] ?? 0; // Default to Clear if unknown
+};
+
+/**
+ * Map WMO codes to text descriptions (kept for fallback or reverse mapping)
  */
 const getWeatherDescription = (code: number): string => {
   const weatherCodes: Record<number, string> = {
@@ -113,32 +109,33 @@ const getWeatherDescription = (code: number): string => {
 
 const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeather> => {
   try {
-    const apiKey = env.googleMapsApiKey;
-    if (!apiKey) {
-      throw new Error('GOOGLE_MAPS_API_KEY is not configured in environment variables');
-    }
-
-    const response = await axios.get(`${GOOGLE_WEATHER_BASE_URL}/current`, {
+    const response = await axios.get(`${GOOGLE_WEATHER_BASE_URL}/currentConditions:lookup`, {
       params: {
-        location: `${lat},${lng}`,
-        key: apiKey,
+        key: env.googleMapsApiKey,
+        'location.latitude': lat,
+        'location.longitude': lng,
+        unitsSystem: 'METRIC',
       },
     });
 
-    const { current } = response.data;
-    if (!current || !current.values) {
-      throw new Error('Weather API returned no current conditions');
+    const data = response.data;
+    
+    if (!data.temperature) {
+      throw new Error('Weather API returned incomplete data');
     }
 
-    const values = current.values;
+    const weatherType = data.weatherCondition?.type || 'CLEAR';
+    const weatherCode = mapGoogleConditionToWMO(weatherType);
+    const conditionText = data.weatherCondition?.description?.text || getWeatherDescription(weatherCode);
+
     const payload: CurrentWeather = {
-      time: current.time || new Date().toISOString(),
-      temperatureC: values.temperature ?? 0,
-      humidityPct: values.humidity ?? 0,
-      windSpeedKph: values.windSpeed ?? 0,
-      rainMm: values.precipitationIntensity ?? 0,
-      weatherCode: values.weatherCode ?? 1000,
-      conditionText: getWeatherDescription(values.weatherCode ?? 1000),
+      time: data.currentTime || new Date().toISOString(),
+      temperatureC: data.temperature?.degrees ?? 0,
+      humidityPct: data.relativeHumidity,
+      windSpeedKph: data.wind?.speed?.value ?? 0,
+      rainMm: data.precipitation?.qpf?.quantity ?? 0,
+      weatherCode: weatherCode,
+      conditionText: conditionText,
     };
 
     return payload;
@@ -150,45 +147,52 @@ const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeath
           ? error.response.data
           : JSON.stringify(error.response?.data ?? {});
 
-      throw new Error(`Weather API error (${status}): ${message || error.message}`);
+      throw new Error(`Google Weather API error (${status}): ${message || error.message}`);
     }
-
     throw error;
   }
 };
 
 /**
- * Get 7-day daily forecast with mean, max, min temperatures
- * Uses Google Weather API daily aggregations for accurate feeding calculations
+ * Get daily forecast
  */
 const getDailyForecast = async (lat: number, lng: number, days: number = 7): Promise<DailyForecast[]> => {
   try {
-    const apiKey = env.googleMapsApiKey;
-    if (!apiKey) {
-      throw new Error('GOOGLE_MAPS_API_KEY is not configured in environment variables');
-    }
-
-    const response = await axios.get<GoogleWeatherForecastResponse>(`${GOOGLE_WEATHER_BASE_URL}/forecast:daily`, {
+    const response = await axios.get(`${GOOGLE_WEATHER_BASE_URL}/forecast/days:lookup`, {
       params: {
-        location: `${lat},${lng}`,
-        key: apiKey,
+        key: env.googleMapsApiKey,
+        'location.latitude': lat,
+        'location.longitude': lng,
         days: days,
+        pageSize: days,
+        unitsSystem: 'METRIC',
       },
     });
 
-    const { forecast } = response.data;
-    if (!forecast || !forecast.daily || forecast.daily.length === 0) {
+    const data = response.data;
+    if (!data.forecastDays || data.forecastDays.length === 0) {
       throw new Error('Weather API returned no daily forecast data');
     }
 
-    const forecasts: DailyForecast[] = forecast.daily.map((day) => ({
-      date: day.time,
-      temperatureMeanC: day.values.temperatureAvg ?? 0,
-      temperatureMaxC: day.values.temperatureMax ?? 0,
-      temperatureMinC: day.values.temperatureMin ?? 0,
-      weatherCode: day.values.weatherCode ?? 1000,
-      conditionText: getWeatherDescription(day.values.weatherCode ?? 1000),
-    }));
+    const forecasts: DailyForecast[] = data.forecastDays.map((day: any) => {
+      const forecastPart = day.daytimeForecast || day.nighttimeForecast || {};
+      const weatherType = forecastPart.weatherCondition?.type || 'CLEAR';
+      const weatherCode = mapGoogleConditionToWMO(weatherType);
+      const conditionText = forecastPart.weatherCondition?.description?.text || getWeatherDescription(weatherCode);
+
+      const maxTemp = day.maxTemperature?.degrees ?? 0;
+      const minTemp = day.minTemperature?.degrees ?? 0;
+      const meanTemp = (maxTemp + minTemp) / 2;
+
+      return {
+        date: day.displayDate ? `${day.displayDate.year}-${String(day.displayDate.month).padStart(2, '0')}-${String(day.displayDate.day).padStart(2, '0')}` : new Date().toISOString(),
+        temperatureMeanC: meanTemp,
+        temperatureMaxC: maxTemp,
+        temperatureMinC: minTemp,
+        weatherCode: weatherCode,
+        conditionText: conditionText,
+      };
+    });
 
     return forecasts;
   } catch (error) {
@@ -199,43 +203,45 @@ const getDailyForecast = async (lat: number, lng: number, days: number = 7): Pro
           ? error.response.data
           : JSON.stringify(error.response?.data ?? {});
 
-      throw new Error(`Weather API error (${status}): ${message || error.message}`);
+      throw new Error(`Google Weather API error (${status}): ${message || error.message}`);
     }
-
     throw error;
   }
 };
 
 /**
- * Get hourly forecast for next 24 hours
+ * Get hourly forecast
  */
 const getHourlyForecast = async (lat: number, lng: number, hours: number = 24): Promise<HourlyForecast[]> => {
   try {
-    const apiKey = env.googleMapsApiKey;
-    if (!apiKey) {
-      throw new Error('GOOGLE_MAPS_API_KEY is not configured in environment variables');
-    }
-
-    const response = await axios.get<GoogleWeatherHourlyResponse>(`${GOOGLE_WEATHER_BASE_URL}/forecast:hourly`, {
+    const response = await axios.get(`${GOOGLE_WEATHER_BASE_URL}/forecast/hours:lookup`, {
       params: {
-        location: `${lat},${lng}`,
-        key: apiKey,
+        key: env.googleMapsApiKey,
+        'location.latitude': lat,
+        'location.longitude': lng,
         hours: hours,
+        unitsSystem: 'METRIC',
       },
     });
 
-    const { forecast } = response.data;
-    if (!forecast || !forecast.hourly || forecast.hourly.length === 0) {
+    const data = response.data;
+    if (!data.forecastHours || data.forecastHours.length === 0) {
       throw new Error('Weather API returned no hourly forecast data');
     }
 
-    const forecasts: HourlyForecast[] = forecast.hourly.slice(0, hours).map((hour) => ({
-      time: hour.time,
-      temperatureC: hour.values.temperature ?? 0,
-      precipitationProbability: hour.values.precipitationProbability ?? 0,
-      weatherCode: hour.values.weatherCode ?? 1000,
-      conditionText: getWeatherDescription(hour.values.weatherCode ?? 1000),
-    }));
+    const forecasts: HourlyForecast[] = data.forecastHours.map((hour: any) => {
+      const weatherType = hour.weatherCondition?.type || 'CLEAR';
+      const weatherCode = mapGoogleConditionToWMO(weatherType);
+      const conditionText = hour.weatherCondition?.description?.text || getWeatherDescription(weatherCode);
+
+      return {
+        time: hour.interval?.startTime || new Date().toISOString(),
+        temperatureC: hour.temperature?.degrees ?? 0,
+        precipitationProbability: hour.precipitation?.probability?.percent ?? 0,
+        weatherCode: weatherCode,
+        conditionText: conditionText,
+      };
+    });
 
     return forecasts;
   } catch (error) {
@@ -246,9 +252,8 @@ const getHourlyForecast = async (lat: number, lng: number, hours: number = 24): 
           ? error.response.data
           : JSON.stringify(error.response?.data ?? {});
 
-      throw new Error(`Weather API error (${status}): ${message || error.message}`);
+      throw new Error(`Google Weather API error (${status}): ${message || error.message}`);
     }
-
     throw error;
   }
 };
