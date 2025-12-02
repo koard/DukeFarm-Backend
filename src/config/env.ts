@@ -13,6 +13,7 @@ type EnvShape = {
   lineChannelSecret: string;
   lineRedirectUri: string;
   frontendCallbackUrl: string;
+  GOOGLE_WEATHER_API_KEY: string;
 };
 
 const requiredVars: Array<keyof Omit<EnvShape, 'nodeEnv' | 'port'>> = [
@@ -22,6 +23,7 @@ const requiredVars: Array<keyof Omit<EnvShape, 'nodeEnv' | 'port'>> = [
   'lineChannelSecret',
   'lineRedirectUri',
   'frontendCallbackUrl',
+  'GOOGLE_WEATHER_API_KEY',
 ];
 
 const normalizePort = (value: string | undefined, fallback = 4000): number => {
@@ -40,6 +42,7 @@ const buildEnv = (): EnvShape => {
     lineChannelSecret: process.env.LINE_CHANNEL_SECRET ?? '',
     lineRedirectUri: process.env.LINE_REDIRECT_URI ?? '',
     frontendCallbackUrl: process.env.FRONTEND_CALLBACK_URL ?? '',
+    GOOGLE_WEATHER_API_KEY: process.env.GOOGLE_WEATHER_API_KEY ?? '',
   };
 
   requiredVars.forEach((key) => {
