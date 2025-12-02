@@ -164,7 +164,6 @@ const getDailyForecast = async (lat: number, lng: number, days: number = 7): Pro
         'location.latitude': lat,
         'location.longitude': lng,
         days: days,
-        pageSize: days,
         unitsSystem: 'METRIC',
       },
     });
