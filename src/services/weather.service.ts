@@ -1,6 +1,17 @@
 import axios from 'axios';
+import dns from 'dns';
+import https from 'https';
 
 const OPEN_METEO_BASE_URL = 'https://api.open-meteo.com/v1/forecast';
+
+// Ensure IPv4 is preferred to avoid environments without IPv6 connectivity (e.g., Render free tier)
+dns.setDefaultResultOrder?.('ipv4first');
+
+const weatherClient = axios.create({
+  baseURL: OPEN_METEO_BASE_URL,
+  timeout: 8000,
+  httpsAgent: new https.Agent({ keepAlive: true }),
+});
 
 type OpenMeteoResponse = {
   current: {
@@ -114,7 +125,7 @@ const getWeatherDescription = (code: number): string => {
 
 const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeather> => {
   try {
-    const response = await axios.get<OpenMeteoResponse>(OPEN_METEO_BASE_URL, {
+    const response = await weatherClient.get<OpenMeteoResponse>('', {
       params: {
         latitude: lat,
         longitude: lng,
@@ -148,12 +159,13 @@ const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeath
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status ?? 'network';
+      const errorCode = error.code ?? 'unknown';
       const message =
         typeof error.response?.data === 'string'
           ? error.response.data
           : JSON.stringify(error.response?.data ?? {});
 
-      throw new Error(`Weather API error (${status}): ${message || error.message}`);
+      throw new Error(`Weather API error (${status}/${errorCode}): ${message || error.message}`);
     }
 
     throw error;
@@ -166,7 +178,7 @@ const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeath
  */
 const getDailyForecast = async (lat: number, lng: number, days: number = 7): Promise<DailyForecast[]> => {
   try {
-    const response = await axios.get<OpenMeteoDailyResponse>(OPEN_METEO_BASE_URL, {
+    const response = await weatherClient.get<OpenMeteoDailyResponse>('', {
       params: {
         latitude: lat,
         longitude: lng,
@@ -199,12 +211,13 @@ const getDailyForecast = async (lat: number, lng: number, days: number = 7): Pro
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status ?? 'network';
+      const errorCode = error.code ?? 'unknown';
       const message =
         typeof error.response?.data === 'string'
           ? error.response.data
           : JSON.stringify(error.response?.data ?? {});
 
-      throw new Error(`Weather API error (${status}): ${message || error.message}`);
+      throw new Error(`Weather API error (${status}/${errorCode}): ${message || error.message}`);
     }
 
     throw error;
@@ -216,7 +229,7 @@ const getDailyForecast = async (lat: number, lng: number, days: number = 7): Pro
  */
 const getHourlyForecast = async (lat: number, lng: number, hours: number = 24): Promise<HourlyForecast[]> => {
   try {
-    const response = await axios.get<OpenMeteoHourlyResponse>(OPEN_METEO_BASE_URL, {
+    const response = await weatherClient.get<OpenMeteoHourlyResponse>('', {
       params: {
         latitude: lat,
         longitude: lng,
@@ -247,12 +260,13 @@ const getHourlyForecast = async (lat: number, lng: number, hours: number = 24): 
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status ?? 'network';
+      const errorCode = error.code ?? 'unknown';
       const message =
         typeof error.response?.data === 'string'
           ? error.response.data
           : JSON.stringify(error.response?.data ?? {});
 
-      throw new Error(`Weather API error (${status}): ${message || error.message}`);
+      throw new Error(`Weather API error (${status}/${errorCode}): ${message || error.message}`);
     }
 
     throw error;
