@@ -1,8 +1,6 @@
 import axios from 'axios';
 import { env } from '../config/env';
 
-import { env } from '../config/env';
-
 const GOOGLE_WEATHER_BASE_URL = 'https://weather.googleapis.com/v1';
 
 export type CurrentWeather = {
