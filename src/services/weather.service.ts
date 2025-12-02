@@ -192,7 +192,7 @@ const fetchForecast = async (lat: number, lng: number): Promise<GoogleWeatherRes
   try {
     const response = await weatherClient.get<GoogleWeatherResponse>('', {
       params: {
-        location: `POINT(${lng} ${lat})`,
+        location: `POINT(${lng}%20${lat})`,
         units: 'METRIC',
         languageCode: 'th',
         dailyTimeStep: 'DAILY',
