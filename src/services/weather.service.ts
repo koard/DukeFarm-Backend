@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { env } from '../config/env';
+import { logger } from '../utils/logger';
 
 const GOOGLE_WEATHER_BASE_URL = 'https://weather.googleapis.com/v1';
 const WEATHER_CACHE_TTL_MS = 15 * 60 * 1000;
@@ -141,6 +142,11 @@ const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeath
   const cacheKey = getCacheKey('current', lat, lng);
   const cached = readCache<CurrentWeather>(cacheKey);
   if (cached) {
+    logger.debug('Weather cache hit', {
+      scope: 'current',
+      lat: Number(lat.toFixed(3)),
+      lng: Number(lng.toFixed(3)),
+    });
     return cached;
   }
   try {
@@ -195,6 +201,12 @@ const getDailyForecast = async (lat: number, lng: number, days: number = 7): Pro
   const cacheKey = getCacheKey('daily', lat, lng, String(days));
   const cached = readCache<DailyForecast[]>(cacheKey);
   if (cached) {
+    logger.debug('Weather cache hit', {
+      scope: 'daily',
+      lat: Number(lat.toFixed(3)),
+      lng: Number(lng.toFixed(3)),
+      days,
+    });
     return cached;
   }
   try {
@@ -257,6 +269,12 @@ const getHourlyForecast = async (lat: number, lng: number, hours: number = 24): 
   const cacheKey = getCacheKey('hourly', lat, lng, String(hours));
   const cached = readCache<HourlyForecast[]>(cacheKey);
   if (cached) {
+    logger.debug('Weather cache hit', {
+      scope: 'hourly',
+      lat: Number(lat.toFixed(3)),
+      lng: Number(lng.toFixed(3)),
+      hours,
+    });
     return cached;
   }
   try {
