@@ -39,7 +39,7 @@ The DukeFarm API provides a comprehensive backend service for managing catfish f
 
 - **🔐 OAuth 2.0 Authentication**: LINE Login integration with JWT session management
 - **👥 Role-Based Access Control**: Three user roles (Admin, Farmer, Researcher)
-- **🌤️ Weather Intelligence**: Real-time weather data via Open-Meteo API (free, unlimited)
+- **🌤️ Weather Intelligence**: Real-time weather data via Google Maps Weather API
 - **📊 Smart Dashboards**: Farm group overviews with feeding recommendations
 - **🔬 Research Tools**: Survey management and data collection
 - **📈 Analytics**: Temperature-based feeding adjustments
@@ -49,7 +49,7 @@ The DukeFarm API provides a comprehensive backend service for managing catfish f
 - **Framework**: Express 5 + TypeScript
 - **Database**: PostgreSQL 14+ via Prisma ORM
 - **Authentication**: JWT (no expiration)
-- **External APIs**: LINE Login OAuth, Open-Meteo Weather API (free, no API key required)
+- **External APIs**: LINE Login OAuth, Google Maps Weather API (API key required)
 
 ---
 
@@ -716,7 +716,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - **Auth:** any logged-in user.
 - **Path params:** `groupType` must be one of `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT` (case-insensitive).
 - **Behavior:** 
-  - Fetches current **air temperature** from Open-Meteo API (free, no API key required)
+  - Fetches current **air temperature** from Google Maps Weather API (API key + billing required)
   - Uses farmer profile location (farmLatitude, farmLongitude) to get weather data
   - Air temperature typically 3-8°C higher than water temperature
   - Generates 7-day feeding plan with **percentage adjustments** instead of absolute kg amounts
@@ -885,7 +885,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 
 **Air Temperature Logic (tuned for Pathum Thani, Thailand):**
 
-The feeding adjustment algorithm uses **daily mean air temperature** from Open-Meteo API. Air temperature in tropical ponds is typically 5-7°C higher than water temperature.
+The feeding adjustment algorithm uses **daily mean air temperature** from Google Maps Weather API (converted to Celsius). Air temperature in tropical ponds is typically 5-7°C higher than water temperature.
 
 **Temperature Zones:**
 - **< 18°C air**: Extreme cold, reduce 80% (water ~13°C, rare 1-2 days/year)
@@ -922,21 +922,22 @@ The feeding adjustment algorithm uses **daily mean air temperature** from Open-M
 ### GET `/v1/weather?lat=<number>&lng=<number>`
 - **Auth:** any authenticated user.
 - **Query params:** both required, numeric.
-- **Weather Provider:** Open-Meteo API (https://open-meteo.com)
-  - Free, unlimited usage, no API key required
-  - Returns `temperature_2m` (air temperature at 2m height)
-  - Returns `weather_code` (WMO standard codes 0-99)
-  - Includes humidity, wind speed, precipitation data
+- **Weather Provider:** Google Maps Weather API (`weather.googleapis.com/v1/weather:forecast`)
+  - Requires enabling the Weather API in Google Cloud Console and setting `GOOGLE_MAPS_API_KEY`
+  - Returns `currentConditions`, 24-hour `hourlyForecasts`, and 7-day `dailyForecasts`
+  - Condition codes (e.g., `PARTLY_CLOUDY_DAY`) are mapped to WMO codes (0-99) for frontend compatibility
+  - Units: Metric (Celsius, km/h, mm) with responses localized to `languageCode=th`
   - Timezone: Asia/Bangkok
+- **Caching:** In-memory cache (keyed by `lat,lng`) with a 10-minute TTL reduces API usage and mitigates quota exhaustion
 - **Response:** `{ "data": CurrentWeather }` from `WeatherService.getCurrentWeather`
 - **Response fields:**
-  - `time`: ISO timestamp of weather observation
-  - `temperatureC`: Air temperature in Celsius
-  - `humidityPct`: Relative humidity percentage
+  - `time`: ISO timestamp provided by Google (`currentConditions.observationTime`)
+  - `temperatureC`: Air temperature in Celsius (`currentConditions.temperature.value`)
+  - `humidityPct`: Relative humidity percentage (automatically converted to 0-100 range)
   - `windSpeedKph`: Wind speed in km/h
-  - `rainMm`: Precipitation in millimeters
-  - `weatherCode`: WMO weather code (0-99) for icon display (optional)
-  - `conditionText`: Human-readable condition (e.g., "Sunny", "Rain") (optional)
+  - `rainMm`: Precipitation intensity in mm/h (when provided)
+  - `weatherCode`: WMO weather code (0-99)
+  - `conditionText`: Human-readable text derived from Google condition codes (e.g., "Partly Cloudy Day")
 
 ### WMO Weather Code Reference
 
@@ -1317,8 +1318,8 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 - Ensures schema sync on deployment without shell access
 
 **Technical:**
-- Weather service continues using Open-Meteo API (free, no API key required)
-- WMO weather codes (0-99) for frontend weather icon display
+- Weather service migrated to Google Maps Weather API with 10-minute in-memory caching
+- Google condition codes converted to WMO codes (0-99) for frontend weather icon display
 
 ---
 
@@ -1482,7 +1483,7 @@ When making changes to the API:
 
 ### External Resources
 - **LINE Login Docs**: https://developers.line.biz/en/docs/line-login/
-- **Open-Meteo API**: https://open-meteo.com/en/docs
+- **Google Maps Weather API**: https://developers.google.com/maps/documentation/weather
 - **Prisma ORM**: https://www.prisma.io/docs
 
 ### Getting Help
