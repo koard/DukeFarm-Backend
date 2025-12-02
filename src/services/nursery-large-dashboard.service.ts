@@ -41,28 +41,49 @@ export type NurseryLargeDashboard = {
   feedingPlan: FeedingPlanRow[];
 };
 
-/**
- * Generate mock monthly feeding data for the past 12 months
- * Values are in kilograms (Kg) and show typical feeding patterns
- */
-const generateMonthlyFeedingData = (): MonthlyFeedingData[] => {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const currentMonth = new Date().getMonth();
-  
-  // Base values with seasonal variation
-  const baseValues = [0.25, 0.5, 0.65, 0.95, 0.8, 2.0, 1.2, 1.4, 1.6, 1.8, 1.5, 1.3];
-  
-  // Rotate array to start from current month going back
-  const rotatedMonths: MonthlyFeedingData[] = [];
-  for (let i = 0; i < 12; i++) {
-    const monthIndex = (currentMonth - 11 + i + 12) % 12;
-    rotatedMonths.push({
-      month: months[monthIndex]!,
-      value: baseValues[monthIndex]!,
-    });
-  }
-  
-  return rotatedMonths;
+const GRAPH_LOOKBACK_DAYS = 30;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const formatGraphLabel = (date: Date): string =>
+  date.toLocaleDateString('th-TH', {
+    day: '2-digit',
+    month: 'short',
+  });
+
+const buildGrowthSeries = async (
+  userId: string,
+): Promise<{ points: MonthlyFeedingData[] }> => {
+  const since = new Date(Date.now() - GRAPH_LOOKBACK_DAYS * DAY_IN_MS);
+
+  const entries = await prisma.farmDataEntry.findMany({
+    where: {
+      userId,
+      farmType: FarmType.NURSERY_LARGE,
+      averageFishWeightGr: {
+        not: null,
+      },
+      recordedAt: {
+        gte: since,
+      },
+    },
+    select: {
+      recordedAt: true,
+      averageFishWeightGr: true,
+    },
+    orderBy: {
+      recordedAt: 'asc',
+    },
+  });
+
+  const points: MonthlyFeedingData[] = entries.map((entry) => {
+    const grams = entry.averageFishWeightGr ? Number(entry.averageFishWeightGr) : null;
+    return {
+      month: formatGraphLabel(entry.recordedAt),
+      value: grams ? grams / 1000 : 0,
+    };
+  });
+
+  return { points };
 };
 
 const calculateWeightChangePct = (current: number | null, previous: number | null): number | null => {
@@ -147,8 +168,7 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
     },
   });
 
-  // Generate monthly feeding data
-  const monthlyFeedingData = generateMonthlyFeedingData();
+  const { points: monthlyFeedingData } = await buildGrowthSeries(userId);
   
   // Calculate fish weight metrics
   const { averageFishWeight, weightChange, latestFishAgeLabel } = await getLatestFishMetrics(userId);
@@ -274,7 +294,7 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
 
   return {
     group: FarmType.NURSERY_LARGE,
-    hasData: airTemperatureC !== null,
+    hasData: monthlyFeedingData.length > 0,
     summary: {
       asOf,
       airTemperatureC,
