@@ -31,7 +31,7 @@ DukeFarm Backend provides a comprehensive RESTful API for managing catfish farmi
 
 - **🔐 Authentication**: LINE Login OAuth 2.0 integration with role-based access control (RBAC)
 - **📊 Dashboard**: Real-time farm group overview with weather-based feeding recommendations
-- **🌤️ Weather Intelligence**: Air temperature monitoring via Open-Meteo API (free, unlimited)
+- **🌤️ Weather Intelligence**: Air temperature monitoring via Google Maps Weather API
 - **👨‍🌾 Farmer Management**: Registration, profile management, and farm tracking
 - **🔬 Researcher Portal**: Survey management and data collection for agricultural research
 - **🍽️ Feed Formula Management**: CRUD operations for feeding formulas with stage-based recommendations
@@ -52,7 +52,7 @@ DukeFarm Backend provides a comprehensive RESTful API for managing catfish farmi
 - Production cycle tracking
 
 ### Weather & Feeding Intelligence
-- Real-time weather data from Open-Meteo API (no API key required)
+- Real-time weather data from Google Maps Weather API (requires API key with billing enabled)
 - Air temperature monitoring (optimal range: 28-35°C)
 - 7-day weather forecast with feeding plan generation
 - Percentage-based feeding adjustments (-90% to 0%)
@@ -131,7 +131,7 @@ DukeFarm Backend provides a comprehensive RESTful API for managing catfish farmi
 - **JWT** (jsonwebtoken) - Stateless session management
 
 ### External APIs
-- **Open-Meteo API** - Free weather forecast service (no API key required)
+- **Google Maps Weather API** - High-fidelity weather forecasts (API key required)
 
 ### DevOps & Utilities
 - **ts-node-dev** - Development server with hot reload
@@ -230,6 +230,10 @@ JWT_SECRET="your-secure-random-secret-key-here"
 LINE_CHANNEL_ID="your-line-channel-id"
 LINE_CHANNEL_SECRET="your-line-channel-secret"
 LINE_REDIRECT_URI="http://localhost:4000/api/auth/line/callback"
+
+# Google Maps Weather API (https://developers.google.com/maps/documentation/weather)
+# Enable the Weather API in Google Cloud Console and create an API key with HTTP referrer/IP restrictions.
+GOOGLE_MAPS_API_KEY="your-google-maps-api-key"
 
 # Frontend Callback (where to redirect after login)
 FRONTEND_CALLBACK_URL="http://localhost:3000/auth/callback"
@@ -363,6 +367,8 @@ Full API documentation is available in [`api-specs.md`](./api-specs.md).
 - `GET /auth/line/login?role=farmer` - Get LINE OAuth URL
 - `GET /auth/line/callback` - LINE OAuth callback
 - `GET /auth/me` - Get current user profile
+- `POST /auth/admin/create` - Create admin account
+- `POST /auth/admin/login` - Admin login
 
 #### Registration
 - `POST /register/role` - Select user role
@@ -469,9 +475,16 @@ Authorization: Bearer {{token}}
    LINE_CHANNEL_ID=<your-line-channel-id>
    LINE_CHANNEL_SECRET=<your-line-channel-secret>
    LINE_REDIRECT_URI=https://your-app.onrender.com/api/auth/line/callback
+   GOOGLE_MAPS_API_KEY=<your-google-maps-api-key>
    FRONTEND_CALLBACK_URL=https://your-frontend.com/auth/callback
    NODE_ENV=production
    ```
+
+   **Important:** For Render free tier (no shell access), update Start Command to:
+   ```
+   npx prisma db push && node dist/server.js
+   ```
+   This ensures database schema is synced on every deployment without manual migration.
 
 4. **Run Database Migrations**
    ```powershell
@@ -615,6 +628,7 @@ DukeFarm-Backend/
 | `LINE_CHANNEL_ID` | LINE Login channel ID from Developers Console | `1234567890` |
 | `LINE_CHANNEL_SECRET` | LINE Login channel secret | `abc123def456...` |
 | `LINE_REDIRECT_URI` | OAuth callback URL (must match LINE Console) | `https://api.example.com/api/auth/line/callback` |
+| `GOOGLE_MAPS_API_KEY` | Google Maps API key for Weather API requests | `AIzaSy...` |
 | `FRONTEND_CALLBACK_URL` | Frontend redirect URL after authentication | `https://app.example.com/auth/callback` |
 
 ### Optional Variables
@@ -626,20 +640,12 @@ DukeFarm-Backend/
 
 ### External Services
 
-**Open-Meteo Weather API**: Free weather forecast service with unlimited usage. No API key required.
-- Documentation: https://open-meteo.com/en/docs
+**Google Maps Weather API**: Enterprise-grade weather service from Google Maps Platform.
+- Documentation: https://developers.google.com/maps/documentation/weather
 - Timezone: `Asia/Bangkok`
-- Data: Air temperature (mean/max/min), humidity, wind speed, precipitation
-- Weather codes: WMO standard codes (0-99) for condition display
-  - 0: Clear sky ☀️
-  - 1-3: Partly cloudy 🌤️⛅☁️
-  - 45-48: Fog 🌫️
-  - 51-57: Drizzle 🌦️
-  - 61-67: Rain 🌧️
-  - 71-77: Snow ❄️
-  - 80-82: Rain showers 🌦️
-  - 85-86: Snow showers 🌨️
-  - 95-99: Thunderstorm ⛈️
+- Data: Current conditions, 24-hour hourly forecast, 7-day daily forecast, WMO-compatible condition codes
+- Requirements: Enable Weather API in Google Cloud Console, create an API key, and enable billing
+- Weather codes are mapped from Google condition codes to WMO (0-99) for frontend icon reuse
 
 ## ✅ First Run Checklist
 
@@ -702,7 +708,7 @@ footer (optional)
 
 **Examples**:
 - `feat(auth): add role pre-selection in LINE login`
-- `fix(weather): handle Open-Meteo API timeout errors`
+- `fix(weather): fallback when Google Weather API throttles`
 - `docs(api): update dashboard endpoint specifications`
 
 ## 📄 License

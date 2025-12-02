@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { env } from '../config/env';
 
 import { env } from '../config/env';
 
@@ -78,30 +79,29 @@ const mapGoogleConditionToWMO = (conditionType: string): number => {
  */
 const getWeatherDescription = (code: number): string => {
   const weatherCodes: Record<number, string> = {
-    0: 'Clear sky',
-    1: 'Mainly clear',
-    2: 'Partly cloudy',
-    3: 'Overcast',
-    45: 'Foggy',
-    48: 'Depositing rime fog',
-    51: 'Light drizzle',
-    53: 'Moderate drizzle',
-    55: 'Dense drizzle',
-    61: 'Slight rain',
-    63: 'Moderate rain',
-    65: 'Heavy rain',
-    71: 'Slight snow',
-    73: 'Moderate snow',
-    75: 'Heavy snow',
-    77: 'Snow grains',
-    80: 'Slight rain showers',
-    81: 'Moderate rain showers',
-    82: 'Violent rain showers',
-    85: 'Slight snow showers',
-    86: 'Heavy snow showers',
-    95: 'Thunderstorm',
-    96: 'Thunderstorm with slight hail',
-    99: 'Thunderstorm with heavy hail',
+    1000: 'Clear sky',
+    1100: 'Mostly clear',
+    1101: 'Partly cloudy',
+    1102: 'Mostly cloudy',
+    1001: 'Cloudy',
+    2000: 'Foggy',
+    2100: 'Light fog',
+    4000: 'Drizzle',
+    4001: 'Rain',
+    4200: 'Light rain',
+    4201: 'Heavy rain',
+    5000: 'Snow',
+    5001: 'Flurries',
+    5100: 'Light snow',
+    5101: 'Heavy snow',
+    6000: 'Freezing drizzle',
+    6001: 'Freezing rain',
+    6200: 'Light freezing rain',
+    6201: 'Heavy freezing rain',
+    7000: 'Ice pellets',
+    7101: 'Heavy ice pellets',
+    7102: 'Light ice pellets',
+    8000: 'Thunderstorm',
   };
 
   return weatherCodes[code] ?? `Weather code ${code}`;
