@@ -2,6 +2,38 @@ import axios from 'axios';
 import { env } from '../config/env';
 
 const GOOGLE_WEATHER_BASE_URL = 'https://weather.googleapis.com/v1';
+const WEATHER_CACHE_TTL_MS = 15 * 60 * 1000;
+
+type CacheEntry<T> = {
+  expiresAt: number;
+  payload: T;
+};
+
+const weatherCache = new Map<string, CacheEntry<unknown>>();
+
+const getCacheKey = (scope: string, lat: number, lng: number, extra: string = ''): string => {
+  const coord = `${lat.toFixed(3)},${lng.toFixed(3)}`;
+  return `${scope}:${coord}${extra ? `:${extra}` : ''}`;
+};
+
+const readCache = <T>(key: string): T | null => {
+  const entry = weatherCache.get(key);
+  if (!entry) {
+    return null;
+  }
+  if (entry.expiresAt <= Date.now()) {
+    weatherCache.delete(key);
+    return null;
+  }
+  return entry.payload as T;
+};
+
+const writeCache = <T>(key: string, payload: T): void => {
+  weatherCache.set(key, {
+    expiresAt: Date.now() + WEATHER_CACHE_TTL_MS,
+    payload,
+  });
+};
 
 export type CurrentWeather = {
   time: string;
@@ -106,6 +138,11 @@ const getWeatherDescription = (code: number): string => {
 };
 
 const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeather> => {
+  const cacheKey = getCacheKey('current', lat, lng);
+  const cached = readCache<CurrentWeather>(cacheKey);
+  if (cached) {
+    return cached;
+  }
   try {
     const response = await axios.get(`${GOOGLE_WEATHER_BASE_URL}/currentConditions:lookup`, {
       params: {
@@ -135,7 +172,7 @@ const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeath
       weatherCode: weatherCode,
       conditionText: conditionText,
     };
-
+    writeCache(cacheKey, payload);
     return payload;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -155,6 +192,11 @@ const getCurrentWeather = async (lat: number, lng: number): Promise<CurrentWeath
  * Get daily forecast
  */
 const getDailyForecast = async (lat: number, lng: number, days: number = 7): Promise<DailyForecast[]> => {
+  const cacheKey = getCacheKey('daily', lat, lng, String(days));
+  const cached = readCache<DailyForecast[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
   try {
     const response = await axios.get(`${GOOGLE_WEATHER_BASE_URL}/forecast/days:lookup`, {
       params: {
@@ -192,6 +234,7 @@ const getDailyForecast = async (lat: number, lng: number, days: number = 7): Pro
       };
     });
 
+    writeCache(cacheKey, forecasts);
     return forecasts;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -211,6 +254,11 @@ const getDailyForecast = async (lat: number, lng: number, days: number = 7): Pro
  * Get hourly forecast
  */
 const getHourlyForecast = async (lat: number, lng: number, hours: number = 24): Promise<HourlyForecast[]> => {
+  const cacheKey = getCacheKey('hourly', lat, lng, String(hours));
+  const cached = readCache<HourlyForecast[]>(cacheKey);
+  if (cached) {
+    return cached;
+  }
   try {
     const response = await axios.get(`${GOOGLE_WEATHER_BASE_URL}/forecast/hours:lookup`, {
       params: {
@@ -241,6 +289,7 @@ const getHourlyForecast = async (lat: number, lng: number, hours: number = 24): 
       };
     });
 
+    writeCache(cacheKey, forecasts);
     return forecasts;
   } catch (error) {
     if (axios.isAxiosError(error)) {
