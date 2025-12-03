@@ -1,4 +1,4 @@
-import { Response } from 'express';
+import { NextFunction, Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { FarmerService } from '../services/farmer.service';
 
@@ -18,6 +18,22 @@ const getFarmerList = async (req: AuthenticatedRequest, res: Response) => {
   return res.json({ data: result });
 };
 
+const deleteFarmer = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  const { farmerId } = req.params;
+
+  if (!farmerId) {
+    return res.status(400).json({ message: 'Farmer ID is required' });
+  }
+
+  try {
+    await FarmerService.deleteFarmerById(farmerId);
+    return res.json({ message: 'Farmer deleted successfully' });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 export const FarmerController = {
   getFarmerList,
+  deleteFarmer,
 };

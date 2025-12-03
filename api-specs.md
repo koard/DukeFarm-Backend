@@ -275,6 +275,7 @@ Complete overview of all available API endpoints organized by feature domain.
 | Method | Path | Auth | Rate Limit | Description |
 | --- | --- | --- | --- | --- |
 | `GET` | `/farmers` | Admin/Researcher | 60/min | List all registered farmers with pagination |
+| `DELETE` | `/farmers/:farmerId` | Admin | 30/min | Permanently delete a farmer account and related data |
 
 ### 🍽️ Feed Formulas Management
 
@@ -1055,6 +1056,20 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   }
 }
 ```
+
+---
+
+### DELETE `/farmers/:farmerId`
+- **Auth:** Admin only.
+- **Response:**
+```json
+{
+  "message": "Farmer deleted successfully"
+}
+```
+- **Notes:**
+  - Removes the farmer user, profile, farm data entries, registered farms, ponds, production cycles, associated feed formulas, and research records.
+  - Operation is irreversible. Use with caution.
 
 ---
 

@@ -13,4 +13,12 @@ farmerRouter.get(
   FarmerController.getFarmerList,
 );
 
+// DELETE /api/farmers/:farmerId - Remove farmer account (Admin only)
+farmerRouter.delete(
+  '/:farmerId',
+  authMiddleware,
+  roleMiddleware(['ADMIN']),
+  FarmerController.deleteFarmer,
+);
+
 export { farmerRouter };

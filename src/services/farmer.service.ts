@@ -1,7 +1,9 @@
 import { prisma } from '../clients/prisma';
-import { FarmType, RegistrationStatus } from '@prisma/client';
+import { FarmType, Prisma, RegistrationStatus } from '@prisma/client';
+import { createHttpError } from '../utils/httpError';
 
 type FarmerListItem = {
+  userId: string;
   no: number;
   fullName: string;
   phone: string;
@@ -57,6 +59,7 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
   ]);
 
   const data: FarmerListItem[] = farmers.map((farmer, index) => ({
+    userId: farmer.id,
     no: skip + index + 1,
     fullName: farmer.farmerProfile
       ? `${farmer.farmerProfile.firstName} ${farmer.farmerProfile.lastName}`
@@ -83,6 +86,86 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
   };
 };
 
+const deleteFarmerById = async (userId: string) => {
+  return prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (!user) {
+      throw createHttpError(404, 'Farmer not found');
+    }
+
+    if (user.role !== 'FARMER') {
+      throw createHttpError(400, 'Only farmer accounts can be deleted via this endpoint');
+    }
+
+    const farms = await tx.farm.findMany({
+      where: { ownerId: userId },
+      select: {
+        id: true,
+        ponds: {
+          select: {
+            id: true,
+            productionCycles: {
+              select: { id: true },
+            },
+          },
+        },
+      },
+    });
+
+    const farmIds = farms.map((farm) => farm.id);
+    const pondIds = farms.flatMap((farm) => farm.ponds.map((pond) => pond.id));
+    const productionCycleIds = farms.flatMap((farm) =>
+      farm.ponds.flatMap((pond) => pond.productionCycles.map((cycle) => cycle.id)),
+    );
+
+    if (productionCycleIds.length > 0) {
+      await tx.researchSurvey.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
+      await tx.treatment.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
+      await tx.mortality.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
+      await tx.growthMeasurement.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
+      await tx.feeding.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
+      await tx.dailyRecord.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
+      await tx.productionCycle.deleteMany({ where: { id: { in: productionCycleIds } } });
+    }
+
+    if (pondIds.length > 0) {
+      await tx.pond.deleteMany({ where: { id: { in: pondIds } } });
+    }
+
+    const feedFormulaConditions: Prisma.FeedFormulaWhereInput[] = [{ ownerId: userId }];
+    if (farmIds.length > 0) {
+      feedFormulaConditions.push({ farmId: { in: farmIds } });
+    }
+
+    const feedFormulasToDelete = await tx.feedFormula.findMany({
+      where: { OR: feedFormulaConditions },
+      select: { id: true },
+    });
+
+    const feedFormulaIds = feedFormulasToDelete.map((formula) => formula.id);
+
+    if (feedFormulaIds.length > 0) {
+      await tx.feedFormulaIngredient.deleteMany({ where: { feedFormulaId: { in: feedFormulaIds } } });
+      await tx.feedFormula.deleteMany({ where: { id: { in: feedFormulaIds } } });
+    }
+
+    if (farmIds.length > 0) {
+      await tx.farm.deleteMany({ where: { id: { in: farmIds } } });
+    }
+
+    await tx.farmDataEntry.deleteMany({ where: { userId } });
+    await tx.farmerProfile.deleteMany({ where: { userId } });
+    await tx.researcherProfile.deleteMany({ where: { userId } });
+
+    await tx.user.delete({ where: { id: userId } });
+  });
+};
+
 export const FarmerService = {
   getFarmerList,
+  deleteFarmerById,
 };
