@@ -275,6 +275,7 @@ Complete overview of all available API endpoints organized by feature domain.
 | Method | Path | Auth | Rate Limit | Description |
 | --- | --- | --- | --- | --- |
 | `GET` | `/farmers` | Admin/Researcher | 60/min | List all registered farmers with pagination |
+| `GET` | `/farmers/:farmerId` | Admin/Researcher | 60/min | Fetch single farmer detail |
 | `DELETE` | `/farmers/:farmerId` | Admin | 30/min | Permanently delete a farmer account and related data |
 
 ### 🍽️ Feed Formulas Management
@@ -1059,6 +1060,32 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ---
 
+### GET `/farmers/:farmerId`
+- **Auth:** Admin or Researcher.
+- **Path params:** `farmerId` is required and must be a valid user ID (UUID).
+- **Response:**
+```json
+{
+  "data": {
+    "userId": "uuid",
+    "no": 1,
+    "fullName": "Somchai Prasert",
+    "phone": "0812345678",
+    "farmType": "NURSERY_SMALL",
+    "registrationStatus": "COMPLETED",
+    "pondCount": 6,
+    "latitude": 14.077,
+    "longitude": 100.608,
+    "registeredAt": "2025-11-27T12:00:00.000Z"
+  }
+}
+```
+- **Error cases:**
+  - `400` if `farmerId` is missing
+  - `404` if farmer does not exist or registration is not completed
+
+---
+
 ### DELETE `/farmers/:farmerId`
 - **Auth:** Admin only.
 - **Response:**
@@ -1323,6 +1350,9 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   - `farmType` field added to feed formulas (optional)
   - Values: `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT`
   - Allows farm-type-specific feed recommendations
+- **Farmer Detail Endpoint**:
+  - `GET /farmers/:farmerId` now available for Admins and Researchers
+  - Returns a single farmer's profile with coordinates, pond count, and registration metadata
 
 **Database:**
 - Added `farm_type` column to `feed_formulas` table

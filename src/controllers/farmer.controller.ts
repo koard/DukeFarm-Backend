@@ -18,6 +18,21 @@ const getFarmerList = async (req: AuthenticatedRequest, res: Response) => {
   return res.json({ data: result });
 };
 
+const getFarmerById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  const { farmerId } = req.params;
+
+  if (!farmerId) {
+    return res.status(400).json({ message: 'Farmer ID is required' });
+  }
+
+  try {
+    const farmer = await FarmerService.getFarmerById(farmerId);
+    return res.json({ data: farmer });
+  } catch (error) {
+    return next(error);
+  }
+};
+
 const deleteFarmer = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const { farmerId } = req.params;
 
@@ -35,5 +50,6 @@ const deleteFarmer = async (req: AuthenticatedRequest, res: Response, next: Next
 
 export const FarmerController = {
   getFarmerList,
+  getFarmerById,
   deleteFarmer,
 };

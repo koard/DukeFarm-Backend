@@ -86,6 +86,38 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
   };
 };
 
+const getFarmerById = async (userId: string): Promise<FarmerListItem> => {
+  const farmer = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      role: 'FARMER',
+      registrationStatus: 'COMPLETED',
+    },
+    include: {
+      farmerProfile: true,
+    },
+  });
+
+  if (!farmer) {
+    throw createHttpError(404, 'Farmer not found');
+  }
+
+  return {
+    userId: farmer.id,
+    no: 1,
+    fullName: farmer.farmerProfile
+      ? `${farmer.farmerProfile.firstName} ${farmer.farmerProfile.lastName}`
+      : farmer.displayName || 'N/A',
+    phone: farmer.farmerProfile?.phone || '-',
+    farmType: farmer.farmerProfile?.primaryFarmType || 'NURSERY_SMALL',
+    registrationStatus: farmer.registrationStatus,
+    pondCount: farmer.farmerProfile?.declaredPondCount || null,
+    latitude: farmer.farmerProfile?.farmLatitude || null,
+    longitude: farmer.farmerProfile?.farmLongitude || null,
+    registeredAt: farmer.createdAt.toISOString(),
+  };
+};
+
 const deleteFarmerById = async (userId: string) => {
   return prisma.$transaction(async (tx) => {
     const user = await tx.user.findUnique({
@@ -167,5 +199,6 @@ const deleteFarmerById = async (userId: string) => {
 
 export const FarmerService = {
   getFarmerList,
+  getFarmerById,
   deleteFarmerById,
 };

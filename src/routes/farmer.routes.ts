@@ -13,6 +13,14 @@ farmerRouter.get(
   FarmerController.getFarmerList,
 );
 
+// GET /api/farmers/:farmerId - Fetch single farmer detail (Admin/Researcher only)
+farmerRouter.get(
+  '/:farmerId',
+  authMiddleware,
+  roleMiddleware(['ADMIN', 'RESEARCHER']),
+  FarmerController.getFarmerById,
+);
+
 // DELETE /api/farmers/:farmerId - Remove farmer account (Admin only)
 farmerRouter.delete(
   '/:farmerId',
