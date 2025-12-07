@@ -20,14 +20,33 @@ enum RegistrationStatus {
 }
 
 enum FarmType {
-  NURSERY_SMALL
-  NURSERY_LARGE
-  GROWOUT
+  FINGERLING   // Fingerling growers (0-45 days)
+  FATTENING    // Juvenile grow-out aka "Pla Tum" (45-120 days)
+  MARKET       // Market-size fish (120+ days)
 }
 
 enum PondType {
   EARTHEN
   CONCRETE
+}
+
+enum HarvestReadinessStatus {
+  UNKNOWN
+  TOO_EARLY
+  OPTIMAL
+  LATE
+}
+
+enum DiseaseCaseStatus {
+  ACTIVE
+  RESOLVED
+}
+
+enum DiseaseSeverity {
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
 }
 
 enum ProductionCycleStatus {
@@ -58,6 +77,8 @@ model User {
   farmerProfile      FarmerProfile?
   researcherProfile  ResearcherProfile?
   farmDataEntries    FarmDataEntry[]
+  cultivationTypes   FarmerCultivationType[]
+  diseaseCases       DiseaseCase[]
   createdAt          DateTime           @default(now()) @map("created_at")
   updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at")
 
@@ -112,12 +133,14 @@ model ProductionCycle {
   initialAvgWeightKg  Decimal?               @map("initial_avg_weight_kg") @db.Decimal(8, 3)
   targetHarvestDate   DateTime?              @map("target_harvest_date")
   notes               String?
+  farmType            FarmType?              @map("farm_type")
   dailyRecords        DailyRecord[]
   feedings            Feeding[]
   growthMeasurements  GrowthMeasurement[]
   mortalities         Mortality[]
   treatments          Treatment[]
   researchSurveys     ResearchSurvey[]
+  diseaseCases        DiseaseCase[]
   createdAt           DateTime               @default(now()) @map("created_at")
   updatedAt           DateTime               @default(now()) @updatedAt @map("updated_at")
 
@@ -251,6 +274,8 @@ model Treatment {
   id                String          @id @default(uuid()) @db.Uuid
   productionCycleId String          @map("production_cycle_id") @db.Uuid
   productionCycle   ProductionCycle @relation(fields: [productionCycleId], references: [id])
+  diseaseCaseId     String?         @map("disease_case_id") @db.Uuid
+  diseaseCase       DiseaseCase?    @relation(fields: [diseaseCaseId], references: [id])
   treatmentDate     DateTime        @map("treatment_date")
   treatmentType     String          @map("treatment_type")
   productName       String?         @map("product_name")
@@ -261,6 +286,7 @@ model Treatment {
   updatedAt         DateTime        @default(now()) @updatedAt @map("updated_at")
 
   @@index([productionCycleId, treatmentDate])
+  @@index([diseaseCaseId])
   @@map("treatments")
 }
 
@@ -291,10 +317,49 @@ model FarmerProfile {
   declaredPondCount Int?          @map("declared_pond_count")
   farmLatitude      Float?        @map("farm_latitude")
   farmLongitude     Float?        @map("farm_longitude")
+  farmAreaRai       Decimal?      @map("farm_area_rai") @db.Decimal(10, 2)
+  pondsPerRai       Decimal?      @map("ponds_per_rai") @db.Decimal(10, 2)
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at")
 
   @@map("farmer_profiles")
+}
+
+model FarmerCultivationType {
+  id                String           @id @default(uuid()) @db.Uuid
+  userId            String           @map("user_id") @db.Uuid
+  user              User             @relation(fields: [userId], references: [id])
+  farmType          FarmType         @map("farm_type")
+  cultivatedAreaRai Decimal?         @map("cultivated_area_rai") @db.Decimal(10, 2)
+  pondsInStage      Int?             @map("ponds_in_stage")
+  notes             String?
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @default(now()) @updatedAt @map("updated_at")
+  farmDataEntries   FarmDataEntry[]
+  diseaseCases      DiseaseCase[]
+
+  @@unique([userId, farmType], name: "farmer_cultivation_type_user_stage_unique")
+  @@index([userId])
+  @@map("farmer_cultivation_types")
+}
+
+model FishAgeStage {
+  id                     String           @id @default(uuid()) @db.Uuid
+  farmType               FarmType         @map("farm_type")
+  code                   String
+  displayName            String           @map("display_name")
+  minDay                 Int              @map("min_day")
+  maxDay                 Int?             @map("max_day")
+  harvestStartDay        Int?             @map("harvest_start_day")
+  harvestEndDay          Int?             @map("harvest_end_day")
+  description            String?
+  createdAt              DateTime         @default(now()) @map("created_at")
+  updatedAt              DateTime         @default(now()) @updatedAt @map("updated_at")
+  farmDataEntries        FarmDataEntry[]
+  diseaseCases           DiseaseCase[]
+
+  @@unique([farmType, code], name: "fish_age_stage_farmType_code_unique")
+  @@map("fish_age_stages")
 }
 
 model ResearcherProfile {
@@ -318,8 +383,15 @@ model FarmDataEntry {
   userId             String    @map("user_id") @db.Uuid
   user               User      @relation(fields: [userId], references: [id])
   farmType           FarmType  @map("farm_type")
+  cultivationTypeId  String?   @map("cultivation_type_id") @db.Uuid
+  cultivationType    FarmerCultivationType? @relation(fields: [cultivationTypeId], references: [id])
   recordedAt         DateTime  @map("recorded_at")
   fishAgeLabel       String    @map("fish_age_label")
+  fishAgeDays        Int?      @map("fish_age_days")
+  fishAgeStageId     String?   @map("fish_age_stage_id") @db.Uuid
+  fishAgeStage       FishAgeStage? @relation(fields: [fishAgeStageId], references: [id])
+  harvestStatus      HarvestReadinessStatus? @map("harvest_status")
+  harvestStatusReason String?  @map("harvest_status_reason")
   pondType           PondType? @map("pond_type")
   pondCount          Int?      @map("pond_count")
   fishCount          Int?      @map("fish_count")
@@ -333,7 +405,51 @@ model FarmDataEntry {
   updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@index([userId, recordedAt])
+  @@index([cultivationTypeId])
+  @@index([fishAgeStageId])
   @@map("farm_data_entries")
+}
+
+model DiseaseCase {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  userId             String                  @map("user_id") @db.Uuid
+  user               User                    @relation(fields: [userId], references: [id])
+  productionCycleId  String?                 @map("production_cycle_id") @db.Uuid
+  productionCycle    ProductionCycle?        @relation(fields: [productionCycleId], references: [id])
+  cultivationTypeId  String?                 @map("cultivation_type_id") @db.Uuid
+  cultivationType    FarmerCultivationType?  @relation(fields: [cultivationTypeId], references: [id])
+  farmType           FarmType?               @map("farm_type")
+  fishAgeStageId     String?                 @map("fish_age_stage_id") @db.Uuid
+  fishAgeStage       FishAgeStage?           @relation(fields: [fishAgeStageId], references: [id])
+  reportedAt         DateTime                @map("reported_at")
+  diseaseName        String                  @map("disease_name")
+  symptoms           String?
+  severity           DiseaseSeverity         @default(MODERATE)
+  status             DiseaseCaseStatus       @default(ACTIVE)
+  notes              String?
+  photos             DiseasePhoto[]
+  treatments         Treatment[]
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @default(now()) @updatedAt @map("updated_at")
+
+  @@index([userId, reportedAt])
+  @@index([productionCycleId])
+  @@index([cultivationTypeId])
+  @@map("disease_cases")
+}
+
+model DiseasePhoto {
+  id            String       @id @default(uuid()) @db.Uuid
+  diseaseCaseId String       @map("disease_case_id") @db.Uuid
+  diseaseCase   DiseaseCase  @relation(fields: [diseaseCaseId], references: [id])
+  photoUrl      String       @map("photo_url")
+  caption       String?
+  capturedAt    DateTime?    @map("captured_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@index([diseaseCaseId])
+  @@map("disease_photos")
 }
 
 

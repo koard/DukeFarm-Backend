@@ -9,11 +9,11 @@ import { createHttpError } from '../utils/httpError';
 
 const getDashboard = async (userId: string, group: FarmTypeValue): Promise<any> => {
   switch (group) {
-    case FarmType.NURSERY_SMALL:
+    case FarmType.FINGERLING:
       return NurserySmallDashboardService.getDashboard(userId);
-    case FarmType.NURSERY_LARGE:
+    case FarmType.FATTENING:
       return NurseryLargeDashboardService.getDashboard(userId);
-    case FarmType.GROWOUT:
+    case FarmType.MARKET:
       return GrowoutDashboardService.getDashboard(userId);
     default:
       throw createHttpError(400, `Unknown group type: ${group}`);

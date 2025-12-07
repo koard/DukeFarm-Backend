@@ -1,6 +1,7 @@
 import { prisma } from '../clients/prisma';
 import { FarmType, Prisma, RegistrationStatus } from '@prisma/client';
 import { createHttpError } from '../utils/httpError';
+import { decimalToNumber } from '../utils/number';
 
 type FarmerListItem = {
   userId: string;
@@ -8,10 +9,13 @@ type FarmerListItem = {
   fullName: string;
   phone: string;
   farmType: FarmType;
+  farmTypes: FarmType[];
   registrationStatus: RegistrationStatus;
   pondCount: number | null;
   latitude: number | null;
   longitude: number | null;
+  farmAreaRai: number | null;
+  pondsPerRai: number | null;
   registeredAt: string;
 };
 
@@ -43,6 +47,7 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
       },
       include: {
         farmerProfile: true,
+         cultivationTypes: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -65,11 +70,17 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
       ? `${farmer.farmerProfile.firstName} ${farmer.farmerProfile.lastName}`
       : farmer.displayName || 'N/A',
     phone: farmer.farmerProfile?.phone || '-',
-    farmType: farmer.farmerProfile?.primaryFarmType || 'NURSERY_SMALL',
+    farmType:
+      farmer.farmerProfile?.primaryFarmType ||
+      farmer.cultivationTypes[0]?.farmType ||
+      FarmType.FINGERLING,
+    farmTypes: farmer.cultivationTypes.map((item) => item.farmType),
     registrationStatus: farmer.registrationStatus,
     pondCount: farmer.farmerProfile?.declaredPondCount || null,
     latitude: farmer.farmerProfile?.farmLatitude || null,
     longitude: farmer.farmerProfile?.farmLongitude || null,
+    farmAreaRai: decimalToNumber(farmer.farmerProfile?.farmAreaRai),
+    pondsPerRai: decimalToNumber(farmer.farmerProfile?.pondsPerRai),
     registeredAt: farmer.createdAt.toISOString(),
   }));
 
@@ -95,6 +106,7 @@ const getFarmerById = async (userId: string): Promise<FarmerListItem> => {
     },
     include: {
       farmerProfile: true,
+      cultivationTypes: true,
     },
   });
 
@@ -109,11 +121,17 @@ const getFarmerById = async (userId: string): Promise<FarmerListItem> => {
       ? `${farmer.farmerProfile.firstName} ${farmer.farmerProfile.lastName}`
       : farmer.displayName || 'N/A',
     phone: farmer.farmerProfile?.phone || '-',
-    farmType: farmer.farmerProfile?.primaryFarmType || 'NURSERY_SMALL',
+    farmType:
+      farmer.farmerProfile?.primaryFarmType ||
+      farmer.cultivationTypes[0]?.farmType ||
+      FarmType.FINGERLING,
+    farmTypes: farmer.cultivationTypes.map((item) => item.farmType),
     registrationStatus: farmer.registrationStatus,
     pondCount: farmer.farmerProfile?.declaredPondCount || null,
     latitude: farmer.farmerProfile?.farmLatitude || null,
     longitude: farmer.farmerProfile?.farmLongitude || null,
+    farmAreaRai: decimalToNumber(farmer.farmerProfile?.farmAreaRai),
+    pondsPerRai: decimalToNumber(farmer.farmerProfile?.pondsPerRai),
     registeredAt: farmer.createdAt.toISOString(),
   };
 };

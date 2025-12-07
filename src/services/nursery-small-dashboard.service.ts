@@ -64,20 +64,27 @@ const fetchWeather = async (
 };
 
 const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
-  // Get farmer profile for location data
-  const farmerProfile = await prisma.farmerProfile.findUnique({
-    where: { userId },
-    select: { 
-      primaryFarmType: true, 
-      farmLatitude: true, 
-      farmLongitude: true 
-    },
-  });
+  const [farmerProfile, cultivationType] = await Promise.all([
+    prisma.farmerProfile.findUnique({
+      where: { userId },
+      select: {
+        farmLatitude: true,
+        farmLongitude: true,
+      },
+    }),
+    prisma.farmerCultivationType.findFirst({
+      where: {
+        userId,
+        farmType: FarmType.FINGERLING,
+      },
+      select: { id: true },
+    }),
+  ]);
 
-  // Check if this user is a farmer with NURSERY_SMALL farm
-  if (!farmerProfile || farmerProfile.primaryFarmType !== FarmType.NURSERY_SMALL) {
+  // Check if this user is a farmer with fingerling ponds
+  if (!farmerProfile || !cultivationType) {
     return {
-      group: FarmType.NURSERY_SMALL,
+      group: FarmType.FINGERLING,
       hasData: false,
       summary: {
         asOf: new Date().toISOString(),
@@ -93,7 +100,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
         null,
         TEMP_RANGE_FOR_CALC,
         7,
-        'NURSERY_SMALL',
+        FarmType.FINGERLING,
       ),
     };
   }
@@ -146,6 +153,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
     const { adjustmentPct } = FeedingCalculator.computeFeedAdjustment(
       airTemperatureC,
       TEMP_RANGE_FOR_CALC,
+      FarmType.FINGERLING,
     );
     recommendedFeedAdjustmentPct = adjustmentPct;
   }
@@ -157,7 +165,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
     airTemperatureC,
     TEMP_RANGE_FOR_CALC,
     dailyForecast.length || 7,
-    'NURSERY_SMALL',
+    FarmType.FINGERLING,
   );
 
   const feedingPlan: FeedingPlanRow[] = baseFeedingPlan.map((row, index) => {
@@ -169,6 +177,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
     const { adjustmentPct, recommendation } = FeedingCalculator.computeFeedAdjustment(
       forecast.temperatureMeanC,
       TEMP_RANGE_FOR_CALC,
+      FarmType.FINGERLING,
     );
 
     return {
@@ -184,7 +193,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
   });
 
   return {
-    group: FarmType.NURSERY_SMALL,
+    group: FarmType.FINGERLING,
     hasData: airTemperatureC !== null,
     summary: {
       asOf,

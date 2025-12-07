@@ -25,7 +25,7 @@
 
 ## 🎯 Overview
 
-DukeFarm Backend provides a comprehensive RESTful API for managing catfish farming operations across three production phases: **Nursery Small**, **Nursery Large**, and **Growout**. The platform integrates real-time weather data, intelligent feeding recommendations, farmer management, and research survey capabilities.
+DukeFarm Backend provides a comprehensive RESTful API for managing catfish farming operations across three production phases: **Fingerling**, **Fattening**, and **Market** (formerly Nursery Small, Nursery Large, and Growout). The platform integrates real-time weather data, intelligent feeding recommendations, farmer management, and research survey capabilities.
 
 ### Key Capabilities
 
@@ -46,7 +46,7 @@ DukeFarm Backend provides a comprehensive RESTful API for managing catfish farmi
 - Dynamic role assignment with pre-selection support
 
 ### Farm Management
-- Multi-farm type support: `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT`
+- Multi-farm type support: `FINGERLING`, `FATTENING`, `MARKET`
 - GPS-based farm location tracking
 - Pond inventory management
 - Production cycle tracking
@@ -410,8 +410,8 @@ curl http://localhost:4000/api/auth/line/login
 curl http://localhost:4000/api/auth/me `
   -H "Authorization: Bearer eyJhbGc..."
 
-# Get dashboard for nursery small farms
-curl http://localhost:4000/api/dashboard/groups/NURSERY_SMALL `
+# Get dashboard for fingerling farms
+curl http://localhost:4000/api/dashboard/groups/FINGERLING `
   -H "Authorization: Bearer eyJhbGc..."
 
 # Register as farmer
@@ -423,7 +423,7 @@ curl http://localhost:4000/api/register/farmer `
     \"firstName\": \"Somchai\",
     \"lastName\": \"Prasert\",
     \"phone\": \"0812345678\",
-    \"primaryFarmType\": \"NURSERY_SMALL\",
+   \"primaryFarmType\": \"FINGERLING\",
     \"declaredPondCount\": 4,
     \"farmLatitude\": 13.7563,
     \"farmLongitude\": 100.5018
@@ -446,7 +446,7 @@ GET http://localhost:4000/api/auth/me
 Authorization: Bearer {{token}}
 
 ### Get Dashboard
-GET http://localhost:4000/api/dashboard/groups/NURSERY_SMALL
+GET http://localhost:4000/api/dashboard/groups/FINGERLING
 Authorization: Bearer {{token}}
 ```
 

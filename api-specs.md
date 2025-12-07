@@ -33,7 +33,7 @@
 
 ## 🎯 Overview
 
-The DukeFarm API provides a comprehensive backend service for managing catfish farming operations across three production phases: **Nursery Small**, **Nursery Large**, and **Growout**. The API follows RESTful principles and uses JSON for data exchange.
+The DukeFarm API provides a comprehensive backend service for managing catfish farming operations across three production phases: **Fingerling**, **Fattening**, and **Market** (legacy names: Nursery Small, Nursery Large, Growout). The API follows RESTful principles and uses JSON for data exchange.
 
 ### Key Features
 
@@ -565,7 +565,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
       "firstName": "John",
       "lastName": "Doe",
       "phone": "0812345678",
-      "primaryFarmType": "NURSERY_SMALL",
+      "primaryFarmType": "FINGERLING",
       "declaredPondCount": 3,
       "farmLatitude": 13.7563,
       "farmLongitude": 100.5018
@@ -660,13 +660,13 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
   "firstName": "Somchai",
   "lastName": "Prasert",
   "phone": "0812345678",
-  "primaryFarmType": "NURSERY_SMALL",
+  "primaryFarmType": "FINGERLING",
   "declaredPondCount": 4,
   "farmLatitude": 14.077,
   "farmLongitude": 100.608
 }
 ```
-- **Validation:** `firstName`, `lastName`, `phone`, `primaryFarmType`, `farmLatitude`, and `farmLongitude` required. `primaryFarmType` must be one of `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT` (case-insensitive). `declaredPondCount` must be a non-negative integer when provided. `farmLatitude` must be between -90 and 90, `farmLongitude` between -180 and 180.
+- **Validation:** `firstName`, `lastName`, `phone`, `primaryFarmType`, `farmLatitude`, and `farmLongitude` required. `primaryFarmType` must be one of `FINGERLING`, `FATTENING`, `MARKET` (case-insensitive). `declaredPondCount` must be a non-negative integer when provided. `farmLatitude` must be between -90 and 90, `farmLongitude` between -180 and 180.
 - **Behavior:** Upserts the `farmer_profiles` record, removes any researcher profile, and updates the user to `{ role: FARMER, registrationStatus: COMPLETED }`.
 - **Response:**
 ```json
@@ -677,7 +677,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
       "firstName": "Somchai",
       "lastName": "Prasert",
       "phone": "0812345678",
-      "primaryFarmType": "NURSERY_SMALL",
+      "primaryFarmType": "FINGERLING",
       "declaredPondCount": 4,
       "farmLatitude": 14.077,
       "farmLongitude": 100.608,
@@ -716,19 +716,19 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 ## 4. Dashboard
 ### GET `/dashboard/groups/:groupType`
 - **Auth:** any logged-in user.
-- **Path params:** `groupType` must be one of `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT` (case-insensitive).
+- **Path params:** `groupType` must be one of `FINGERLING`, `FATTENING`, `MARKET` (case-insensitive).
 - **Behavior:** 
   - Fetches current **air temperature** from Google Maps Weather API (API key + billing required)
   - Uses farmer profile location (farmLatitude, farmLongitude) to get weather data
   - Air temperature typically 3-8°C higher than water temperature
   - Generates 7-day feeding plan with **percentage adjustments** instead of absolute kg amounts
-  - All three farm types (NURSERY_SMALL, NURSERY_LARGE, GROWOUT) are fully implemented
+  - All three farm types (FINGERLING, FATTENING, MARKET) are fully implemented
   - **Data-driven approach:** Backend sends only numeric data; frontend handles all UI text and localization
-- **Response (NURSERY_SMALL):**
+- **Response (FINGERLING):**
 ```json
 {
   "data": {
-    "group": "NURSERY_SMALL",
+    "group": "FINGERLING",
     "hasData": true,
     "summary": {
       "asOf": "2025-11-20T10:15:00.000Z",
@@ -791,11 +791,11 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
   }
 }
 ```
-- **Response (NURSERY_LARGE / GROWOUT):**
+- **Response (FATTENING / MARKET):**
 ```json
 {
   "data": {
-    "group": "NURSERY_LARGE",
+    "group": "FATTENING",
     "hasData": true,
     "summary": {
       "asOf": "2025-11-30T10:15:00.000Z",
@@ -857,7 +857,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 }
 ```
 
-**Note:** GROWOUT dashboard returns identical structure with `"group": "GROWOUT"`
+**Note:** MARKET dashboard returns identical structure with `"group": "MARKET"`
 
 **Field Descriptions:**
 
@@ -867,11 +867,11 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - `temperatureDeltaC`: Degrees away from optimal range (negative = below 28°C, positive = above 32°C, 0 = optimal, null = no data)
 - `comfortRangeC`: Optimal air temperature range { min: 28, max: 32 }
 - `recommendedFeedAdjustmentPct`: Overall feed adjustment % based on current temperature
-- `averageFishWeight`: Average weight per fish in kg (NURSERY_LARGE and GROWOUT only)
-- `weightChange`: Weight change percentage vs previous period (NURSERY_LARGE and GROWOUT only)
-- `pelletFoodCost`: Total pellet food cost in baht (NURSERY_LARGE and GROWOUT only)
-- `freshFoodCost`: Total fresh food cost in baht (NURSERY_LARGE and GROWOUT only)
-- `monthlyFeedingData`: Array of 12 months of feeding data in kg (NURSERY_LARGE and GROWOUT only)
+- `averageFishWeight`: Average weight per fish in kg (FATTENING and MARKET only)
+- `weightChange`: Weight change percentage vs previous period (FATTENING and MARKET only)
+- `pelletFoodCost`: Total pellet food cost in baht (FATTENING and MARKET only)
+- `freshFoodCost`: Total fresh food cost in baht (FATTENING and MARKET only)
+- `monthlyFeedingData`: Array of 12 months of feeding data in kg (FATTENING and MARKET only)
   - `month`: Month abbreviation (Jan-Dec)
   - `value`: Total feed amount in kg
 
@@ -1040,7 +1040,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
         "no": 1,
         "fullName": "Somchai Prasert",
         "phone": "0812345678",
-        "farmType": "NURSERY_SMALL",
+        "farmType": "FINGERLING",
         "registrationStatus": "COMPLETED",
         "pondCount": 6,
         "latitude": 14.077,
@@ -1071,7 +1071,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
     "no": 1,
     "fullName": "Somchai Prasert",
     "phone": "0812345678",
-    "farmType": "NURSERY_SMALL",
+    "farmType": "FINGERLING",
     "registrationStatus": "COMPLETED",
     "pondCount": 6,
     "latitude": 14.077,
@@ -1110,10 +1110,10 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   "targetStage": "16-30 วัน",
   "description": "อาหารเม็ดเล็ก ขนาด 0.5-1.0 มม. โปรตีน 35-40%",
   "recommendations": "ให้ 2 ครั้งต่อวัน เช้า-เย็น\nเพิ่มส่วนผสมพรีไบโอติก\nติดตาม FCR",
-  "farmType": "NURSERY_SMALL"
+  "farmType": "FINGERLING"
 }
 ```
-- **Validation:** `farmType` is optional. Values: `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT` (case-insensitive).
+- **Validation:** `farmType` is optional. Values: `FINGERLING`, `FATTENING`, `MARKET` (case-insensitive).
 - **Response:**
 ```json
 {
@@ -1123,7 +1123,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
     "targetStage": "16-30 วัน",
     "description": "อาหารเม็ดเล็ก ขนาด 0.5-1.0 มม. โปรตีน 35-40%",
     "recommendations": "ให้ 2 ครั้งต่อวัน เช้า-เย็น\nเพิ่มส่วนผสมพรีไบโอติก\nติดตาม FCR",
-    "farmType": "NURSERY_SMALL",
+    "farmType": "FINGERLING",
     "createdBy": "admin-id",
     "createdAt": "2025-11-27T12:00:00.000Z",
     "updatedAt": "2025-11-27T12:00:00.000Z"
@@ -1223,7 +1223,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
         "surveyDate": "2025-12-20T06:00:00.000Z",
         "surveyType": "กลุ่มอนุบาลนกใหญ่",
         "farmerName": "Somchai Prasert",
-        "farmType": "NURSERY_SMALL",
+        "farmType": "FINGERLING",
         "pondCount": 6,
         "createdAt": "2025-11-27T12:00:00.000Z"
       }
@@ -1348,7 +1348,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   - Admin profiles stored in `researcher_profiles` table with email field
 - **Feed Formula Enhancement**:
   - `farmType` field added to feed formulas (optional)
-  - Values: `NURSERY_SMALL`, `NURSERY_LARGE`, `GROWOUT`
+  - Values: `FINGERLING`, `FATTENING`, `MARKET`
   - Allows farm-type-specific feed recommendations
 - **Farmer Detail Endpoint**:
   - `GET /farmers/:farmerId` now available for Admins and Researchers
@@ -1370,19 +1370,19 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ### Version 1.0.2 (2025-11-30)
 
-**🔬 NURSERY_LARGE & GROWOUT Dashboard Update**
+**🔬 FATTENING & MARKET Dashboard Update** *(formerly NURSERY_LARGE & GROWOUT)*
 
 **Added:**
-- **NURSERY_LARGE Dashboard API** - Complete implementation with extended metrics
+- **FATTENING Dashboard API** - Complete implementation with extended metrics
   - `averageFishWeight`: Average weight per fish in kg (calculated from pond records)
   - `weightChange`: Weight change percentage vs previous period
   - `pelletFoodCost`: Total pellet food cost in baht
   - `freshFoodCost`: Total fresh food cost in baht
   - `monthlyFeedingData`: Array of 12 months of feeding data (Jan-Dec, rotated from current month)
-- **GROWOUT Dashboard API** - Complete implementation with same extended metrics as NURSERY_LARGE
-  - Identical structure and features to NURSERY_LARGE dashboard
+- **MARKET Dashboard API** - Complete implementation with same extended metrics as FATTENING
+  - Identical structure and features to the FATTENING dashboard
   - Optimized for market-size fish production stage
-- 7-day feeding plan with same weather integration as NURSERY_SMALL for both new farm types
+- 7-day feeding plan with same weather integration as FINGERLING for both new farm types
 - Mock data generators for fish weight and costs (with TODO comments for database integration)
 
 **Technical:**
@@ -1390,19 +1390,19 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   - `generateMonthlyFeedingData()`: Creates 12-month array rotated from current month
   - `calculateAverageFishWeight()`: Returns fish weight with % change
   - `calculateFoodCosts()`: Returns pellet and fresh food costs
-- Created `GrowoutDashboardService` with identical structure to NURSERY_LARGE
+- Created `GrowoutDashboardService` with identical structure to the FATTENING dashboard
 - Integrated with existing WeatherService and FeedingCalculator
-- Updated routing in `HomeService` to direct NURSERY_LARGE and GROWOUT requests to respective services
+- Updated routing in `HomeService` to direct FATTENING and MARKET requests to respective services
 
 **Improved:**
 - Dashboard endpoint matrix documentation updated
-- Response examples added for NURSERY_LARGE and GROWOUT
+- Response examples added for FATTENING and MARKET
 - Field descriptions enhanced with farm type-specific fields
 
 **Status:**
-- NURSERY_SMALL: ✅ Complete
-- NURSERY_LARGE: ✅ Complete
-- GROWOUT: ✅ Complete
+- FINGERLING: ✅ Complete
+- FATTENING: ✅ Complete
+- MARKET: ✅ Complete
 
 **All three farm type dashboards are now fully operational!**
 

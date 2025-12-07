@@ -3,6 +3,8 @@ import {
   UserRole,
   FarmerProfile as FarmerProfileModel,
   ResearcherProfile as ResearcherProfileModel,
+  FarmType,
+  Prisma,
 } from '@prisma/client';
 import { prisma } from '../clients/prisma';
 import { createHttpError } from '../utils/httpError';
@@ -13,10 +15,12 @@ type FarmerProfilePayload = {
   firstName: string;
   lastName: string;
   phone: string;
-  primaryFarmType: 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT';
+  farmTypes: FarmType[];
   declaredPondCount: number | null;
   farmLatitude: number;
   farmLongitude: number;
+  farmAreaRai: number | null;
+  pondsPerRai: number | null;
 };
 
 type ResearcherProfilePayload = {
@@ -67,20 +71,78 @@ const selectRole = async (userId: string, role: UserRole): Promise<RoleSelection
   return result;
 };
 
+const syncFarmerCultivationTypes = async (
+  tx: Prisma.TransactionClient,
+  userId: string,
+  farmTypes: FarmType[],
+) => {
+  const uniqueTypes = Array.from(new Set(farmTypes));
+  if (!uniqueTypes.length) {
+    throw createHttpError(400, 'At least one cultivation type is required');
+  }
+
+  const existing = await tx.farmerCultivationType.findMany({ where: { userId } });
+  const deletions = existing
+    .filter((record) => !uniqueTypes.includes(record.farmType))
+    .map((record) => record.id);
+
+  if (deletions.length > 0) {
+    await tx.farmerCultivationType.deleteMany({ where: { id: { in: deletions } } });
+  }
+
+  await Promise.all(
+    uniqueTypes.map((farmType) =>
+      tx.farmerCultivationType.upsert({
+        where: {
+          farmer_cultivation_type_user_stage_unique: {
+            userId,
+            farmType,
+          },
+        },
+        update: {},
+        create: {
+          userId,
+          farmType,
+        },
+      }),
+    ),
+  );
+
+  return uniqueTypes;
+};
+
 const completeFarmerProfile = async (
   userId: string,
   payload: FarmerProfilePayload,
 ): Promise<ProfileResult<FarmerProfileModel>> => {
+  const farmTypes = payload.farmTypes.length ? payload.farmTypes : [FarmType.FINGERLING];
+  const primaryFarmType = farmTypes[0] ?? FarmType.FINGERLING;
+  const profileFields = {
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    phone: payload.phone,
+    declaredPondCount: payload.declaredPondCount,
+    farmLatitude: payload.farmLatitude,
+    farmLongitude: payload.farmLongitude,
+    farmAreaRai: payload.farmAreaRai,
+    pondsPerRai: payload.pondsPerRai,
+  };
+
   const result = await prisma.$transaction(async (tx) => {
     const profile = await tx.farmerProfile.upsert({
       where: { userId },
-      update: payload,
+      update: {
+        ...profileFields,
+        primaryFarmType,
+      },
       create: {
         userId,
-        ...payload,
+        ...profileFields,
+        primaryFarmType,
       },
     });
 
+    await syncFarmerCultivationTypes(tx, userId, farmTypes);
     await tx.researcherProfile.deleteMany({ where: { userId } });
 
     const user = await tx.user.update({

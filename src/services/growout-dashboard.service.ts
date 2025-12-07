@@ -1,4 +1,4 @@
-import { FarmType } from '@prisma/client';
+import { FarmType, HarvestReadinessStatus } from '@prisma/client';
 import { prisma } from '../clients/prisma';
 import { WeatherService, type CurrentWeather, type DailyForecast, type HourlyForecast } from './weather.service';
 import { FeedingCalculator, type FeedingPlanRow } from './feeding-calculator.service';
@@ -29,6 +29,10 @@ type DashboardSummary = {
   averageFishWeight: number | null;
   weightChange: number | null;
   latestFishAgeLabel: string | null;
+  latestFishAgeDays: number | null;
+  latestFishStageName: string | null;
+  latestHarvestStatus: HarvestReadinessStatus | null;
+  latestHarvestStatusReason: string | null;
   pelletFoodCost: number;
   freshFoodCost: number;
   monthlyFeedingData: MonthlyFeedingData[];
@@ -68,7 +72,7 @@ const buildGrowthSeries = async (
   const entries = await prisma.farmDataEntry.findMany({
     where: {
       userId,
-      farmType: FarmType.GROWOUT,
+      farmType: FarmType.MARKET,
       averageFishWeightGr: {
         not: null,
       },
@@ -96,18 +100,34 @@ const buildGrowthSeries = async (
   return { points };
 };
 
-const getLatestFishMetrics = async (
-  userId: string,
-): Promise<{ averageFishWeight: number | null; weightChange: number | null; latestFishAgeLabel: string | null }> => {
+type LatestFishMetrics = {
+  averageFishWeight: number | null;
+  weightChange: number | null;
+  latestFishAgeLabel: string | null;
+  latestFishAgeDays: number | null;
+  latestFishStageName: string | null;
+  latestHarvestStatus: HarvestReadinessStatus | null;
+  latestHarvestStatusReason: string | null;
+};
+
+const getLatestFishMetrics = async (userId: string): Promise<LatestFishMetrics> => {
   const recentEntries = await prisma.farmDataEntry.findMany({
     where: {
       userId,
-      farmType: FarmType.GROWOUT,
+      farmType: FarmType.MARKET,
     },
     select: {
       recordedAt: true,
       fishAgeLabel: true,
+      fishAgeDays: true,
+      harvestStatus: true,
+      harvestStatusReason: true,
       averageFishWeightGr: true,
+      fishAgeStage: {
+        select: {
+          displayName: true,
+        },
+      },
     },
     orderBy: {
       recordedAt: 'desc',
@@ -120,10 +140,18 @@ const getLatestFishMetrics = async (
       averageFishWeight: null,
       weightChange: null,
       latestFishAgeLabel: null,
+      latestFishAgeDays: null,
+      latestFishStageName: null,
+      latestHarvestStatus: null,
+      latestHarvestStatusReason: null,
     };
   }
 
   const latestFishAgeLabel = recentEntries[0]?.fishAgeLabel ?? null;
+  const latestFishAgeDays = recentEntries[0]?.fishAgeDays ?? null;
+  const latestFishStageName = recentEntries[0]?.fishAgeStage?.displayName ?? null;
+  const latestHarvestStatus = recentEntries[0]?.harvestStatus ?? null;
+  const latestHarvestStatusReason = recentEntries[0]?.harvestStatusReason ?? null;
 
   const weightEntries = recentEntries.filter((entry) => entry.averageFishWeightGr !== null);
   const latestWeightEntry = weightEntries[0];
@@ -141,6 +169,10 @@ const getLatestFishMetrics = async (
     averageFishWeight: latestWeightKg,
     weightChange: calculateWeightChangePct(latestWeightKg, previousWeightKg),
     latestFishAgeLabel,
+    latestFishAgeDays,
+    latestFishStageName,
+    latestHarvestStatus,
+    latestHarvestStatusReason,
   };
 };
 
@@ -157,26 +189,28 @@ const calculateFoodCosts = (): { pelletCost: number; freshCost: number } => {
 };
 
 const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
-  // Get farmer profile for location data
-  const farmerProfile = await prisma.farmerProfile.findUnique({
-    where: { userId },
-    select: { 
-      primaryFarmType: true, 
-      farmLatitude: true, 
-      farmLongitude: true 
-    },
-  });
+  const [farmerProfile, cultivationType] = await Promise.all([
+    prisma.farmerProfile.findUnique({
+      where: { userId },
+      select: {
+        farmLatitude: true,
+        farmLongitude: true,
+      },
+    }),
+    prisma.farmerCultivationType.findFirst({
+      where: {
+        userId,
+        farmType: FarmType.MARKET,
+      },
+      select: { id: true },
+    }),
+  ]);
 
-  const { points: monthlyFeedingData } = await buildGrowthSeries(userId);
-  const { averageFishWeight, weightChange, latestFishAgeLabel } = await getLatestFishMetrics(userId);
-  
-  // Calculate food costs
   const { pelletCost, freshCost } = calculateFoodCosts();
 
-  // Check if this user is a farmer with GROWOUT farm
-  if (!farmerProfile || farmerProfile.primaryFarmType !== FarmType.GROWOUT) {
+  if (!farmerProfile || !cultivationType) {
     return {
-      group: FarmType.GROWOUT,
+      group: FarmType.MARKET,
       hasData: false,
       summary: {
         asOf: new Date().toISOString(),
@@ -186,22 +220,39 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
         recommendedFeedAdjustmentPct: 0,
         weather: null,
         hourlyForecast: [],
-        averageFishWeight,
-        weightChange,
-        latestFishAgeLabel,
+        averageFishWeight: null,
+        weightChange: null,
+        latestFishAgeLabel: null,
+        latestFishAgeDays: null,
+        latestFishStageName: null,
+        latestHarvestStatus: null,
+        latestHarvestStatusReason: null,
         pelletFoodCost: pelletCost,
         freshFoodCost: freshCost,
-        monthlyFeedingData,
+        monthlyFeedingData: [],
       },
       feedingPlan: FeedingCalculator.generateFeedingPlan(
         new Date(),
         null,
         TEMP_RANGE_FOR_CALC,
         7,
-        'GROWOUT',
+        FarmType.MARKET,
       ),
     };
   }
+
+  const [
+    { points: monthlyFeedingData },
+    {
+      averageFishWeight,
+      weightChange,
+      latestFishAgeLabel,
+      latestFishAgeDays,
+      latestFishStageName,
+      latestHarvestStatus,
+      latestHarvestStatusReason,
+    },
+  ] = await Promise.all([buildGrowthSeries(userId), getLatestFishMetrics(userId)]);
 
   // Fetch weather using farmer profile location
   let weather: CurrentWeather | null = null;
@@ -223,7 +274,7 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
           farmerProfile.farmLatitude,
           farmerProfile.farmLongitude,
           24,
-          ),
+        ),
       ]);
     } catch (error) {
       logger.warn('Unable to fetch weather data for growout dashboard', {
@@ -252,6 +303,7 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
     const { adjustmentPct } = FeedingCalculator.computeFeedAdjustment(
       airTemperatureC,
       TEMP_RANGE_FOR_CALC,
+      FarmType.MARKET,
     );
     recommendedFeedAdjustmentPct = adjustmentPct;
   }
@@ -263,7 +315,7 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
     airTemperatureC,
     TEMP_RANGE_FOR_CALC,
     dailyForecast.length || 7,
-    'GROWOUT',
+    FarmType.MARKET,
   );
 
   const feedingPlan: FeedingPlanRow[] = baseFeedingPlan.map((row, index) => {
@@ -275,6 +327,7 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
     const { adjustmentPct, recommendation } = FeedingCalculator.computeFeedAdjustment(
       forecast.temperatureMeanC,
       TEMP_RANGE_FOR_CALC,
+      FarmType.MARKET,
     );
 
     return {
@@ -290,7 +343,7 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
   });
 
   return {
-    group: FarmType.GROWOUT,
+    group: FarmType.MARKET,
     hasData: monthlyFeedingData.length > 0,
     summary: {
       asOf,
@@ -303,6 +356,10 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
       averageFishWeight,
       weightChange,
       latestFishAgeLabel,
+      latestFishAgeDays,
+      latestFishStageName,
+      latestHarvestStatus,
+      latestHarvestStatusReason,
       pelletFoodCost: pelletCost,
       freshFoodCost: freshCost,
       monthlyFeedingData,

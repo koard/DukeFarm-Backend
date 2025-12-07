@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client';
+import { FarmType, UserRole } from '@prisma/client';
 import { NextFunction, Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { createHttpError } from '../utils/httpError';
@@ -52,19 +52,36 @@ const parseRole = (raw: unknown): UserRole => {
   return normalized as UserRole;
 };
 
-const parseFarmType = (raw: unknown): 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT' => {
-  if (typeof raw !== 'string') {
-    throw createHttpError(400, 'primaryFarmType is required');
+const parseFarmTypes = (raw: unknown): FarmType[] => {
+  const validValues = Object.values(FarmType);
+
+  const normalize = (value: string): FarmType => {
+    const upper = value.toUpperCase();
+    if (!validValues.includes(upper as FarmType)) {
+      throw createHttpError(400, `Unsupported farm type: ${value}`);
+    }
+    return upper as FarmType;
+  };
+
+  if (Array.isArray(raw)) {
+    const parsed = raw.map((value) => {
+      if (typeof value !== 'string') {
+        throw createHttpError(400, 'farmTypes must be strings');
+      }
+      return normalize(value);
+    });
+    if (!parsed.length) {
+      throw createHttpError(400, 'At least one farm type is required');
+    }
+    return Array.from(new Set(parsed));
   }
 
-  const normalized = raw.toUpperCase();
-  const validTypes = ['NURSERY_SMALL', 'NURSERY_LARGE', 'GROWOUT'];
-  
-  if (!validTypes.includes(normalized)) {
-    throw createHttpError(400, `primaryFarmType must be one of: ${validTypes.join(', ')}`);
+  if (typeof raw === 'string' && raw.trim().length > 0) {
+    const values = raw.split(',').map((item) => normalize(item.trim()));
+    return Array.from(new Set(values));
   }
 
-  return normalized as 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT';
+  throw createHttpError(400, 'farmTypes is required and must contain at least one value');
 };
 
 const parseDeclaredPondCount = (value: unknown): number | null => {
@@ -106,6 +123,19 @@ const parseLongitude = (value: unknown): number => {
   return parsed;
 };
 
+const parseNonNegativeDecimal = (value: unknown, field: string): number | null => {
+  const parsed = parseOptionalNumber(value, field);
+  if (parsed === undefined) {
+    return null;
+  }
+
+  if (parsed < 0) {
+    throw createHttpError(400, `${field} must be zero or greater`);
+  }
+
+  return parsed;
+};
+
 const selectRole = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureAuthenticated(req);
@@ -125,10 +155,12 @@ const submitFarmerProfile = async (req: AuthenticatedRequest, res: Response, nex
       firstName: requireTrimmedString(req.body?.firstName, 'firstName'),
       lastName: requireTrimmedString(req.body?.lastName, 'lastName'),
       phone: requireTrimmedString(req.body?.phone, 'phone'),
-      primaryFarmType: parseFarmType(req.body?.primaryFarmType),
+      farmTypes: parseFarmTypes(req.body?.farmTypes ?? req.body?.primaryFarmType),
       declaredPondCount: parseDeclaredPondCount(req.body?.declaredPondCount),
       farmLatitude: parseLatitude(req.body?.farmLatitude),
       farmLongitude: parseLongitude(req.body?.farmLongitude),
+      farmAreaRai: parseNonNegativeDecimal(req.body?.farmAreaRai, 'farmAreaRai'),
+      pondsPerRai: parseNonNegativeDecimal(req.body?.pondsPerRai, 'pondsPerRai'),
     };
 
     const result = await OnboardingService.completeFarmerProfile(user.id, payload);

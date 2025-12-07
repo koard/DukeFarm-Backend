@@ -1,9 +1,10 @@
+import { FarmType } from '@prisma/client';
 import { prisma } from '../clients/prisma';
 
 type CreateFeedFormulaInput = {
   name: string;
   targetStage: string;
-  farmType?: 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT';
+  farmType?: FarmType;
   description?: string;
   recommendations?: string;
   createdBy: string; // Admin user ID
@@ -12,7 +13,7 @@ type CreateFeedFormulaInput = {
 type UpdateFeedFormulaInput = {
   name?: string;
   targetStage?: string;
-  farmType?: 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT';
+  farmType?: FarmType;
   description?: string;
   recommendations?: string;
 };

@@ -2,6 +2,7 @@ import { FarmType, PondType } from '@prisma/client';
 import { prisma } from '../clients/prisma';
 import { WeatherService } from './weather.service';
 import { logger } from '../utils/logger';
+import { FishStageService } from './fish-stage.service';
 
 export type WeatherSnapshot = {
   observedAt: string | null;
@@ -148,18 +149,50 @@ const parseFishCount = (raw: string | null | undefined): number | null => {
   return parsed;
 };
 
+const ensureCultivationType = async (userId: string, farmType: FarmType) =>
+  prisma.farmerCultivationType.upsert({
+    where: {
+      farmer_cultivation_type_user_stage_unique: {
+        userId,
+        farmType,
+      },
+    },
+    update: {},
+    create: {
+      userId,
+      farmType,
+    },
+    select: {
+      id: true,
+    },
+  });
+
 const createEntry = async (userId: string, input: CreateEntryInput) => {
   const normalizedFishAge = input.fishAgeLabel.trim();
   const normalizedFishCountText = input.fishCountText?.trim() || null;
   const numericFishCount = parseFishCount(normalizedFishCountText);
   const averageFishWeightGr = resolveAverageWeightForAge(normalizedFishAge);
 
+  const [cultivationType, stageAssessment] = await Promise.all([
+    ensureCultivationType(userId, input.farmType),
+    FishStageService.assessFishStage({
+      farmType: input.farmType,
+      recordedAt: input.recordedAt,
+      fishAgeLabel: normalizedFishAge,
+    }),
+  ]);
+
   return prisma.farmDataEntry.create({
     data: {
       userId,
       farmType: input.farmType,
+      cultivationTypeId: cultivationType?.id ?? null,
       recordedAt: input.recordedAt,
       fishAgeLabel: normalizedFishAge,
+      fishAgeDays: stageAssessment.fishAgeDays,
+      fishAgeStageId: stageAssessment.stage?.id ?? null,
+      harvestStatus: stageAssessment.harvestStatus,
+      harvestStatusReason: stageAssessment.harvestStatusReason,
       pondType: input.pondType ?? null,
       pondCount: applyNumeric(input.pondCount ?? null),
       fishCount: numericFishCount,

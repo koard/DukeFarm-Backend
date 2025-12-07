@@ -1,9 +1,9 @@
+import { FarmType } from '@prisma/client';
+
 type TemperatureRange = {
   minComfortC: number;
   maxComfortC: number;
 };
-
-export type FarmType = 'NURSERY_SMALL' | 'NURSERY_LARGE' | 'GROWOUT';
 
 export type FeedingPlanRow = {
   date: string;
@@ -32,18 +32,18 @@ const formatDateISO = (date: Date): string => date.toISOString();
  * AGE-SPECIFIC ADJUSTMENTS:
  * Different fish age groups have different temperature sensitivity:
  * 
- * 1. NURSERY_SMALL (0-30 days): Most sensitive
+ * 1. FINGERLING (0-45 days): Most sensitive
  *    - Narrow optimal range: 28-34°C air (water 23-29°C)
  *    - Q10 = 2.8-3.2 (metabolism changes rapidly)
  *    - Critical temp: <26°C or >35°C → high mortality risk
  *    - Immune system immature, stress easily
  * 
- * 2. NURSERY_LARGE (31-120 days): Moderate tolerance
+ * 2. FATTENING (45-120 days): Moderate tolerance
  *    - Wider optimal range: 27-35°C air (water 22-30°C)
  *    - Q10 = 2.3-2.6 (moderate metabolism changes)
  *    - Developing immune system, better stress tolerance
  * 
- * 3. GROWOUT (121+ days): Most tolerant
+ * 3. MARKET (120+ days): Most tolerant
  *    - Widest optimal range: 26-36°C air (water 21-31°C)
  *    - Q10 = 2.0-2.2 (metabolism changes slowly)
  *    - Mature immune system, high stress tolerance
@@ -74,7 +74,7 @@ const formatDateISO = (date: Date): string => date.toISOString();
 const computeFeedAdjustment = (
   temperatureC: number | null,
   range: TemperatureRange,
-  farmType: FarmType = 'NURSERY_SMALL', // Default to most sensitive
+  farmType: FarmType = FarmType.FINGERLING, // Default to most sensitive
 ): { adjustmentPct: number; recommendation: 'increase' | 'decrease' | 'normal' } => {
   if (temperatureC === null) {
     return { adjustmentPct: 0, recommendation: 'normal' };
@@ -84,10 +84,10 @@ const computeFeedAdjustment = (
   let recommendation: 'increase' | 'decrease' | 'normal' = 'normal';
 
   // Age-specific optimal temperature ranges (air temperature)
-  const optimalRanges = {
-    NURSERY_SMALL: { min: 28, max: 34 },  // 0-30 days: narrow range, most sensitive
-    NURSERY_LARGE: { min: 27, max: 35 },  // 31-120 days: moderate range
-    GROWOUT: { min: 26, max: 36 },        // 121+ days: wide range, most tolerant
+  const optimalRanges: Record<FarmType, { min: number; max: number }> = {
+    [FarmType.FINGERLING]: { min: 28, max: 34 },  // 0-45 days: narrow range, most sensitive
+    [FarmType.FATTENING]: { min: 27, max: 35 },   // 45-120 days: moderate range
+    [FarmType.MARKET]: { min: 26, max: 36 },      // 120+ days: wide range, most tolerant
   };
 
   const optimal = optimalRanges[farmType];
@@ -102,9 +102,9 @@ const computeFeedAdjustment = (
   else if (temperatureC < optimal.min) {
     // Age-specific cold sensitivity multipliers
     const coldMultiplier = {
-      NURSERY_SMALL: 1.3,  // Most sensitive - reduce more aggressively
-      NURSERY_LARGE: 1.0,  // Standard reduction
-      GROWOUT: 0.7,        // Most tolerant - reduce less
+      [FarmType.FINGERLING]: 1.3,  // Most sensitive - reduce more aggressively
+      [FarmType.FATTENING]: 1.0,   // Standard reduction
+      [FarmType.MARKET]: 0.7,      // Most tolerant - reduce less
     }[farmType];
 
     if (temperatureC < 18) {
@@ -136,9 +136,9 @@ const computeFeedAdjustment = (
   else if (temperatureC > optimal.max) {
     // Age-specific heat sensitivity multipliers
     const heatMultiplier = {
-      NURSERY_SMALL: 1.4,  // Most sensitive - reduce more aggressively
-      NURSERY_LARGE: 1.0,  // Standard reduction
-      GROWOUT: 0.8,        // Most tolerant - reduce less
+      [FarmType.FINGERLING]: 1.4,  // Most sensitive - reduce more aggressively
+      [FarmType.FATTENING]: 1.0,   // Standard reduction
+      [FarmType.MARKET]: 0.8,      // Most tolerant - reduce less
     }[farmType];
 
     if (temperatureC >= 41) {
@@ -200,7 +200,7 @@ const generateFeedingPlan = (
   currentTemperatureC: number | null,
   range: TemperatureRange,
   days: number = 7,
-  farmType: FarmType = 'NURSERY_SMALL',
+  farmType: FarmType = FarmType.FINGERLING,
 ): FeedingPlanRow[] => {
   return generateMockForecast(startDate, currentTemperatureC, range, days, farmType);
 };
