@@ -4,7 +4,7 @@
 
 [![API Version](https://img.shields.io/badge/API%20Version-1.0-blue.svg)]()
 [![Status](https://img.shields.io/badge/Status-Production-green.svg)]()
-[![Last Updated](https://img.shields.io/badge/Updated-2025--11--27-lightgrey.svg)]()
+[![Last Updated](https://img.shields.io/badge/Updated-2025--12--08-lightgrey.svg)]()
 
 ---
 
@@ -22,10 +22,11 @@
   - [Authentication & User Session](#2-authentication--user-session)
   - [Registration & Role Selection](#3-registration--role-selection)
   - [Dashboard](#4-dashboard)
-  - [Weather Proxy](#5-weather-proxy)
-  - [Farmers Management](#6-farmers-management)
-  - [Feed Formulas Management](#7-feed-formulas-management)
-  - [Researchers & Surveys](#8-researchers--surveys-management)
+  - [Farm Data Records](#5-farm-data-records)
+  - [Weather Proxy](#6-weather-proxy)
+  - [Farmers Management](#7-farmers-management)
+  - [Feed Formulas Management](#8-feed-formulas-management)
+  - [Researchers & Surveys](#9-researchers--surveys-management)
 - [Best Practices](#best-practices)
 - [Changelog](#changelog)
 
@@ -41,6 +42,8 @@ The DukeFarm API provides a comprehensive backend service for managing catfish f
 - **👥 Role-Based Access Control**: Three user roles (Admin, Farmer, Researcher)
 - **🌤️ Weather Intelligence**: Real-time weather data via Google Maps Weather API
 - **📊 Smart Dashboards**: Farm group overviews with feeding recommendations
+- **🐟 Fish Age Intelligence**: Automatic fish-age day estimation, stage lookup, and harvest readiness signals
+- **📝 Farm Data Logging**: Structured farm record submission with weather snapshots and cultivation tracking
 - **🔬 Research Tools**: Survey management and data collection
 - **📈 Analytics**: Temperature-based feeding adjustments
 
@@ -263,6 +266,13 @@ Complete overview of all available API endpoints organized by feature domain.
 | --- | --- | --- | --- | --- |
 | `GET` | `/` | None | 100/min | API information and available endpoints |
 | `GET` | `/dashboard/groups/:groupType` | Required | 30/min | Farm group dashboard with weather & feeding plan |
+
+### 📝 Farm Data Records
+
+| Method | Path | Auth | Rate Limit | Description |
+| --- | --- | --- | --- | --- |
+| `GET` | `/records/form-state?farmType=<type>` | Required | 30/min | Prefill record form with current time, farm type, and weather snapshot |
+| `POST` | `/records` | Farmer | 30/min | Submit a farm data entry with fish-age label, pond data, and weather |
 
 ### 🌤️ Weather Services
 
@@ -744,7 +754,21 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
         "rainMm": 0.0,
         "weatherCode": 0,
         "conditionText": "Clear sky"
-      }
+      },
+      "hourlyForecast": [
+        {
+          "time": "2025-11-20T11:00:00Z",
+          "temperatureC": 38.2,
+          "humidityPct": 58,
+          "weatherCode": 1
+        },
+        {
+          "time": "2025-11-20T12:00:00Z",
+          "temperatureC": 39.0,
+          "humidityPct": 55,
+          "weatherCode": 1
+        }
+      ]
     },
     "feedingPlan": [
       {
@@ -814,6 +838,11 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
       },
       "averageFishWeight": 0.3,
       "weightChange": -2.0,
+      "latestFishAgeLabel": "61-90 วัน",
+      "latestFishAgeDays": 88,
+      "latestFishStageName": "กลางขุน",
+      "latestHarvestStatus": "TOO_EARLY",
+      "latestHarvestStatusReason": "Fish age 88d is below the recommended harvest window (90-120d).",
       "pelletFoodCost": 15000,
       "freshFoodCost": 8000,
       "monthlyFeedingData": [
@@ -829,6 +858,14 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
         { "month": "Sep", "value": 1.8 },
         { "month": "Oct", "value": 1.5 },
         { "month": "Nov", "value": 1.3 }
+      ],
+      "hourlyForecast": [
+        {
+          "time": "2025-11-30T11:00:00Z",
+          "temperatureC": 32.1,
+          "humidityPct": 64,
+          "weatherCode": 1
+        }
       ]
     },
     "feedingPlan": [
@@ -867,8 +904,15 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - `temperatureDeltaC`: Degrees away from optimal range (negative = below 28°C, positive = above 32°C, 0 = optimal, null = no data)
 - `comfortRangeC`: Optimal air temperature range { min: 28, max: 32 }
 - `recommendedFeedAdjustmentPct`: Overall feed adjustment % based on current temperature
+- `weather`: Current weather snapshot (time, temperatureC, humidityPct, windSpeedKph, rainMm, weatherCode, conditionText)
+- `hourlyForecast`: Up to 24 hours of forecasted weather points (time, temperatureC, humidityPct, weatherCode)
 - `averageFishWeight`: Average weight per fish in kg (FATTENING and MARKET only)
 - `weightChange`: Weight change percentage vs previous period (FATTENING and MARKET only)
+- `latestFishAgeLabel`: Last recorded textual fish-age label (FATTENING and MARKET only)
+- `latestFishAgeDays`: Numeric days derived from the label or production-cycle aging (FATTENING and MARKET only)
+- `latestFishStageName`: Display name for the matched `FishAgeStage` row (FATTENING and MARKET only)
+- `latestHarvestStatus`: Enum `UNKNOWN | TOO_EARLY | OPTIMAL | LATE` summarizing harvest readiness (FATTENING and MARKET only)
+- `latestHarvestStatusReason`: Human-readable justification for the harvest status (FATTENING and MARKET only)
 - `pelletFoodCost`: Total pellet food cost in baht (FATTENING and MARKET only)
 - `freshFoodCost`: Total fresh food cost in baht (FATTENING and MARKET only)
 - `monthlyFeedingData`: Array of 12 months of feeding data in kg (FATTENING and MARKET only)
@@ -920,7 +964,104 @@ The feeding adjustment algorithm uses **daily mean air temperature** from Google
 - Show specific advice for extreme temperatures (> 40°C: add aerators, feed morning/evening only)
 
 ---
-## 5. Weather Proxy
+## 5. Farm Data Records
+### GET `/records/form-state?farmType=<FarmType>`
+- **Auth:** any logged-in user (Farmer role recommended).
+- **Query params:**
+  - `farmType` (required): `FINGERLING`, `FATTENING`, or `MARKET` (case-insensitive).
+- **Behavior:**
+  - Uses the requesting farmer's GPS coordinates (if available) to pull a live weather snapshot.
+  - Returns current server time for pre-filling the record timestamp.
+  - Flags whether the backend has enough location data to suggest weather values.
+- **Response:**
+```json
+{
+  "data": {
+    "currentDateTime": "2025-12-08T03:42:11.582Z",
+    "farmType": "FATTENING",
+    "locationAvailable": true,
+    "weather": {
+      "observedAt": "2025-12-08T03:40:00.000Z",
+      "temperatureC": 31.2,
+      "rainMm": 0.0,
+      "humidityPct": 68,
+      "conditionText": "Mainly clear",
+      "weatherCode": 1
+    }
+  }
+}
+```
+- **Field notes:**
+  - `weather` can be `null` if no coordinates are stored or if the weather API call failed.
+  - `locationAvailable` stays `true` even when the provider is temporarily unreachable (lat/lng exist).
+
+### POST `/records`
+- **Auth:** FARMER role only.
+- **Body:**
+```json
+{
+  "farmType": "FATTENING",
+  "recordedAt": "2025-12-07T10:00:00.000Z",
+  "fishAgeLabel": "61-90 วัน",
+  "pondType": "EARTHEN",
+  "pondCount": 2,
+  "fishCountText": "35,000 ตัว",
+  "weather": {
+    "temperatureC": 31.5,
+    "rainMm": 0,
+    "humidityPct": 70
+  },
+  "notes": "น้ำค่อนข้างขุ่น เพิ่มการถ่ายน้ำ 20%"
+}
+```
+- **Behavior:**
+  - Automatically upserts the farmer's `FarmerCultivationType` row for the submitted `farmType`.
+  - Parses `fishCountText` into an integer (`fishCount`) while keeping the original string.
+  - Estimates `fishAgeDays` from the provided label (or future production-cycle data) and looks up the matching `FishAgeStage` row.
+  - Computes `harvestStatus` (`UNKNOWN`, `TOO_EARLY`, `OPTIMAL`, `LATE`) plus a natural-language reason.
+  - Stores weather metrics per record so later dashboards can reference historical conditions.
+- **Response:**
+```json
+{
+  "data": {
+    "id": "44d3946f-6b19-4d16-b0a3-f44b4da7c598",
+    "userId": "0a998ac9-58ea-4dce-ba23-59fd9f5dd7c1",
+    "farmType": "FATTENING",
+    "cultivationTypeId": "4f58b9f6-5f7f-4fd2-9de0-89b6cded2b8a",
+    "recordedAt": "2025-12-07T10:00:00.000Z",
+    "fishAgeLabel": "61-90 วัน",
+    "fishAgeDays": 90,
+    "fishAgeStageId": "8e3776bb-5ff2-4fa0-86a4-1c7acbb7ab1c",
+    "harvestStatus": "OPTIMAL",
+    "harvestStatusReason": "Fish age 90d sits in the optimal harvest window (90-120d)",
+    "pondType": "EARTHEN",
+    "pondCount": 2,
+    "fishCount": 35000,
+    "fishCountText": "35,000 ตัว",
+    "averageFishWeightGr": 180.0,
+    "weatherTemperatureC": 31.5,
+    "weatherRainMm": 0,
+    "weatherHumidityPct": 70,
+    "notes": "น้ำค่อนข้างขุ่น เพิ่มการถ่ายน้ำ 20%",
+    "createdAt": "2025-12-08T03:45:22.111Z",
+    "updatedAt": "2025-12-08T03:45:22.111Z"
+  }
+}
+```
+- **Validation:**
+  - `farmType`, `recordedAt`, and `fishAgeLabel` are required.
+  - `pondType` must be `EARTHEN` or `CONCRETE` if supplied.
+  - `pondCount` and weather metrics must be numeric when present.
+  - Weather block is optional and any field may be omitted.
+- **Derived fields:**
+  - `fishAgeDays` comes from `FishStageService` and is stored even if no `FishAgeStage` matches (null stage, status `UNKNOWN`).
+  - `fishAgeStageId` references the catalog seeded via Prisma migrations (upserted for each farm type).
+  - `harvestStatus` + `harvestStatusReason` explain whether the fish cohort is ready for harvest.
+  - `cultivationTypeId` links back to the appropriate `FarmerCultivationType` row for longitudinal analytics.
+
+---
+
+## 6. Weather Proxy
 ### GET `/v1/weather?lat=<number>&lng=<number>`
 - **Auth:** any authenticated user.
 - **Query params:** both required, numeric.
@@ -1025,7 +1166,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ---
 
-## 6. Farmers Management
+## 7. Farmers Management
 ### GET `/farmers?page=<number>&limit=<number>`
 - **Auth:** Admin or Researcher only.
 - **Query params:**
@@ -1100,7 +1241,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ---
 
-## 7. Feed Formulas Management
+## 8. Feed Formulas Management
 ### POST `/feed-formulas`
 - **Auth:** Admin only.
 - **Body:**
@@ -1180,7 +1321,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ---
 
-## 8. Researchers & Surveys Management
+## 9. Researchers & Surveys Management
 ### GET `/researchers?page=<number>&limit=<number>`
 - **Auth:** Admin only.
 - **Query params:** Same as farmers list
@@ -1336,6 +1477,27 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 ---
 
 ## 📅 Changelog
+
+### Version 1.0.4 (2025-12-08)
+
+**🐟 Fish-Age Intelligence & Farm Records**
+
+**Added:**
+- **Farm Data Record APIs**:
+  - `GET /records/form-state` to prefill record forms with the current timestamp, requested farm type, and live weather snapshot.
+  - `POST /records` for FARMER accounts to submit pond counts, fish-age labels, optional weather metrics, and notes.
+- **Automatic Fish Age Classification**:
+  - Every record now estimates `fishAgeDays`, links to a `FishAgeStage`, and calculates `harvestStatus` + reasoning text.
+  - Dashboards display the latest fish-age label, derived days, matched stage name, and harvest readiness badge.
+- **Dashboard Enhancements**:
+  - Hourly weather forecasts are surfaced alongside summaries for all farm groups.
+  - FATTENING & MARKET summaries expose new stage fields so the frontend can show readiness banners.
+
+**Documentation:**
+- Endpoint matrix, dashboard samples, and field descriptions updated to reflect the new payloads.
+- Added a dedicated "Farm Data Records" section covering form-state and submission flows.
+
+---
 
 ### Version 1.0.3 (2025-12-02)
 
