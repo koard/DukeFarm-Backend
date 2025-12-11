@@ -575,7 +575,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
       "firstName": "John",
       "lastName": "Doe",
       "phone": "0812345678",
-      "primaryFarmType": "FINGERLING",
+      "primaryFarmType": "SMALL",
       "declaredPondCount": 3,
       "farmLatitude": 13.7563,
       "farmLongitude": 100.5018
@@ -670,13 +670,13 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
   "firstName": "Somchai",
   "lastName": "Prasert",
   "phone": "0812345678",
-  "primaryFarmType": "FINGERLING",
+    "primaryFarmType": "SMALL",
   "declaredPondCount": 4,
   "farmLatitude": 14.077,
   "farmLongitude": 100.608
 }
 ```
-- **Validation:** `firstName`, `lastName`, `phone`, `primaryFarmType`, `farmLatitude`, and `farmLongitude` required. `primaryFarmType` must be one of `FINGERLING`, `FATTENING`, `MARKET` (case-insensitive). `declaredPondCount` must be a non-negative integer when provided. `farmLatitude` must be between -90 and 90, `farmLongitude` between -180 and 180.
+  - **Validation:** `firstName`, `lastName`, `phone`, `primaryFarmType`, `farmLatitude`, and `farmLongitude` required. `primaryFarmType` must be one of `SMALL`, `LARGE`, `MARKET` (case-insensitive). `declaredPondCount` must be a non-negative integer when provided. `farmLatitude` must be between -90 and 90, `farmLongitude` between -180 and 180. `SMALL` maps to the fingerling/Pla Tum window (7-10 days) and `LARGE` maps to the Pla Nio juvenile window (11-30 days).
 - **Behavior:** Upserts the `farmer_profiles` record, removes any researcher profile, and updates the user to `{ role: FARMER, registrationStatus: COMPLETED }`.
 - **Response:**
 ```json
@@ -687,7 +687,7 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
       "firstName": "Somchai",
       "lastName": "Prasert",
       "phone": "0812345678",
-      "primaryFarmType": "FINGERLING",
+      "primaryFarmType": "SMALL",
       "declaredPondCount": 4,
       "farmLatitude": 14.077,
       "farmLongitude": 100.608,
@@ -726,19 +726,19 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 ## 4. Dashboard
 ### GET `/dashboard/groups/:groupType`
 - **Auth:** any logged-in user.
-- **Path params:** `groupType` must be one of `FINGERLING`, `FATTENING`, `MARKET` (case-insensitive).
+- **Path params:** `groupType` must be one of `SMALL`, `LARGE`, `MARKET` (case-insensitive). `SMALL` corresponds to the Fingerling/Pla Tum window (7-10 days) and `LARGE` corresponds to the Pla Nio juvenile window (11-30 days).
 - **Behavior:** 
   - Fetches current **air temperature** from Google Maps Weather API (API key + billing required)
   - Uses farmer profile location (farmLatitude, farmLongitude) to get weather data
   - Air temperature typically 3-8°C higher than water temperature
   - Generates 7-day feeding plan with **percentage adjustments** instead of absolute kg amounts
-  - All three farm types (FINGERLING, FATTENING, MARKET) are fully implemented
+  - All three farm types (SMALL, LARGE, MARKET) are fully implemented
   - **Data-driven approach:** Backend sends only numeric data; frontend handles all UI text and localization
-- **Response (FINGERLING):**
+- **Response (SMALL / Fingerling):**
 ```json
 {
   "data": {
-    "group": "FINGERLING",
+    "group": "SMALL",
     "hasData": true,
     "summary": {
       "asOf": "2025-11-20T10:15:00.000Z",
@@ -815,11 +815,11 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
   }
 }
 ```
-- **Response (FATTENING / MARKET):**
+- **Response (LARGE / MARKET):**
 ```json
 {
   "data": {
-    "group": "FATTENING",
+    "group": "LARGE",
     "hasData": true,
     "summary": {
       "asOf": "2025-11-30T10:15:00.000Z",
@@ -906,16 +906,16 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
 - `recommendedFeedAdjustmentPct`: Overall feed adjustment % based on current temperature
 - `weather`: Current weather snapshot (time, temperatureC, humidityPct, windSpeedKph, rainMm, weatherCode, conditionText)
 - `hourlyForecast`: Up to 24 hours of forecasted weather points (time, temperatureC, humidityPct, weatherCode)
-- `averageFishWeight`: Average weight per fish in kg (FATTENING and MARKET only)
-- `weightChange`: Weight change percentage vs previous period (FATTENING and MARKET only)
-- `latestFishAgeLabel`: Last recorded textual fish-age label (FATTENING and MARKET only)
-- `latestFishAgeDays`: Numeric days derived from the label or production-cycle aging (FATTENING and MARKET only)
-- `latestFishStageName`: Display name for the matched `FishAgeStage` row (FATTENING and MARKET only)
-- `latestHarvestStatus`: Enum `UNKNOWN | TOO_EARLY | OPTIMAL | LATE` summarizing harvest readiness (FATTENING and MARKET only)
-- `latestHarvestStatusReason`: Human-readable justification for the harvest status (FATTENING and MARKET only)
-- `pelletFoodCost`: Total pellet food cost in baht (FATTENING and MARKET only)
-- `freshFoodCost`: Total fresh food cost in baht (FATTENING and MARKET only)
-- `monthlyFeedingData`: Array of 12 months of feeding data in kg (FATTENING and MARKET only)
+- `averageFishWeight`: Average weight per fish in kg (LARGE and MARKET only)
+- `weightChange`: Weight change percentage vs previous period (LARGE and MARKET only)
+- `latestFishAgeLabel`: Last recorded textual fish-age label (LARGE and MARKET only)
+- `latestFishAgeDays`: Numeric days derived from the label or production-cycle aging (LARGE and MARKET only)
+- `latestFishStageName`: Display name for the matched `FishAgeStage` row (LARGE and MARKET only)
+- `latestHarvestStatus`: Enum `UNKNOWN | TOO_EARLY | OPTIMAL | LATE` summarizing harvest readiness (LARGE and MARKET only)
+- `latestHarvestStatusReason`: Human-readable justification for the harvest status (LARGE and MARKET only)
+- `pelletFoodCost`: Total pellet food cost in baht (LARGE and MARKET only)
+- `freshFoodCost`: Total fresh food cost in baht (LARGE and MARKET only)
+- `monthlyFeedingData`: Array of 12 months of feeding data in kg (LARGE and MARKET only)
   - `month`: Month abbreviation (Jan-Dec)
   - `value`: Total feed amount in kg
 
@@ -968,7 +968,7 @@ The feeding adjustment algorithm uses **daily mean air temperature** from Google
 ### GET `/records/form-state?farmType=<FarmType>`
 - **Auth:** any logged-in user (Farmer role recommended).
 - **Query params:**
-  - `farmType` (required): `FINGERLING`, `FATTENING`, or `MARKET` (case-insensitive).
+  - `farmType` (required): `SMALL`, `LARGE`, or `MARKET` (case-insensitive). `SMALL` = Fingerling/Pla Tum (7-10 days), `LARGE` = Pla Nio juvenile stage (11-30 days).
 - **Behavior:**
   - Uses the requesting farmer's GPS coordinates (if available) to pull a live weather snapshot.
   - Returns current server time for pre-filling the record timestamp.
@@ -978,7 +978,7 @@ The feeding adjustment algorithm uses **daily mean air temperature** from Google
 {
   "data": {
     "currentDateTime": "2025-12-08T03:42:11.582Z",
-    "farmType": "FATTENING",
+    "farmType": "LARGE",
     "locationAvailable": true,
     "weather": {
       "observedAt": "2025-12-08T03:40:00.000Z",
@@ -995,14 +995,23 @@ The feeding adjustment algorithm uses **daily mean air temperature** from Google
   - `weather` can be `null` if no coordinates are stored or if the weather API call failed.
   - `locationAvailable` stays `true` even when the provider is temporarily unreachable (lat/lng exist).
 
+#### 🐟 Fish Age Windows (Dec 2025 update)
+| Stage | FarmType | Day Range | Harvest Window | Notes |
+| --- | --- | --- | --- | --- |
+| ปลาตุ้ม | `SMALL` | 7-10 วัน | – | Newly hatched fry adjusting from yolk to feed |
+| ปลานิ้ว | `LARGE` | 11-30 วัน | – | Juvenile fingerlings, preparing for nursery transfer |
+| ปลาตลาด | `MARKET` | 31-180 วัน (≈2-6 เดือน) | 60-180 วัน | Grow-out fish ready for harvest after 2 months |
+
+`FishStageService` and every dashboard metric now rely on these boundaries. Any custom `fishAgeLabel` should include the day range (e.g., `"ปลาตลาด (31-180 วัน / 2-6 เดือน)"`) so the backend can infer the correct stage.
+
 ### POST `/records`
 - **Auth:** FARMER role only.
 - **Body:**
 ```json
 {
-  "farmType": "FATTENING",
+  "farmType": "MARKET",
   "recordedAt": "2025-12-07T10:00:00.000Z",
-  "fishAgeLabel": "61-90 วัน",
+  "fishAgeLabel": "ปลาตลาด (31-180 วัน / 2-6 เดือน)",
   "pondType": "EARTHEN",
   "pondCount": 2,
   "fishCountText": "35,000 ตัว",
@@ -1026,19 +1035,19 @@ The feeding adjustment algorithm uses **daily mean air temperature** from Google
   "data": {
     "id": "44d3946f-6b19-4d16-b0a3-f44b4da7c598",
     "userId": "0a998ac9-58ea-4dce-ba23-59fd9f5dd7c1",
-    "farmType": "FATTENING",
+    "farmType": "MARKET",
     "cultivationTypeId": "4f58b9f6-5f7f-4fd2-9de0-89b6cded2b8a",
     "recordedAt": "2025-12-07T10:00:00.000Z",
-    "fishAgeLabel": "61-90 วัน",
-    "fishAgeDays": 90,
-    "fishAgeStageId": "8e3776bb-5ff2-4fa0-86a4-1c7acbb7ab1c",
+    "fishAgeLabel": "ปลาตลาด (31-180 วัน / 2-6 เดือน)",
+    "fishAgeDays": 75,
+    "fishAgeStageId": "67c6c451-119e-404b-a398-74f0f43ad39d",
     "harvestStatus": "OPTIMAL",
-    "harvestStatusReason": "Fish age 90d sits in the optimal harvest window (90-120d)",
+    "harvestStatusReason": "Fish age 75d sits in the optimal harvest window (60-180d)",
     "pondType": "EARTHEN",
     "pondCount": 2,
     "fishCount": 35000,
     "fishCountText": "35,000 ตัว",
-    "averageFishWeightGr": 180.0,
+    "averageFishWeightGr": 320.0,
     "weatherTemperatureC": 31.5,
     "weatherRainMm": 0,
     "weatherHumidityPct": 70,
@@ -1181,7 +1190,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
         "no": 1,
         "fullName": "Somchai Prasert",
         "phone": "0812345678",
-        "farmType": "FINGERLING",
+        "farmType": "SMALL",
         "registrationStatus": "COMPLETED",
         "pondCount": 6,
         "latitude": 14.077,
@@ -1212,7 +1221,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
     "no": 1,
     "fullName": "Somchai Prasert",
     "phone": "0812345678",
-    "farmType": "FINGERLING",
+    "farmType": "SMALL",
     "registrationStatus": "COMPLETED",
     "pondCount": 6,
     "latitude": 14.077,
@@ -1251,10 +1260,10 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   "targetStage": "16-30 วัน",
   "description": "อาหารเม็ดเล็ก ขนาด 0.5-1.0 มม. โปรตีน 35-40%",
   "recommendations": "ให้ 2 ครั้งต่อวัน เช้า-เย็น\nเพิ่มส่วนผสมพรีไบโอติก\nติดตาม FCR",
-  "farmType": "FINGERLING"
+  "farmType": "SMALL"
 }
 ```
-- **Validation:** `farmType` is optional. Values: `FINGERLING`, `FATTENING`, `MARKET` (case-insensitive).
+- **Validation:** `farmType` is optional. Values: `SMALL`, `LARGE`, `MARKET` (case-insensitive).
 - **Response:**
 ```json
 {
@@ -1264,7 +1273,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
     "targetStage": "16-30 วัน",
     "description": "อาหารเม็ดเล็ก ขนาด 0.5-1.0 มม. โปรตีน 35-40%",
     "recommendations": "ให้ 2 ครั้งต่อวัน เช้า-เย็น\nเพิ่มส่วนผสมพรีไบโอติก\nติดตาม FCR",
-    "farmType": "FINGERLING",
+    "farmType": "SMALL",
     "createdBy": "admin-id",
     "createdAt": "2025-11-27T12:00:00.000Z",
     "updatedAt": "2025-11-27T12:00:00.000Z"
@@ -1364,7 +1373,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
         "surveyDate": "2025-12-20T06:00:00.000Z",
         "surveyType": "กลุ่มอนุบาลนกใหญ่",
         "farmerName": "Somchai Prasert",
-        "farmType": "FINGERLING",
+        "farmType": "SMALL",
         "pondCount": 6,
         "createdAt": "2025-11-27T12:00:00.000Z"
       }
@@ -1478,6 +1487,17 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ## 📅 Changelog
 
+### Version 1.0.5 (2025-12-13)
+
+**🆕 FarmType rename (Fingerling → SMALL, Fattening → LARGE)**
+
+**Changed:**
+- Prisma `FarmType` enum now exposes `SMALL`, `LARGE`, `MARKET`. Existing records are migrated via `20251213100000_rename_farm_type_small_large`.
+- All backend services, migrations, and docs now expect `SMALL` for the fingerling/Pla Tum window (7-10 days) and `LARGE` for the Pla Nio juvenile window (11-30 days).
+- API request/response examples plus validation notes have been updated so clients know to send the new labels. Include the legacy names in UI copy if farmers still refer to them.
+
+---
+
 ### Version 1.0.4 (2025-12-08)
 
 **🐟 Fish-Age Intelligence & Farm Records**
@@ -1491,7 +1511,11 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   - Dashboards display the latest fish-age label, derived days, matched stage name, and harvest readiness badge.
 - **Dashboard Enhancements**:
   - Hourly weather forecasts are surfaced alongside summaries for all farm groups.
-  - FATTENING & MARKET summaries expose new stage fields so the frontend can show readiness banners.
+  - LARGE & MARKET summaries expose new stage fields so the frontend can show readiness banners.
+
+**Changed:**
+- Reset fish age windows to Tum (7-10 วัน), Nio (11-30 วัน), and Pla Talad (31-180 วัน ≈ 2-6 เดือน) with the new harvest window at 60-180 days.
+- Added migration `20251211134813_update_fish_age_windows` to reseed the `fish_age_stages` table with the updated ranges.
 
 **Documentation:**
 - Endpoint matrix, dashboard samples, and field descriptions updated to reflect the new payloads.
@@ -1510,7 +1534,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   - Admin profiles stored in `researcher_profiles` table with email field
 - **Feed Formula Enhancement**:
   - `farmType` field added to feed formulas (optional)
-  - Values: `FINGERLING`, `FATTENING`, `MARKET`
+  - Values: `SMALL`, `LARGE`, `MARKET`
   - Allows farm-type-specific feed recommendations
 - **Farmer Detail Endpoint**:
   - `GET /farmers/:farmerId` now available for Admins and Researchers
@@ -1532,19 +1556,19 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ### Version 1.0.2 (2025-11-30)
 
-**🔬 FATTENING & MARKET Dashboard Update** *(formerly NURSERY_LARGE & GROWOUT)*
+**🔬 LARGE (formerly FATTENING) & MARKET Dashboard Update** *(formerly NURSERY_LARGE & GROWOUT)*
 
 **Added:**
-- **FATTENING Dashboard API** - Complete implementation with extended metrics
+- **LARGE Dashboard API (formerly FATTENING)** - Complete implementation with extended metrics
   - `averageFishWeight`: Average weight per fish in kg (calculated from pond records)
   - `weightChange`: Weight change percentage vs previous period
   - `pelletFoodCost`: Total pellet food cost in baht
   - `freshFoodCost`: Total fresh food cost in baht
   - `monthlyFeedingData`: Array of 12 months of feeding data (Jan-Dec, rotated from current month)
-- **MARKET Dashboard API** - Complete implementation with same extended metrics as FATTENING
-  - Identical structure and features to the FATTENING dashboard
+- **MARKET Dashboard API** - Complete implementation with same extended metrics as LARGE
+  - Identical structure and features to the LARGE dashboard
   - Optimized for market-size fish production stage
-- 7-day feeding plan with same weather integration as FINGERLING for both new farm types
+- 7-day feeding plan with same weather integration as SMALL (Fingerling) for both new farm types
 - Mock data generators for fish weight and costs (with TODO comments for database integration)
 
 **Technical:**
@@ -1552,18 +1576,18 @@ const icon = weatherIcons[weatherCode] || '🌡️';
   - `generateMonthlyFeedingData()`: Creates 12-month array rotated from current month
   - `calculateAverageFishWeight()`: Returns fish weight with % change
   - `calculateFoodCosts()`: Returns pellet and fresh food costs
-- Created `GrowoutDashboardService` with identical structure to the FATTENING dashboard
+- Created `GrowoutDashboardService` with identical structure to the LARGE dashboard
 - Integrated with existing WeatherService and FeedingCalculator
-- Updated routing in `HomeService` to direct FATTENING and MARKET requests to respective services
+- Updated routing in `HomeService` to direct LARGE and MARKET requests to respective services
 
 **Improved:**
 - Dashboard endpoint matrix documentation updated
-- Response examples added for FATTENING and MARKET
+- Response examples added for LARGE and MARKET
 - Field descriptions enhanced with farm type-specific fields
 
 **Status:**
-- FINGERLING: ✅ Complete
-- FATTENING: ✅ Complete
+- SMALL (Fingerling): ✅ Complete
+- LARGE (formerly FATTENING): ✅ Complete
 - MARKET: ✅ Complete
 
 **All three farm type dashboards are now fully operational!**

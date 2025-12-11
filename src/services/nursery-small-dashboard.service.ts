@@ -75,7 +75,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
     prisma.farmerCultivationType.findFirst({
       where: {
         userId,
-        farmType: FarmType.FINGERLING,
+        farmType: FarmType.SMALL,
       },
       select: { id: true },
     }),
@@ -84,7 +84,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
   // Check if this user is a farmer with fingerling ponds
   if (!farmerProfile || !cultivationType) {
     return {
-      group: FarmType.FINGERLING,
+      group: FarmType.SMALL,
       hasData: false,
       summary: {
         asOf: new Date().toISOString(),
@@ -100,7 +100,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
         null,
         TEMP_RANGE_FOR_CALC,
         7,
-        FarmType.FINGERLING,
+        FarmType.SMALL,
       ),
     };
   }
@@ -153,7 +153,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
     const { adjustmentPct } = FeedingCalculator.computeFeedAdjustment(
       airTemperatureC,
       TEMP_RANGE_FOR_CALC,
-      FarmType.FINGERLING,
+      FarmType.SMALL,
     );
     recommendedFeedAdjustmentPct = adjustmentPct;
   }
@@ -165,7 +165,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
     airTemperatureC,
     TEMP_RANGE_FOR_CALC,
     dailyForecast.length || 7,
-    FarmType.FINGERLING,
+    FarmType.SMALL,
   );
 
   const feedingPlan: FeedingPlanRow[] = baseFeedingPlan.map((row, index) => {
@@ -177,7 +177,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
     const { adjustmentPct, recommendation } = FeedingCalculator.computeFeedAdjustment(
       forecast.temperatureMeanC,
       TEMP_RANGE_FOR_CALC,
-      FarmType.FINGERLING,
+      FarmType.SMALL,
     );
 
     return {
@@ -193,7 +193,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
   });
 
   return {
-    group: FarmType.FINGERLING,
+    group: FarmType.SMALL,
     hasData: airTemperatureC !== null,
     summary: {
       asOf,

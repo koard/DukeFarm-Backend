@@ -32,18 +32,18 @@ const formatDateISO = (date: Date): string => date.toISOString();
  * AGE-SPECIFIC ADJUSTMENTS:
  * Different fish age groups have different temperature sensitivity:
  * 
- * 1. FINGERLING (0-45 days): Most sensitive
+ * 1. SMALL (Fingerling / Pla Tum 7-10 days): Most sensitive nursery window
  *    - Narrow optimal range: 28-34°C air (water 23-29°C)
  *    - Q10 = 2.8-3.2 (metabolism changes rapidly)
  *    - Critical temp: <26°C or >35°C → high mortality risk
  *    - Immune system immature, stress easily
  * 
- * 2. FATTENING (45-120 days): Moderate tolerance
+ * 2. LARGE (Pla Nio juvenile 11-30 days): Juvenile tolerance
  *    - Wider optimal range: 27-35°C air (water 22-30°C)
  *    - Q10 = 2.3-2.6 (moderate metabolism changes)
  *    - Developing immune system, better stress tolerance
  * 
- * 3. MARKET (120+ days): Most tolerant
+ * 3. MARKET (31-180 days / 2-6 months): Most tolerant grow-out stage
  *    - Widest optimal range: 26-36°C air (water 21-31°C)
  *    - Q10 = 2.0-2.2 (metabolism changes slowly)
  *    - Mature immune system, high stress tolerance
@@ -74,7 +74,7 @@ const formatDateISO = (date: Date): string => date.toISOString();
 const computeFeedAdjustment = (
   temperatureC: number | null,
   range: TemperatureRange,
-  farmType: FarmType = FarmType.FINGERLING, // Default to most sensitive
+  farmType: FarmType = FarmType.SMALL, // Default to most sensitive
 ): { adjustmentPct: number; recommendation: 'increase' | 'decrease' | 'normal' } => {
   if (temperatureC === null) {
     return { adjustmentPct: 0, recommendation: 'normal' };
@@ -85,9 +85,9 @@ const computeFeedAdjustment = (
 
   // Age-specific optimal temperature ranges (air temperature)
   const optimalRanges: Record<FarmType, { min: number; max: number }> = {
-    [FarmType.FINGERLING]: { min: 28, max: 34 },  // 0-45 days: narrow range, most sensitive
-    [FarmType.FATTENING]: { min: 27, max: 35 },   // 45-120 days: moderate range
-    [FarmType.MARKET]: { min: 26, max: 36 },      // 120+ days: wide range, most tolerant
+    [FarmType.SMALL]: { min: 28, max: 34 },  // 7-10 days: narrow range, most sensitive
+    [FarmType.LARGE]: { min: 27, max: 35 },  // 11-30 days: juvenile range
+    [FarmType.MARKET]: { min: 26, max: 36 }, // 31-180 days (~2-6 months): most tolerant
   };
 
   const optimal = optimalRanges[farmType];
@@ -102,9 +102,9 @@ const computeFeedAdjustment = (
   else if (temperatureC < optimal.min) {
     // Age-specific cold sensitivity multipliers
     const coldMultiplier = {
-      [FarmType.FINGERLING]: 1.3,  // Most sensitive - reduce more aggressively
-      [FarmType.FATTENING]: 1.0,   // Standard reduction
-      [FarmType.MARKET]: 0.7,      // Most tolerant - reduce less
+      [FarmType.SMALL]: 1.3,  // Most sensitive - reduce more aggressively
+      [FarmType.LARGE]: 1.0,  // Standard reduction
+      [FarmType.MARKET]: 0.7, // Most tolerant - reduce less
     }[farmType];
 
     if (temperatureC < 18) {
@@ -136,9 +136,9 @@ const computeFeedAdjustment = (
   else if (temperatureC > optimal.max) {
     // Age-specific heat sensitivity multipliers
     const heatMultiplier = {
-      [FarmType.FINGERLING]: 1.4,  // Most sensitive - reduce more aggressively
-      [FarmType.FATTENING]: 1.0,   // Standard reduction
-      [FarmType.MARKET]: 0.8,      // Most tolerant - reduce less
+      [FarmType.SMALL]: 1.4,  // Most sensitive - reduce more aggressively
+      [FarmType.LARGE]: 1.0,  // Standard reduction
+      [FarmType.MARKET]: 0.8, // Most tolerant - reduce less
     }[farmType];
 
     if (temperatureC >= 41) {
@@ -200,7 +200,7 @@ const generateFeedingPlan = (
   currentTemperatureC: number | null,
   range: TemperatureRange,
   days: number = 7,
-  farmType: FarmType = FarmType.FINGERLING,
+  farmType: FarmType = FarmType.SMALL,
 ): FeedingPlanRow[] => {
   return generateMockForecast(startDate, currentTemperatureC, range, days, farmType);
 };

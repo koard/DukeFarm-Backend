@@ -46,7 +46,7 @@ DukeFarm Backend provides a comprehensive RESTful API for managing catfish farmi
 - Dynamic role assignment with pre-selection support
 
 ### Farm Management
-- Multi-farm type support: `FINGERLING`, `FATTENING`, `MARKET`
+- Multi-farm type support: `SMALL` (Fingerling/Pla Tum), `LARGE` (Pla Nio), `MARKET`
 - GPS-based farm location tracking
 - Pond inventory management
 - Production cycle tracking
@@ -410,8 +410,8 @@ curl http://localhost:4000/api/auth/line/login
 curl http://localhost:4000/api/auth/me `
   -H "Authorization: Bearer eyJhbGc..."
 
-# Get dashboard for fingerling farms
-curl http://localhost:4000/api/dashboard/groups/FINGERLING `
+# Get dashboard for small-stage farms
+curl http://localhost:4000/api/dashboard/groups/SMALL `
   -H "Authorization: Bearer eyJhbGc..."
 
 # Register as farmer
@@ -419,15 +419,15 @@ curl http://localhost:4000/api/register/farmer `
   -X POST `
   -H "Content-Type: application/json" `
   -H "Authorization: Bearer eyJhbGc..." `
-  -d '{
-    \"firstName\": \"Somchai\",
-    \"lastName\": \"Prasert\",
-    \"phone\": \"0812345678\",
-   \"primaryFarmType\": \"FINGERLING\",
-    \"declaredPondCount\": 4,
-    \"farmLatitude\": 13.7563,
-    \"farmLongitude\": 100.5018
-  }'
+   -d '{
+      \"firstName\": \"Somchai\",
+      \"lastName\": \"Prasert\",
+      \"phone\": \"0812345678\",
+    \"primaryFarmType\": \"SMALL\",
+      \"declaredPondCount\": 4,
+      \"farmLatitude\": 13.7563,
+      \"farmLongitude\": 100.5018
+   }'
 ```
 
 #### Using VS Code REST Client
@@ -446,7 +446,7 @@ GET http://localhost:4000/api/auth/me
 Authorization: Bearer {{token}}
 
 ### Get Dashboard
-GET http://localhost:4000/api/dashboard/groups/FINGERLING
+GET http://localhost:4000/api/dashboard/groups/SMALL
 Authorization: Bearer {{token}}
 ```
 

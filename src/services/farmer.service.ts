@@ -73,7 +73,7 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
     farmType:
       farmer.farmerProfile?.primaryFarmType ||
       farmer.cultivationTypes[0]?.farmType ||
-      FarmType.FINGERLING,
+      FarmType.SMALL,
     farmTypes: farmer.cultivationTypes.map((item) => item.farmType),
     registrationStatus: farmer.registrationStatus,
     pondCount: farmer.farmerProfile?.declaredPondCount || null,
@@ -124,7 +124,7 @@ const getFarmerById = async (userId: string): Promise<FarmerListItem> => {
     farmType:
       farmer.farmerProfile?.primaryFarmType ||
       farmer.cultivationTypes[0]?.farmType ||
-      FarmType.FINGERLING,
+      FarmType.SMALL,
     farmTypes: farmer.cultivationTypes.map((item) => item.farmType),
     registrationStatus: farmer.registrationStatus,
     pondCount: farmer.farmerProfile?.declaredPondCount || null,

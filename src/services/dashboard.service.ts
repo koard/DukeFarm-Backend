@@ -9,9 +9,9 @@ import { createHttpError } from '../utils/httpError';
 
 const getDashboard = async (userId: string, group: FarmTypeValue): Promise<any> => {
   switch (group) {
-    case FarmType.FINGERLING:
+    case FarmType.SMALL:
       return NurserySmallDashboardService.getDashboard(userId);
-    case FarmType.FATTENING:
+    case FarmType.LARGE:
       return NurseryLargeDashboardService.getDashboard(userId);
     case FarmType.MARKET:
       return GrowoutDashboardService.getDashboard(userId);

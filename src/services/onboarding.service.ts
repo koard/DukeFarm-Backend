@@ -115,8 +115,8 @@ const completeFarmerProfile = async (
   userId: string,
   payload: FarmerProfilePayload,
 ): Promise<ProfileResult<FarmerProfileModel>> => {
-  const farmTypes = payload.farmTypes.length ? payload.farmTypes : [FarmType.FINGERLING];
-  const primaryFarmType = farmTypes[0] ?? FarmType.FINGERLING;
+  const farmTypes = payload.farmTypes.length ? payload.farmTypes : [FarmType.SMALL];
+  const primaryFarmType = farmTypes[0] ?? FarmType.SMALL;
   const profileFields = {
     firstName: payload.firstName,
     lastName: payload.lastName,

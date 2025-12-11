@@ -35,25 +35,33 @@ export type CreateEntryInput = {
   notes?: string | null;
 };
 
-const AGE_WEIGHT_MAP: Record<string, number> = {
-  '0-15วัน': 4,     // fingerling (~4 g)
-  '16-30วัน': 15,   // post-larvae (~15 g)
-  '31-60วัน': 80,   // early grow-out (~80 g)
-  '61-90วัน': 180,  // mid grow-out (~180 g)
-  '91-120วัน': 300, // late grow-out (~300 g)
-  '>120วัน': 500,   // market size (~500 g)
-};
-
-const normalizeAgeLabelKey = (label: string): string =>
-  label
-    .replace(/[()]/g, '')
-    .replace(/–|−/g, '-')
-    .replace(/\s+/g, '')
-    .toLowerCase();
-
 const resolveAverageWeightForAge = (label: string): number | null => {
-  const key = normalizeAgeLabelKey(label);
-  return AGE_WEIGHT_MAP[key] ?? null;
+  const days = FishStageService.estimateDaysFromLabel(label);
+  if (days === null) {
+    return null;
+  }
+
+  if (days <= 10) {
+    return 4; // Pla Tum ~4 g
+  }
+
+  if (days <= 30) {
+    return 15; // Pla Nio ~15 g
+  }
+
+  if (days <= 60) {
+    return 80; // Early grow-out ~80 g
+  }
+
+  if (days <= 120) {
+    return 250; // Mid grow-out ~250 g
+  }
+
+  if (days <= 180) {
+    return 450; // Late grow-out ~450 g
+  }
+
+  return 500; // Extended holding ~500 g
 };
 
 const fetchWeatherSnapshot = async (

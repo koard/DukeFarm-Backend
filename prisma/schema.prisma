@@ -20,9 +20,9 @@ enum RegistrationStatus {
 }
 
 enum FarmType {
-  FINGERLING   // Fingerling growers (0-45 days)
-  FATTENING    // Juvenile grow-out aka "Pla Tum" (45-120 days)
-  MARKET       // Market-size fish (120+ days)
+  SMALL    // Pla Tum nurseries (7-10 days, formerly Fingerling)
+  LARGE    // Pla Nio juvenile stage (11-30 days, formerly Fattening)
+  MARKET   // Pla Talad grow-out (31-180 days / ~2-6 months)
 }
 
 enum PondType {

@@ -62,7 +62,7 @@ const buildGrowthSeries = async (
   const entries = await prisma.farmDataEntry.findMany({
     where: {
       userId,
-      farmType: FarmType.FATTENING,
+      farmType: FarmType.LARGE,
       averageFishWeightGr: {
         not: null,
       },
@@ -114,7 +114,7 @@ const getLatestFishMetrics = async (userId: string): Promise<LatestFishMetrics> 
   const recentEntries = await prisma.farmDataEntry.findMany({
     where: {
       userId,
-      farmType: FarmType.FATTENING,
+      farmType: FarmType.LARGE,
     },
     select: {
       recordedAt: true,
@@ -201,7 +201,7 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
     prisma.farmerCultivationType.findFirst({
       where: {
         userId,
-        farmType: FarmType.FATTENING,
+        farmType: FarmType.LARGE,
       },
       select: { id: true },
     }),
@@ -211,7 +211,7 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
 
   if (!farmerProfile || !cultivationType) {
     return {
-      group: FarmType.FATTENING,
+      group: FarmType.LARGE,
       hasData: false,
       summary: {
         asOf: new Date().toISOString(),
@@ -237,7 +237,7 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
         null,
         TEMP_RANGE_FOR_CALC,
         7,
-        FarmType.FATTENING,
+        FarmType.LARGE,
       ),
     };
   }
@@ -304,7 +304,7 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
     const { adjustmentPct } = FeedingCalculator.computeFeedAdjustment(
       airTemperatureC,
       TEMP_RANGE_FOR_CALC,
-      FarmType.FATTENING,
+      FarmType.LARGE,
     );
     recommendedFeedAdjustmentPct = adjustmentPct;
   }
@@ -316,7 +316,7 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
     airTemperatureC,
     TEMP_RANGE_FOR_CALC,
     dailyForecast.length || 7,
-    FarmType.FATTENING,
+    FarmType.LARGE,
   );
 
   const feedingPlan: FeedingPlanRow[] = baseFeedingPlan.map((row, index) => {
@@ -328,7 +328,7 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
     const { adjustmentPct, recommendation } = FeedingCalculator.computeFeedAdjustment(
       forecast.temperatureMeanC,
       TEMP_RANGE_FOR_CALC,
-      FarmType.FATTENING,
+      FarmType.LARGE,
     );
 
     return {
@@ -344,7 +344,7 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
   });
 
   return {
-    group: FarmType.FATTENING,
+    group: FarmType.LARGE,
     hasData: monthlyFeedingData.length > 0,
     summary: {
       asOf,
