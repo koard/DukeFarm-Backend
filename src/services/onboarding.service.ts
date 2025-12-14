@@ -44,6 +44,8 @@ type ProfileResult<TProfile> = {
   user: RoleSelectionResult;
 };
 
+type FarmerProfileResult = ProfileResult<FarmerProfileModel & { selectedFarmTypes: FarmType[] }>;
+
 const selectRole = async (userId: string, role: UserRole): Promise<RoleSelectionResult> => {
   if (!SUPPORTED_ONBOARDING_ROLES.includes(role)) {
     throw createHttpError(400, 'role must be FARMER or RESEARCHER');
@@ -114,7 +116,7 @@ const syncFarmerCultivationTypes = async (
 const completeFarmerProfile = async (
   userId: string,
   payload: FarmerProfilePayload,
-): Promise<ProfileResult<FarmerProfileModel>> => {
+): Promise<FarmerProfileResult> => {
   const farmTypes = payload.farmTypes.length ? payload.farmTypes : [FarmType.SMALL];
   const primaryFarmType = farmTypes[0] ?? FarmType.SMALL;
   const profileFields = {
@@ -142,7 +144,7 @@ const completeFarmerProfile = async (
       },
     });
 
-    await syncFarmerCultivationTypes(tx, userId, farmTypes);
+    const cultivatedTypes = await syncFarmerCultivationTypes(tx, userId, farmTypes);
     await tx.researcherProfile.deleteMany({ where: { userId } });
 
     const user = await tx.user.update({
@@ -154,7 +156,7 @@ const completeFarmerProfile = async (
       select: { id: true, role: true, registrationStatus: true },
     });
 
-    return { profile, user };
+    return { profile: { ...profile, selectedFarmTypes: cultivatedTypes }, user };
   });
 
   return result;

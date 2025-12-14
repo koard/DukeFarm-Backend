@@ -155,7 +155,9 @@ const submitFarmerProfile = async (req: AuthenticatedRequest, res: Response, nex
       firstName: requireTrimmedString(req.body?.firstName, 'firstName'),
       lastName: requireTrimmedString(req.body?.lastName, 'lastName'),
       phone: requireTrimmedString(req.body?.phone, 'phone'),
-      farmTypes: parseFarmTypes(req.body?.farmTypes ?? req.body?.primaryFarmType),
+      farmTypes: parseFarmTypes(
+        req.body?.farmTypes ?? req.body?.selectedFarmTypes ?? req.body?.primaryFarmType,
+      ),
       declaredPondCount: parseDeclaredPondCount(req.body?.declaredPondCount),
       farmLatitude: parseLatitude(req.body?.farmLatitude),
       farmLongitude: parseLongitude(req.body?.farmLongitude),
