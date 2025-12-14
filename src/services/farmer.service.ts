@@ -208,6 +208,7 @@ const deleteFarmerById = async (userId: string) => {
     }
 
     await tx.farmDataEntry.deleteMany({ where: { userId } });
+    await tx.farmerCultivationType.deleteMany({ where: { userId } });
     await tx.farmerProfile.deleteMany({ where: { userId } });
     await tx.researcherProfile.deleteMany({ where: { userId } });
 
