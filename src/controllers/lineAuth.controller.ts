@@ -3,7 +3,7 @@ import { LineAuthService } from '../services/lineAuth.service';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { prisma } from '../clients/prisma';
 import { createHttpError } from '../utils/httpError';
-import { UserRole } from '@prisma/client';
+import { FarmType, Prisma, UserRole } from '@prisma/client';
 
 const getLineLoginUrl = (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -62,6 +62,7 @@ const handleLineCallback = async (req: Request, res: Response, next: NextFunctio
             declaredPondCount: true,
             farmLatitude: true,
             farmLongitude: true,
+            farmAreaRai: true,
           },
         },
         researcherProfile: {
@@ -121,6 +122,7 @@ const getMe = async (req: AuthenticatedRequest, res: Response, next: NextFunctio
             declaredPondCount: true,
             farmLatitude: true,
             farmLongitude: true,
+            farmAreaRai: true,
           },
         },
         researcherProfile: {
@@ -134,6 +136,13 @@ const getMe = async (req: AuthenticatedRequest, res: Response, next: NextFunctio
             jobTitle: true,
           },
         },
+        cultivationTypes: {
+          select: {
+            farmType: true,
+            cultivatedAreaRai: true,
+            pondsInStage: true,
+          },
+        },
       },
     });
 
@@ -141,7 +150,55 @@ const getMe = async (req: AuthenticatedRequest, res: Response, next: NextFunctio
       throw createHttpError(404, 'User not found');
     }
 
-    res.json({ data: userData });
+    const decimalToNumber = (value?: Prisma.Decimal | null) =>
+      value !== null && value !== undefined ? Number(value) : null;
+
+    const { cultivationTypes = [], farmerProfile, ...rest } = userData;
+
+    const farmTypesSet = new Set<FarmType>();
+    cultivationTypes.forEach((ct) => {
+      if (ct.farmType) {
+        farmTypesSet.add(ct.farmType);
+      }
+    });
+    if (farmerProfile?.primaryFarmType) {
+      farmTypesSet.add(farmerProfile.primaryFarmType);
+    }
+
+    const farmTypes = Array.from(farmTypesSet);
+
+    const totalAreaFromStages = cultivationTypes.reduce((sum, ct) => {
+      if (!ct.cultivatedAreaRai) return sum;
+      return sum + Number(ct.cultivatedAreaRai);
+    }, 0);
+
+    const totalFarmAreaRai = (() => {
+      const profileArea = decimalToNumber(farmerProfile?.farmAreaRai);
+      if (profileArea && profileArea > 0) {
+        return profileArea;
+      }
+      return totalAreaFromStages > 0 ? totalAreaFromStages : null;
+    })();
+
+    const totalPondCount = (() => {
+      if (typeof farmerProfile?.declaredPondCount === 'number') {
+        return farmerProfile.declaredPondCount;
+      }
+      const pondsFromStages = cultivationTypes.reduce((sum, ct) => sum + (ct.pondsInStage ?? 0), 0);
+      return pondsFromStages > 0 ? pondsFromStages : null;
+    })();
+
+    const enhancedFarmerProfile = farmerProfile
+      ? {
+          ...farmerProfile,
+          farmAreaRai: decimalToNumber(farmerProfile.farmAreaRai),
+          farmTypes,
+          totalFarmAreaRai,
+          totalPondCount,
+        }
+      : null;
+
+    res.json({ data: { ...rest, farmerProfile: enhancedFarmerProfile } });
   } catch (error) {
     next(error);
   }
