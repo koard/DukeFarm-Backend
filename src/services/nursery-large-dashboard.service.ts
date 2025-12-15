@@ -36,6 +36,9 @@ type DashboardSummary = {
   pelletFoodCost: number;
   freshFoodCost: number;
   monthlyFeedingData: MonthlyFeedingData[];
+  survivalRatePct: number | null;
+  baselineFishCount: number | null;
+  latestFishCount: number | null;
 };
 
 export type NurseryLargeDashboard = {
@@ -108,6 +111,64 @@ type LatestFishMetrics = {
   latestFishStageName: string | null;
   latestHarvestStatus: HarvestReadinessStatus | null;
   latestHarvestStatusReason: string | null;
+  survivalRatePct: number | null;
+  baselineFishCount: number | null;
+  latestFishCount: number | null;
+};
+
+const getSurvivalMetrics = async (
+  userId: string,
+): Promise<{ survivalRatePct: number | null; baselineFishCount: number | null; latestFishCount: number | null }> => {
+  const [baseline, latest] = await Promise.all([
+    prisma.farmDataEntry.findFirst({
+      where: {
+        userId,
+        farmType: FarmType.LARGE,
+        fishCount: {
+          not: null,
+        },
+      },
+      select: {
+        fishCount: true,
+      },
+      orderBy: {
+        recordedAt: 'asc',
+      },
+    }),
+    prisma.farmDataEntry.findFirst({
+      where: {
+        userId,
+        farmType: FarmType.LARGE,
+        fishCount: {
+          not: null,
+        },
+      },
+      select: {
+        fishCount: true,
+      },
+      orderBy: {
+        recordedAt: 'desc',
+      },
+    }),
+  ]);
+
+  const baselineFishCount = baseline?.fishCount ? Number(baseline.fishCount) : null;
+  const latestFishCount = latest?.fishCount ? Number(latest.fishCount) : null;
+
+  if (baselineFishCount && latestFishCount && baselineFishCount > 0) {
+    const rate = (latestFishCount / baselineFishCount) * 100;
+    return {
+      survivalRatePct: Math.round(rate * 10) / 10,
+      baselineFishCount,
+      latestFishCount,
+    };
+  }
+
+  return {
+    survivalRatePct: null,
+    baselineFishCount,
+    latestFishCount,
+  };
 };
 
 const getLatestFishMetrics = async (userId: string): Promise<LatestFishMetrics> => {
@@ -144,6 +205,9 @@ const getLatestFishMetrics = async (userId: string): Promise<LatestFishMetrics> 
       latestFishStageName: null,
       latestHarvestStatus: null,
       latestHarvestStatusReason: null,
+      survivalRatePct: null,
+      baselineFishCount: null,
+      latestFishCount: null,
     };
   }
 
@@ -152,6 +216,8 @@ const getLatestFishMetrics = async (userId: string): Promise<LatestFishMetrics> 
   const latestHarvestStatus = recentEntries[0]?.harvestStatus ?? null;
   const latestHarvestStatusReason = recentEntries[0]?.harvestStatusReason ?? null;
   const latestFishStageName = recentEntries[0]?.fishAgeStage?.displayName ?? null;
+
+  const { survivalRatePct, baselineFishCount, latestFishCount } = await getSurvivalMetrics(userId);
 
   const weightEntries = recentEntries.filter((entry) => entry.averageFishWeightGr !== null);
 
@@ -174,6 +240,9 @@ const getLatestFishMetrics = async (userId: string): Promise<LatestFishMetrics> 
     latestFishStageName,
     latestHarvestStatus,
     latestHarvestStatusReason,
+    survivalRatePct,
+    baselineFishCount,
+    latestFishCount,
   };
 };
 
@@ -231,6 +300,9 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
         pelletFoodCost: pelletCost,
         freshFoodCost: freshCost,
         monthlyFeedingData: [],
+        survivalRatePct: null,
+        baselineFishCount: null,
+        latestFishCount: null,
       },
       feedingPlan: FeedingCalculator.generateFeedingPlan(
         new Date(),
@@ -252,6 +324,9 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
       latestFishStageName,
       latestHarvestStatus,
       latestHarvestStatusReason,
+      survivalRatePct,
+      baselineFishCount,
+      latestFishCount,
     },
   ] = await Promise.all([buildGrowthSeries(userId), getLatestFishMetrics(userId)]);
 
@@ -364,6 +439,9 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
       pelletFoodCost: pelletCost,
       freshFoodCost: freshCost,
       monthlyFeedingData,
+      survivalRatePct,
+      baselineFishCount,
+      latestFishCount,
     },
     feedingPlan,
   };
