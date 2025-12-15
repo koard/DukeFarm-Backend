@@ -1,9 +1,32 @@
 import { Response } from 'express';
+import { FarmType } from '@prisma/client';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { FeedFormulaService } from '../services/feed-formula.service';
 
+const parseFarmType = (raw: unknown, allowUndefined = false): FarmType | null | undefined => {
+  if (raw === undefined) {
+    return allowUndefined ? undefined : null;
+  }
+
+  if (raw === null || raw === '') {
+    return null;
+  }
+
+  if (typeof raw !== 'string') {
+    throw new Error('farmType must be a string');
+  }
+
+  const upper = raw.toUpperCase();
+  const values = Object.values(FarmType);
+  if (!values.includes(upper as FarmType)) {
+    throw new Error(`Unsupported farmType: ${raw}`);
+  }
+
+  return upper as FarmType;
+};
+
 const createFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
-  const { name, targetStage, description, recommendations } = req.body;
+  const { name, targetStage, description, recommendations, farmType: rawFarmType } = req.body;
 
   // Validation
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -24,11 +47,19 @@ const createFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
     return res.status(400).json({ message: 'Recommendations must be a string' });
   }
 
+  let farmType: FarmType | null;
+  try {
+    farmType = parseFarmType(rawFarmType) ?? null;
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
+  }
+
   const result = await FeedFormulaService.createFeedFormula({
     name: name.trim(),
     targetStage: targetStage.trim(),
     description: description?.trim(),
     recommendations: recommendations?.trim(),
+    farmType,
     createdBy: req.user!.id,
   });
 
@@ -69,7 +100,7 @@ const getFeedFormulaById = async (req: AuthenticatedRequest, res: Response) => {
 
 const updateFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
-  const { name, targetStage, description, recommendations } = req.body;
+  const { name, targetStage, description, recommendations, farmType: rawFarmType } = req.body;
 
   if (!id) {
     return res.status(400).json({ message: 'Feed formula ID is required' });
@@ -95,13 +126,32 @@ const updateFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
     return res.status(400).json({ message: 'Recommendations must be a string' });
   }
 
+  let farmType: FarmType | null | undefined;
   try {
-    const result = await FeedFormulaService.updateFeedFormula(id, {
+    farmType = parseFarmType(rawFarmType, true);
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
+  }
+
+  try {
+    const payload: {
+      name?: string;
+      targetStage?: string;
+      description?: string;
+      recommendations?: string;
+      farmType?: FarmType | null;
+    } = {
       name: name?.trim(),
       targetStage: targetStage?.trim(),
       description: description?.trim(),
       recommendations: recommendations?.trim(),
-    });
+    };
+
+    if (farmType !== undefined) {
+      payload.farmType = farmType;
+    }
+
+    const result = await FeedFormulaService.updateFeedFormula(id, payload);
 
     return res.json({ data: result });
   } catch (error: any) {

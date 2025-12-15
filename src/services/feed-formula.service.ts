@@ -4,7 +4,7 @@ import { prisma } from '../clients/prisma';
 type CreateFeedFormulaInput = {
   name: string;
   targetStage: string;
-  farmType?: FarmType;
+  farmType?: FarmType | null;
   description?: string;
   recommendations?: string;
   createdBy: string; // Admin user ID
@@ -13,7 +13,7 @@ type CreateFeedFormulaInput = {
 type UpdateFeedFormulaInput = {
   name?: string;
   targetStage?: string;
-  farmType?: FarmType;
+  farmType?: FarmType | null;
   description?: string;
   recommendations?: string;
 };
@@ -50,7 +50,7 @@ const createFeedFormula = async (input: CreateFeedFormulaInput) => {
     data: {
       name: input.name,
       targetStage: input.targetStage,
-      farmType: input.farmType || null,
+      farmType: input.farmType ?? null,
       description: input.description || null,
       recommendations: input.recommendations || null,
       ownerId: input.createdBy,
@@ -137,7 +137,7 @@ const updateFeedFormula = async (id: string, input: UpdateFeedFormulaInput) => {
     data: {
       ...(input.name && { name: input.name }),
       ...(input.targetStage && { targetStage: input.targetStage }),
-      ...(input.farmType !== undefined && { farmType: input.farmType || null }),
+      ...(input.farmType !== undefined && { farmType: input.farmType ?? null }),
       ...(input.description !== undefined && { description: input.description || null }),
       ...(input.recommendations !== undefined && { recommendations: input.recommendations || null }),
     },
