@@ -21,6 +21,8 @@ type DashboardSummary = {
   recommendedFeedAdjustmentPct: number;
   weather: CurrentWeather | null;
   hourlyForecast: HourlyForecast[];
+  latestFishAgeLabel: string | null;
+  latestFishAgeDays: number | null;
 };
 
 export type NurserySmallDashboard = {
@@ -63,6 +65,29 @@ const fetchWeather = async (
   }
 };
 
+const getLatestFishAge = async (
+  userId: string,
+): Promise<{ latestFishAgeLabel: string | null; latestFishAgeDays: number | null }> => {
+  const entry = await prisma.farmDataEntry.findFirst({
+    where: {
+      userId,
+      farmType: FarmType.SMALL,
+    },
+    select: {
+      fishAgeLabel: true,
+      fishAgeDays: true,
+    },
+    orderBy: {
+      recordedAt: 'desc',
+    },
+  });
+
+  return {
+    latestFishAgeLabel: entry?.fishAgeLabel ?? null,
+    latestFishAgeDays: entry?.fishAgeDays ?? null,
+  };
+};
+
 const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
   const [farmerProfile, cultivationType] = await Promise.all([
     prisma.farmerProfile.findUnique({
@@ -94,6 +119,8 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
         recommendedFeedAdjustmentPct: 0,
         weather: null,
         hourlyForecast: [],
+        latestFishAgeLabel: null,
+        latestFishAgeDays: null,
       },
       feedingPlan: FeedingCalculator.generateFeedingPlan(
         new Date(),
@@ -192,6 +219,8 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
     };
   });
 
+  const { latestFishAgeLabel, latestFishAgeDays } = await getLatestFishAge(userId);
+
   return {
     group: FarmType.SMALL,
     hasData: airTemperatureC !== null,
@@ -203,6 +232,8 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
       recommendedFeedAdjustmentPct,
       weather,
       hourlyForecast,
+      latestFishAgeLabel,
+      latestFishAgeDays,
     },
     feedingPlan,
   };
