@@ -103,29 +103,44 @@ const getSurvivalSeries = async (
     where: {
       userId,
       farmType: FarmType.SMALL,
-      fishCount: {
-        not: null,
-      },
     },
     select: {
       recordedAt: true,
       fishCount: true,
+      fishCountText: true,
     },
     orderBy: {
       recordedAt: 'asc',
     },
   });
 
-  if (!entries.length) {
+  const normalized = entries
+    .map((entry) => {
+      const numeric = Number(entry.fishCount);
+      if (Number.isFinite(numeric)) {
+        return { recordedAt: entry.recordedAt, fishCount: numeric };
+      }
+
+      const digits = entry.fishCountText?.replace(/[^0-9]/g, '') ?? '';
+      const parsed = digits ? Number(digits) : NaN;
+      if (Number.isFinite(parsed)) {
+        return { recordedAt: entry.recordedAt, fishCount: parsed };
+      }
+
+      return null;
+    })
+    .filter((entry): entry is { recordedAt: Date; fishCount: number } => Boolean(entry));
+
+  if (!normalized.length) {
     return { survivalRatePct: 100, survivalSeries: [] };
   }
 
-  const initialCount = Number(entries[0]?.fishCount ?? NaN);
+  const initialCount = Number(normalized[0]?.fishCount ?? NaN);
   if (!Number.isFinite(initialCount) || initialCount <= 0) {
     return { survivalRatePct: 100, survivalSeries: [] };
   }
 
-  const series = entries.map((entry) => {
+  const series = normalized.map((entry) => {
     const current = Number(entry.fishCount);
     const pct = Number.isFinite(current) && current >= 0
       ? Math.max(0, Math.min(100, Math.round((current / initialCount) * 100)))
