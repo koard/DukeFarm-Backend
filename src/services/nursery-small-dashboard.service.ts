@@ -23,6 +23,8 @@ type DashboardSummary = {
   hourlyForecast: HourlyForecast[];
   latestFishAgeLabel: string | null;
   latestFishAgeDays: number | null;
+  survivalRatePct: number;
+  survivalSeries: Array<{ month: string; value: number }>;
 };
 
 export type NurserySmallDashboard = {
@@ -88,6 +90,56 @@ const getLatestFishAge = async (
   };
 };
 
+const formatGraphLabel = (date: Date): string =>
+  date.toLocaleDateString('th-TH', {
+    day: '2-digit',
+    month: 'short',
+  });
+
+const getSurvivalSeries = async (
+  userId: string,
+): Promise<{ survivalRatePct: number; survivalSeries: Array<{ month: string; value: number }> }> => {
+  const entries = await prisma.farmDataEntry.findMany({
+    where: {
+      userId,
+      farmType: FarmType.SMALL,
+      fishCount: {
+        not: null,
+      },
+    },
+    select: {
+      recordedAt: true,
+      fishCount: true,
+    },
+    orderBy: {
+      recordedAt: 'asc',
+    },
+  });
+
+  if (!entries.length) {
+    return { survivalRatePct: 100, survivalSeries: [] };
+  }
+
+  const initialCount = Number(entries[0]?.fishCount ?? NaN);
+  if (!Number.isFinite(initialCount) || initialCount <= 0) {
+    return { survivalRatePct: 100, survivalSeries: [] };
+  }
+
+  const series = entries.map((entry) => {
+    const current = Number(entry.fishCount);
+    const pct = Number.isFinite(current) && current >= 0
+      ? Math.max(0, Math.min(100, Math.round((current / initialCount) * 100)))
+      : 0;
+    return {
+      month: formatGraphLabel(entry.recordedAt),
+      value: pct,
+    };
+  });
+
+  const survivalRatePct = series.length ? series[series.length - 1]?.value ?? 100 : 100;
+  return { survivalRatePct, survivalSeries: series };
+};
+
 const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
   const [farmerProfile, cultivationType] = await Promise.all([
     prisma.farmerProfile.findUnique({
@@ -121,6 +173,8 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
         hourlyForecast: [],
         latestFishAgeLabel: null,
         latestFishAgeDays: null,
+        survivalRatePct: 100,
+        survivalSeries: [],
       },
       feedingPlan: FeedingCalculator.generateFeedingPlan(
         new Date(),
@@ -220,6 +274,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
   });
 
   const { latestFishAgeLabel, latestFishAgeDays } = await getLatestFishAge(userId);
+  const { survivalRatePct, survivalSeries } = await getSurvivalSeries(userId);
 
   return {
     group: FarmType.SMALL,
@@ -234,6 +289,8 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
       hourlyForecast,
       latestFishAgeLabel,
       latestFishAgeDays,
+      survivalRatePct,
+      survivalSeries,
     },
     feedingPlan,
   };

@@ -36,6 +36,8 @@ type DashboardSummary = {
   pelletFoodCost: number;
   freshFoodCost: number;
   monthlyFeedingData: MonthlyFeedingData[];
+  survivalRatePct: number;
+  survivalSeries: MonthlyFeedingData[];
 };
 
 export type GrowoutDashboard = {
@@ -108,6 +110,50 @@ type LatestFishMetrics = {
   latestFishStageName: string | null;
   latestHarvestStatus: HarvestReadinessStatus | null;
   latestHarvestStatusReason: string | null;
+};
+
+const getSurvivalSeries = async (
+  userId: string,
+): Promise<{ survivalRatePct: number; survivalSeries: MonthlyFeedingData[] }> => {
+  const entries = await prisma.farmDataEntry.findMany({
+    where: {
+      userId,
+      farmType: FarmType.MARKET,
+      fishCount: {
+        not: null,
+      },
+    },
+    select: {
+      recordedAt: true,
+      fishCount: true,
+    },
+    orderBy: {
+      recordedAt: 'asc',
+    },
+  });
+
+  if (!entries.length) {
+    return { survivalRatePct: 100, survivalSeries: [] };
+  }
+
+  const initialCount = Number(entries[0]?.fishCount ?? NaN);
+  if (!Number.isFinite(initialCount) || initialCount <= 0) {
+    return { survivalRatePct: 100, survivalSeries: [] };
+  }
+
+  const survivalSeries: MonthlyFeedingData[] = entries.map((entry) => {
+    const current = Number(entry.fishCount);
+    const pct = Number.isFinite(current) && current >= 0
+      ? Math.max(0, Math.min(100, Math.round((current / initialCount) * 100)))
+      : 0;
+    return {
+      month: formatGraphLabel(entry.recordedAt),
+      value: pct,
+    };
+  });
+
+  const survivalRatePct = survivalSeries.length ? survivalSeries[survivalSeries.length - 1]?.value ?? 100 : 100;
+  return { survivalRatePct, survivalSeries };
 };
 
 const getLatestFishMetrics = async (userId: string): Promise<LatestFishMetrics> => {
@@ -230,6 +276,8 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
         pelletFoodCost: pelletCost,
         freshFoodCost: freshCost,
         monthlyFeedingData: [],
+        survivalRatePct: 100,
+        survivalSeries: [],
       },
       feedingPlan: FeedingCalculator.generateFeedingPlan(
         new Date(),
@@ -252,7 +300,12 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
       latestHarvestStatus,
       latestHarvestStatusReason,
     },
-  ] = await Promise.all([buildGrowthSeries(userId), getLatestFishMetrics(userId)]);
+    { survivalRatePct, survivalSeries },
+  ] = await Promise.all([
+    buildGrowthSeries(userId),
+    getLatestFishMetrics(userId),
+    getSurvivalSeries(userId),
+  ]);
 
   // Fetch weather using farmer profile location
   let weather: CurrentWeather | null = null;
@@ -363,6 +416,8 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
       pelletFoodCost: pelletCost,
       freshFoodCost: freshCost,
       monthlyFeedingData,
+      survivalRatePct,
+      survivalSeries,
     },
     feedingPlan,
   };
