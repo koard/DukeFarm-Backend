@@ -55,12 +55,24 @@ export const DiseaseAnalyzerController = {
       return res.status(400).json({ message: 'limit must be between 1 and 100' });
     }
 
-    const result = await DiseaseAnalyzerService.searchDiseases({
-      symptoms: symptoms as string | undefined,
-      category: category as string | undefined,
+    const searchParams: {
+      page: number;
+      limit: number;
+      symptoms?: string;
+      category?: string;
+    } = {
       page: pageNum,
       limit: limitNum,
-    });
+    };
+
+    if (symptoms && typeof symptoms === 'string') {
+      searchParams.symptoms = symptoms;
+    }
+    if (category && typeof category === 'string') {
+      searchParams.category = category;
+    }
+
+    const result = await DiseaseAnalyzerService.searchDiseases(searchParams);
 
     return res.json({ data: result });
   },
