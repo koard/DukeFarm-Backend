@@ -1,10 +1,10 @@
-# 📖 DukeFarm API Specification v1.0
+# 📖 DukeFarm API Specification v1.1
 
 > **Comprehensive REST API documentation** for DukeFarm catfish production management platform
 
-[![API Version](https://img.shields.io/badge/API%20Version-1.0-blue.svg)]()
+[![API Version](https://img.shields.io/badge/API%20Version-1.1-blue.svg)]()
 [![Status](https://img.shields.io/badge/Status-Production-green.svg)]()
-[![Last Updated](https://img.shields.io/badge/Updated-2025--12--08-lightgrey.svg)]()
+[![Last Updated](https://img.shields.io/badge/Updated-2025--12--16-lightgrey.svg)]()
 
 ---
 
@@ -27,6 +27,7 @@
   - [Farmers Management](#7-farmers-management)
   - [Feed Formulas Management](#8-feed-formulas-management)
   - [Researchers & Surveys](#9-researchers--surveys-management)
+  - [Disease Analyzer](#10-disease-analyzer)
 - [Best Practices](#best-practices)
 - [Changelog](#changelog)
 
@@ -46,6 +47,7 @@ The DukeFarm API provides a comprehensive backend service for managing catfish f
 - **📝 Farm Data Logging**: Structured farm record submission with weather snapshots and cultivation tracking
 - **🔬 Research Tools**: Survey management and data collection
 - **📈 Analytics**: Temperature-based feeding adjustments
+- **🏥 Disease Intelligence**: AI-powered disease diagnosis with symptom-based search and comprehensive treatment guides
 
 ### Technology Stack
 
@@ -305,6 +307,13 @@ Complete overview of all available API endpoints organized by feature domain.
 | `GET` | `/researchers` | Admin | 60/min | List all registered researchers |
 | `GET` | `/researchers/:id/surveys` | Admin/Researcher | 60/min | List surveys by researcher ID |
 | `GET` | `/researchers/surveys/:id` | Admin/Researcher | 60/min | Get detailed survey information |
+
+### 🏥 Disease Analyzer
+
+| Method | Path | Auth | Rate Limit | Description |
+| --- | --- | --- | --- | --- |
+| `GET` | `/diseases` | Required | 60/min | Search diseases by symptoms with fuzzy matching |
+| `GET` | `/diseases/:id` | Required | 60/min | Get detailed disease information by ID |
 
 **Notes:**
 - Rate limits are per user/IP address
@@ -1433,6 +1442,155 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ---
 
+## 10. Disease Analyzer
+
+### GET `/diseases`
+
+Intelligent disease diagnosis through symptom-based search with fuzzy matching. Supports Thai language and multiple search modes.
+
+- **Auth:** Required (any authenticated user)
+- **Query Parameters:**
+
+| Parameter | Type | Required | Description | Example |
+| --- | --- | --- | --- | --- |
+| `symptoms` | string | Optional | Comma-separated symptoms (Thai) | `จุดแดง,ครีบเน่า,ซึม` |
+| `category` | string | Optional | Filter by disease category | `แบคทีเรีย`, `ปรสิต`, `เชื้อรา`, `โภชนาการ`, `สิ่งแวดล้อม` |
+| `page` | integer | Optional | Page number (1-indexed) | `1` |
+| `limit` | integer | Optional | Items per page (max 100) | `10` |
+
+- **Search Behavior:**
+  - **Empty query**: Returns all diseases (paginated)
+  - **Symptom search**: Fuzzy matching across name, symptoms, tags (Thai)
+  - **Category filter**: Exact match on disease category
+  - **Combined search**: Both symptoms AND category must match
+
+- **Response:**
+```json
+{
+  "data": {
+    "data": [
+      {
+        "id": "uuid-1",
+        "name": "โรคเอโรโมนัส (Motile Aeromonas Septicemia)",
+        "category": "แบคทีเรีย",
+        "icon": "🦠",
+        "symptoms": "• ปลามีแผลเลือดออกบริเวณตัว ครีบ และหาง\n• ผิวหนังมีจุดแดง จุดเลือดออก...",
+        "causes": "สาเหตุ: เชื้อแบคทีเรีย Aeromonas hydrophila...",
+        "treatment": "การรักษาเบื้องต้น:\n1. ปรับปรุงคุณภาพน้ำทันที...",
+        "prevention": "มาตรการป้องกัน:\n• รักษาคุณภาพน้ำให้ดีอยู่เสมอ...",
+        "treatmentSummary": "ปรับคุณภาพน้ำ เพิ่มออกซิเจน ใช้ยาปฏิชีวนะและแช่น้ำยาฆ่าเชื้อตามสัตวแพทย์",
+        "tags": [
+          { "id": "tag-1", "label": "แผลเลือดออก" },
+          { "id": "tag-2", "label": "จุดแดง" },
+          { "id": "tag-3", "label": "ท้องบวม" }
+        ],
+        "createdAt": "2025-12-16T00:00:00.000Z",
+        "updatedAt": "2025-12-16T00:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "currentPage": 1,
+      "totalPages": 1,
+      "totalItems": 9,
+      "itemsPerPage": 10
+    }
+  }
+}
+```
+
+**Example Requests:**
+
+```http
+# Get all diseases
+GET /diseases
+
+# Search by symptoms
+GET /diseases?symptoms=จุดแดง,ครีบเน่า
+
+# Filter by category
+GET /diseases?category=แบคทีเรีย
+
+# Combined search
+GET /diseases?symptoms=ซึม&category=ปรสิต&page=1&limit=5
+```
+
+---
+
+### GET `/diseases/:id`
+
+Get detailed information for a specific disease by ID.
+
+- **Auth:** Required (any authenticated user)
+- **Path Parameters:**
+  - `id` (string, required): Disease UUID
+
+- **Response:**
+```json
+{
+  "data": {
+    "id": "uuid-1",
+    "name": "โรคจุดขาว (White Spot Disease)",
+    "category": "ปรสิต",
+    "icon": "🔬",
+    "symptoms": "• มีจุดขาวขนาดเล็กเหมือนเกลือ บนตัว ครีบ เหงือก\n• ปลาเสียดสีตัวกับพื้นบ่อหรือผนังบ่อ\n• ครีบชีบๆ แบมๆ กระตุก\n• ผลิตเมือกมากผิดปกติ ผิวหนังมัว...",
+    "causes": "สาเหตุ: ปรสิตโปรโตซัว Ichthyophthirius multifiliis\nปัจจัยเสี่ยง:\n• อุณหภูมิน้ำต่ำ (15-25°C)\n• คุณภาพน้ำเลว...",
+    "treatment": "การรักษา:\n1. เพิ่มอุณหภูมิน้ำเป็น 30-32°C (ช้าๆ 1-2°C/วัน)\n2. ใช้น้ำเกลือบริสุทธิ์ (NaCl):\n   - แช่น้ำเกลือ 10-15 ppt...",
+    "prevention": "มาตรการป้องกัน:\n• กักกันปลาใหม่ 14-21 วัน ก่อนนำลงบ่อ\n• ตรวจดูจุดขาวอย่างละเอียดก่อนซื้อปลา...",
+    "treatmentSummary": "เพิ่มอุณหภูมิ แช่น้ำเกลือ/ฟอร์มาลิน/มาลาไคต์กรีน เปลี่ยนน้ำบ่อย และกักกัน",
+    "tags": [
+      { "id": "tag-10", "label": "จุดขาว" },
+      { "id": "tag-11", "label": "คันเสียดสี" },
+      { "id": "tag-12", "label": "เหงือกบวม" }
+    ],
+    "createdAt": "2025-12-16T00:00:00.000Z",
+    "updatedAt": "2025-12-16T00:00:00.000Z"
+  }
+}
+```
+
+**Error Responses:**
+
+```json
+// 404 Not Found
+{
+  "message": "Disease not found"
+}
+```
+
+---
+
+### Disease Categories
+
+The system includes 5 disease categories:
+
+| Category (Thai) | Category (English) | Description |
+| --- | --- | --- |
+| `แบคทีเรีย` | Bacteria | Bacterial infections (e.g., Aeromonas, Streptococcus) |
+| `ปรสิต` | Parasites | Parasitic infections (e.g., White Spot, Anchor Worm) |
+| `เชื้อรา` | Fungi | Fungal infections (e.g., Saprolegnia) |
+| `โภชนาการ` | Nutrition | Nutritional deficiencies (e.g., vitamin deficiency) |
+| `สิ่งแวดล้อม` | Environment | Environmental stress (e.g., poor water quality) |
+
+---
+
+### Pre-configured Diseases
+
+The system comes with 9 common catfish diseases:
+
+1. **โรคเอโรโมนัส** (Motile Aeromonas Septicemia) - แบคทีเรีย
+2. **โรคเอ็ดเวิดส์ซิเอลลา** (Edwardsiellosis) - แบคทีเรีย
+3. **โรคสเตรปโตคอคคัส** (Streptococcosis) - แบคทีเรีย
+4. **โรคจุดขาว** (White Spot Disease) - ปรสิต
+5. **โรคหนอนสมอ** (Anchor Worm) - ปรสิต
+6. **โรคเหงือกเน่า** (Columnaris Disease) - แบคทีเรีย
+7. **โรคขาดสารอาหาร** (Nutritional Deficiency) - โภชนาการ
+8. **โรคเชื้อรา** (Saprolegniasis) - เชื้อรา
+9. **อาการเครียด** (Stress Syndrome) - สิ่งแวดล้อม
+
+Each disease includes comprehensive information on symptoms, causes, treatment protocols, and prevention measures tailored for Thai catfish farmers.
+
+---
+
 ## Error Handling
 - `401` if JWT missing/invalid.
 - `403` if role not permitted.
@@ -1618,6 +1776,42 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 - Air-water temperature correlation documented (air = water + 5-7°C)
 - Research references added (Tucker & Hargreaves 2004, Boyd & Tucker 1998, Thailand DOF 2018)
 - Temperature zones aligned with Pathum Thani seasonal patterns
+
+---
+
+### Version 1.1.0 (2025-12-16)
+
+**🏥 Disease Intelligence System**
+
+**Added:**
+- **Disease Analyzer API**: New `/diseases` endpoints for intelligent disease diagnosis
+- Comprehensive disease database with 9 common catfish diseases:
+  - Motile Aeromonas Septicemia (โรคเอโรโมนัส)
+  - Edwardsiellosis (โรคเอ็ดเวิดส์ซิเอลลา)
+  - Streptococcosis (โรคสเตรปโตคอคคัส)
+  - White Spot Disease (โรคจุดขาว)
+  - Anchor Worm (โรคหนอนสมอ)
+  - Columnaris Disease (โรคเหงือกเน่า)
+  - Nutritional Deficiency (โรคขาดสารอาหาร)
+  - Saprolegniasis (โรคเชื้อรา)
+  - Stress Syndrome (อาการเครียด)
+- Multi-symptom search with fuzzy matching (Thai language support)
+- Category-based filtering: แบคทีเรีย, ปรสิต, เชื้อรา, โภชนาการ, สิ่งแวดล้อม
+- Tag-based symptom search for quick diagnosis
+- Detailed disease information: symptoms, causes, treatment, prevention
+- Treatment summaries and recommendations
+- Database seeding script (`prisma/seed.ts`) for automated disease data population
+
+**Database:**
+- Added `Disease` model with fields: name, category, icon, symptoms, causes, treatment, prevention, treatmentSummary
+- Added `DiseaseTag` model for symptom-based search optimization
+- Migration: `20251216155036_disease_analyzer`
+- Added unique constraint on disease names
+
+**Technical:**
+- Fuzzy search implementation for Thai symptom text
+- Case-insensitive search across multiple fields
+- Efficient tag-based querying with Prisma relations
 
 ---
 

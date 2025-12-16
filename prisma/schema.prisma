@@ -452,4 +452,57 @@ model DiseasePhoto {
   @@map("disease_photos")
 }
 
+model Disease {
+  id               String            @id @default(cuid())
+  name             String            @unique
+  category         String
+  symptoms         String
+  causes           String?
+  treatment        String?
+  prevention       String?
+  icon             String?
+  treatmentSummary String?
+  tags             DiseaseSymptom[]
+  matches          DiseaseMatch[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @default(now()) @updatedAt
+}
+
+model DiseaseSymptom {
+  id        String   @id @default(cuid())
+  label     String
+  disease   Disease  @relation(fields: [diseaseId], references: [id], onDelete: Cascade)
+  diseaseId String
+}
+
+model UploadedFile {
+  id        String   @id @default(cuid())
+  filePath  String
+  mimeType  String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+  analysisRequests DiseaseAnalysisRequest[]
+}
+
+model DiseaseAnalysisRequest {
+  id          String          @id @default(cuid())
+  symptomText String
+  symptomTags String[]
+  photoId     String?
+  photo       UploadedFile?   @relation(fields: [photoId], references: [id])
+  createdAt   DateTime        @default(now())
+  matches     DiseaseMatch[]
+}
+
+model DiseaseMatch {
+  id         String                   @id @default(cuid())
+  request    DiseaseAnalysisRequest   @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId  String
+  disease    Disease                  @relation(fields: [diseaseId], references: [id], onDelete: Cascade)
+  diseaseId  String
+  score      Float
+  rank       Int
+  createdAt  DateTime                 @default(now())
+}
+
 

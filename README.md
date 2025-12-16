@@ -36,6 +36,7 @@ DukeFarm Backend provides a comprehensive RESTful API for managing catfish farmi
 - **🔬 Researcher Portal**: Survey management and data collection for agricultural research
 - **🍽️ Feed Formula Management**: CRUD operations for feeding formulas with stage-based recommendations
 - **📈 Smart Analytics**: Temperature-based feeding adjustments with percentage-based recommendations
+- **🏥 Disease Intelligence**: AI-powered disease diagnosis with 9 pre-configured diseases and symptom-based search
 
 ## ✨ Features
 
@@ -66,10 +67,21 @@ DukeFarm Backend provides a comprehensive RESTful API for managing catfish farmi
 - Survey listing with pagination
 - Detailed survey reports
 
+### Disease Intelligence & Diagnosis
+- **AI-Powered Disease Analyzer**: Intelligent symptom-based disease diagnosis system
+- Comprehensive disease database with 9 common catfish diseases
+- Multi-symptom search with fuzzy matching (supports Thai language)
+- Category filtering: bacteria, parasites, fungi, nutrition, environment
+- Detailed disease information: symptoms, causes, treatment, prevention
+- Treatment summaries and actionable recommendations
+- Tag-based symptom search for quick diagnosis
+- Database seeding with pre-configured disease data
+
 ### Admin Panel
 - Farmer list with registration status
 - Researcher management
 - Feed formula CRUD operations
+- Disease database management
 - System health monitoring
 
 ## 🏗️ Architecture
@@ -251,6 +263,9 @@ npm run prisma:generate
 
 # Run database migrations
 npm run prisma:migrate
+
+# Seed database with disease data (required for Disease Analyzer)
+npm run prisma:seed
 
 # Verify database schema
 npx prisma studio  # Opens GUI at http://localhost:5555
@@ -615,6 +630,7 @@ DukeFarm-Backend/
 | `npm run lint` | Type-check without emitting files |
 | `npm run prisma:generate` | Regenerate Prisma Client from schema |
 | `npm run prisma:migrate` | Create and apply new migration |
+| `npm run prisma:seed` | Seed database with disease data |
 | `npm test` | Run test suite (placeholder) |
 
 ## 🔐 Environment Variables Reference
@@ -657,6 +673,7 @@ Before running the application for the first time:
 - [ ] **Dependencies** installed via `npm install`
 - [ ] **Prisma Client** generated via `npm run prisma:generate`
 - [ ] **Database migrations** applied via `npm run prisma:migrate`
+- [ ] **Disease database** seeded via `npm run prisma:seed`
 - [ ] **JWT secret** generated (32+ random bytes)
 - [ ] **LINE callback URL** matches between `.env` and LINE Console
 - [ ] **Health check** passes: `GET http://localhost:4000/api/v1/health`
@@ -668,6 +685,7 @@ Before running the application for the first time:
 npm install
 npm run prisma:generate
 npm run prisma:migrate
+npm run prisma:seed
 npm run dev
 
 # Verify server is running
