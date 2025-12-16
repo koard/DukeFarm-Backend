@@ -124,4 +124,65 @@ export const DiseaseAnalyzerService = {
       },
     });
   },
+
+  searchDiseases: async ({
+    symptoms,
+    category,
+    page,
+    limit,
+  }: {
+    symptoms?: string;
+    category?: string;
+    page: number;
+    limit: number;
+  }) => {
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+
+    if (category) {
+      where.category = category;
+    }
+
+    if (symptoms) {
+      const terms = tokenize(symptoms);
+      where.OR = [
+        { name: { contains: symptoms, mode: 'insensitive' } },
+        { symptoms: { contains: symptoms, mode: 'insensitive' } },
+        { tags: { some: { label: { in: terms, mode: 'insensitive' } } } },
+      ];
+    }
+
+    const [data, totalItems] = await Promise.all([
+      prisma.disease.findMany({
+        where,
+        skip,
+        take: limit,
+        include: {
+          tags: true,
+        },
+        orderBy: { name: 'asc' },
+      }),
+      prisma.disease.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalItems / limit),
+        totalItems,
+        itemsPerPage: limit,
+      },
+    };
+  },
+
+  getDisease: async (id: string) => {
+    return prisma.disease.findUnique({
+      where: { id },
+      include: {
+        tags: true,
+      },
+    });
+  },
 };

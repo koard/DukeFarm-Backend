@@ -28,6 +28,11 @@ const upload = multer({
 
 const diseaseAnalyzerRouter = Router();
 
+// Disease database endpoints
+diseaseAnalyzerRouter.get('/diseases', DiseaseAnalyzerController.searchDiseases);
+diseaseAnalyzerRouter.get('/diseases/:id', DiseaseAnalyzerController.getDisease);
+
+// Disease analyzer endpoints
 diseaseAnalyzerRouter.post('/disease-analyzer', upload.single('photo'), DiseaseAnalyzerController.analyze);
 diseaseAnalyzerRouter.get('/disease-analyzer/:id', DiseaseAnalyzerController.getResult);
 
