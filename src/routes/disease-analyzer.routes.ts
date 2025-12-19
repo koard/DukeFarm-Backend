@@ -33,6 +33,7 @@ diseaseAnalyzerRouter.get('/diseases', DiseaseAnalyzerController.searchDiseases)
 diseaseAnalyzerRouter.get('/diseases/:id', DiseaseAnalyzerController.getDisease);
 
 // Disease analyzer endpoints
+diseaseAnalyzerRouter.get('/symptoms', DiseaseAnalyzerController.getSymptomChips);
 diseaseAnalyzerRouter.post('/disease-analyzer', upload.single('photo'), DiseaseAnalyzerController.analyze);
 diseaseAnalyzerRouter.get('/disease-analyzer/:id', DiseaseAnalyzerController.getResult);
 

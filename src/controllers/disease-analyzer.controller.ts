@@ -44,7 +44,7 @@ export const DiseaseAnalyzerController = {
 
   searchDiseases: async (req: AuthenticatedRequest, res: Response) => {
     const { symptoms, category, page = '1', limit = '10' } = req.query;
-    
+
     const pageNum = parseInt(page as string, 10);
     const limitNum = parseInt(limit as string, 10);
 
@@ -85,5 +85,10 @@ export const DiseaseAnalyzerController = {
     if (!disease) return res.status(404).json({ message: 'Disease not found' });
 
     return res.json({ data: disease });
+  },
+
+  getSymptomChips: async (req: AuthenticatedRequest, res: Response) => {
+    const chips = await DiseaseAnalyzerService.getSymptomChips();
+    return res.json({ data: chips });
   },
 };

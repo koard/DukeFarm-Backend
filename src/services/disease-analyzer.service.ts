@@ -1,9 +1,10 @@
+import Fuse from 'fuse.js';
 import { prisma } from '../clients/prisma';
 
 interface AnalyzeInput {
   symptomText: string;
   symptomTags: string[];
-  file?: Express.Multer.File | undefined;
+  file?: any;
 }
 
 interface DiseaseProfile {
@@ -11,7 +12,9 @@ interface DiseaseProfile {
   name: string;
   category: string;
   treatmentSummary: string;
-  bag: string[];
+  allTerms: string[];  // For fuzzy search
+  tags: string[];      // For exact tag matching
+  symptoms: string;
 }
 
 const tokenize = (text: string) =>
@@ -20,13 +23,6 @@ const tokenize = (text: string) =>
     .replace(/[^a-zA-Z\u0E00-\u0E7F0-9\s]/g, ' ')
     .split(/\s+/)
     .filter(Boolean);
-
-const simpleScore = (requestTerms: string[], bag: string[]) => {
-  const setReq = new Set(requestTerms);
-  const setBag = new Set(bag);
-  const intersection = [...setReq].filter((t) => setBag.has(t)).length;
-  return setReq.size ? intersection / setReq.size : 0;
-};
 
 export const DiseaseAnalyzerService = {
   analyze: async ({ symptomText, symptomTags, file }: AnalyzeInput) => {
@@ -55,42 +51,115 @@ export const DiseaseAnalyzerService = {
       include: { tags: true },
     });
 
+    // 1. Prepare Disease Profiles for Fuzzy Searching
     const profiles: DiseaseProfile[] = diseases.map((d) => ({
       id: d.id,
       name: d.name,
       category: d.category,
       treatmentSummary: d.treatmentSummary ?? d.treatment?.slice(0, 140) ?? '',
-      bag: [
-        ...tokenize(d.symptoms ?? ''),
-        ...tokenize(d.causes ?? ''),
-        ...tokenize(d.treatment ?? ''),
-        ...tokenize(d.prevention ?? ''),
-        ...d.tags.map((t) => t.label.toLowerCase()),
-      ],
+      symptoms: d.symptoms ?? '',
+      tags: d.tags.map((t) => t.label),
+      allTerms: [
+        d.name,
+        d.symptoms ?? '',
+        d.causes ?? '',
+        ...d.tags.map((t) => t.label),
+      ].filter(Boolean),
     }));
 
-    const reqTerms = [
-      ...tokenize(symptomText),
-      ...symptomTags.map((t) => t.toLowerCase()),
-    ];
+    // 2. Setup Fuse.js for Symptom/Text Matching
+    const fuse = new Fuse(profiles, {
+      keys: ['allTerms', 'tags'],
+      includeScore: true,
+      threshold: 0.5, // Slightly relaxed threshold
+      ignoreLocation: true,
+      useExtendedSearch: true,
+    });
 
-    const scored = profiles
-      .map((p) => ({ ...p, score: simpleScore(reqTerms, p.bag) }))
-      .filter((p) => p.score > 0)
+    // 3. Score Calculation
+    // Map to track scores per disease
+    const diseaseScores = new Map<string, { score: number; reasons: string[] }>();
+
+    // Initialize scores
+    profiles.forEach(p => diseaseScores.set(p.id, { score: 0, reasons: [] }));
+
+    // --- A. Evaluation from Fuzzy Text (Typo tolerant) ---
+    // Split input into tokens and search each
+    if (symptomText) {
+      // Simple split by whitespace for now. 
+      // Note: Thai text often has no spaces, but users might separate key symptoms or we can rely on partial matches.
+      const tokens = symptomText.split(/\s+/).filter(t => t.length > 1);
+
+      tokens.forEach(token => {
+        const results = fuse.search(token);
+        results.forEach(res => {
+          // Score is 0..1 (0 is best). We want confidence 0..1 (1 is best).
+          // We filter meaningful matches
+          if (res.score !== undefined && res.score < 0.6) {
+            const confidence = (1 - res.score);
+            const current = diseaseScores.get(res.item.id)!;
+            // Add weighted score per matched token
+            // Weight: 0.3 per matched token? 
+            current.score += confidence * 0.3;
+
+            // Avoid duplicate reasons for same token/disease combo? 
+            // Just add general reason
+            if (!current.reasons.includes(`Text Match: ${token}`)) {
+              current.reasons.push(`Text Match: ${token}`);
+            }
+          }
+        });
+      });
+    }
+
+    // --- B. Evaluation from Tags (Chips) ---
+    if (symptomTags && symptomTags.length > 0) {
+      profiles.forEach(disease => {
+        const diseaseTags = new Set(disease.tags.map(t => t.toLowerCase()));
+        let matchedTagsCount = 0;
+        symptomTags.forEach(uq => {
+          if (diseaseTags.has(uq.toLowerCase())) {
+            matchedTagsCount++;
+          }
+        });
+
+        if (matchedTagsCount > 0) {
+          const current = diseaseScores.get(disease.id)!;
+          // High weight for explicit tags
+          current.score += (matchedTagsCount / symptomTags.length) * 1.5;
+          current.reasons.push(`Tags Match: ${matchedTagsCount}/${symptomTags.length}`);
+        }
+      });
+    }
+
+    // 4. Sort and Filter
+    const sorted = profiles
+      .map(p => {
+        const s = diseaseScores.get(p.id)!;
+        return {
+          diseaseId: p.id,
+          name: p.name,
+          category: p.category,
+          treatmentSummary: p.treatmentSummary,
+          score: s.score,
+          reasons: s.reasons
+        };
+      })
+      .filter((s) => s.score > 0.1) // Filter out very low confidence
       .sort((a, b) => b.score - a.score)
       .slice(0, 5)
-      .map((p, idx) => ({
-        diseaseId: p.id,
-        name: p.name,
-        category: p.category,
-        treatmentSummary: p.treatmentSummary,
-        score: p.score,
+      .map((s, idx) => ({
+        diseaseId: s.diseaseId,
+        name: s.name,
+        category: s.category,
+        treatmentSummary: s.treatmentSummary,
+        score: Math.min(s.score, 1.0), // Cap at 1.0 for UI display if needed, or leave raw
         rank: idx + 1,
       }));
 
-    if (scored.length) {
+    if (sorted.length) {
       await prisma.$transaction(
-        scored.map((s) =>
+        sorted.map((s) =>
           prisma.diseaseMatch.create({
             data: {
               requestId: request.id,
@@ -108,7 +177,7 @@ export const DiseaseAnalyzerService = {
       photoPath: photoId
         ? (await prisma.uploadedFile.findUnique({ where: { id: photoId } }))?.filePath ?? null
         : null,
-      results: scored,
+      results: sorted,
     };
   },
 
@@ -184,5 +253,23 @@ export const DiseaseAnalyzerService = {
         tags: true,
       },
     });
+  },
+
+  getSymptomChips: async () => {
+    // Return curated chips for frontend "Quick Select"
+    return [
+      {
+        category: 'อาการทั่วไป',
+        chips: ['เบื่ออาหาร', 'ว่ายหมุน', 'ลอยหัว', 'ซึม', 'แฉลบ/ถูตัว']
+      },
+      {
+        category: 'ลักษณะภายนอก',
+        chips: ['จุดขาว', 'แผลเลือดออก', 'ท้องบวม', 'ตาโปน', 'ตัวผอม', 'เกล็ดหลุด']
+      },
+      {
+        category: 'อวัยวะ',
+        chips: ['ครีบเปื่อย', 'หางเปื่อย', 'ปากขาว', 'เหงือกซีด']
+      }
+    ];
   },
 };
