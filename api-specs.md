@@ -1557,6 +1557,79 @@ Get detailed information for a specific disease by ID.
 }
 ```
 
+
+---
+
+### GET `/symptoms`
+
+Get curated list of symptom chips categorized for quick selection.
+
+- **Auth:** Required (any authenticated user)
+- **Response:**
+```json
+{
+  "data": [
+    {
+      "category": "อาการทั่วไป",
+      "chips": ["เบื่ออาหาร", "ว่ายหมุน", "ลอยหัว", "ซึม", "แฉลบ/ถูตัว"]
+    },
+    {
+      "category": "ลักษณะภายนอก",
+      "chips": ["จุดขาว", "แผลเลือดออก", "ท้องบวม", "ตาโปน", "ตัวผอม", "เกล็ดหลุด"]
+    },
+    {
+      "category": "อวัยวะ",
+      "chips": ["ครีบเปื่อย", "หางเปื่อย", "ปากขาว", "เหงือกซีด"]
+    }
+  ]
+}
+```
+
+---
+
+### POST `/disease-analyzer`
+
+Analyze fish disease from symptoms and/or photo. Uses AI fuzzy logic scoring.
+
+- **Auth:** Required
+- **Content-Type:** `multipart/form-data`
+- **Body Parameters:**
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `symptomText` | string | Optional | Description of symptoms (e.g., "ปามีแผลเลืดออก") |
+| `symptomTags` | string[] | Optional | Array of selected symptom chips |
+| `photo` | file | Optional | Image file for analysis (Future implementation) |
+
+- **Response:**
+```json
+{
+  "data": {
+    "requestId": "uuid",
+    "photoPath": "/uploads/file.jpg",
+    "results": [
+      {
+        "diseaseId": "uuid",
+        "name": "โรคจุดขาว (White Spot Disease)",
+        "score": 0.95,
+        "rank": 1,
+        "reasons": ["Text Match: เลือดออก", "Tags Match: 2/2"]
+      }
+    ]
+  }
+}
+```
+
+---
+
+### GET `/disease-analyzer/:id`
+
+Get analysis result history.
+
+- **Auth:** Required
+- **Path Parameters:**
+  - `id` (string, required): Analysis Result UUID
+
 ---
 
 ### Disease Categories
