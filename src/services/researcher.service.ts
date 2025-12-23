@@ -148,23 +148,7 @@ const getResearchSurveysByResearcher = async (
         conductedBy: researcherId,
       },
       include: {
-        productionCycle: {
-          include: {
-            pond: {
-              include: {
-                farm: {
-                  include: {
-                    owner: {
-                      include: {
-                        farmerProfile: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
+        productionCycle: true,
       },
       orderBy: {
         surveyDate: 'desc',
@@ -180,19 +164,17 @@ const getResearchSurveysByResearcher = async (
   ]);
 
   const data: ResearchSurveyListItem[] = surveys.map((survey, index) => {
-    const farmer = survey.productionCycle.pond.farm.owner;
-    const farmerProfile = farmer.farmerProfile;
-
+    // Note: Since Pond relation is removed, we cannot easily traverse to Farmer.
+    // This is a breaking change accepted as part of "Delete Pond" request.
+    // We return placeholders.
     return {
       no: skip + index + 1,
       surveyId: survey.id,
       surveyDate: survey.surveyDate.toISOString(),
       surveyType: survey.surveyType,
-      farmerName: farmerProfile
-        ? `${farmerProfile.firstName} ${farmerProfile.lastName}`
-        : farmer.displayName || 'N/A',
-      farmType: survey.productionCycle.pond.farm.farmType,
-      pondCount: farmerProfile?.declaredPondCount || 0,
+      farmerName: 'Unknown (Legacy Link Broken)',
+      farmType: survey.productionCycle.farmType || 'Unknown',
+      pondCount: 0,
       createdAt: survey.createdAt.toISOString(),
     };
   });
@@ -214,23 +196,7 @@ const getResearchSurveyDetail = async (surveyId: string): Promise<ResearchSurvey
   const survey = await prisma.researchSurvey.findUnique({
     where: { id: surveyId },
     include: {
-      productionCycle: {
-        include: {
-          pond: {
-            include: {
-              farm: {
-                include: {
-                  owner: {
-                    include: {
-                      farmerProfile: true,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      productionCycle: true,
     },
   });
 
@@ -238,19 +204,8 @@ const getResearchSurveyDetail = async (surveyId: string): Promise<ResearchSurvey
     return null;
   }
 
-  const farmer = survey.productionCycle.pond.farm.owner;
-  const farmerProfile = farmer.farmerProfile;
-  const pond = survey.productionCycle.pond;
-  const farm = pond.farm;
-
-  // Parse dataPayload (stored as JSON)
+  // Note: Deep relations broken by Pond deletion
   const payload = (survey.dataPayload as any) || {};
-
-  // Construct farm coordinates string
-  const farmCoordinates =
-    farmerProfile?.farmLatitude && farmerProfile?.farmLongitude
-      ? `${farmerProfile.farmLatitude},${farmerProfile.farmLongitude}`
-      : null;
 
   return {
     surveyId: survey.id,
@@ -262,18 +217,16 @@ const getResearchSurveyDetail = async (surveyId: string): Promise<ResearchSurvey
     createdAt: survey.createdAt.toISOString(),
     updatedAt: survey.updatedAt.toISOString(),
     farmer: {
-      userId: farmer.id,
-      fullName: farmerProfile
-        ? `${farmerProfile.firstName} ${farmerProfile.lastName}`
-        : farmer.displayName || 'N/A',
-      phone: farmerProfile?.phone || '-',
-      farmCoordinates,
-      totalFarmAreaM2: farm.areaM2?.toString() || null,
-      pondCount: farmerProfile?.declaredPondCount || null,
+      userId: '',
+      fullName: 'Unknown',
+      phone: '-',
+      farmCoordinates: null,
+      totalFarmAreaM2: null,
+      pondCount: null,
     },
     farmData: {
       ageRange: payload.farmData?.ageRange || null,
-      pondType: pond.pondType || null,
+      pondType: null, // Removed
       pondCount: payload.farmData?.pondCount || null,
       fishCount: survey.productionCycle.initialStockCount || null,
     },

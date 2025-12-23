@@ -96,7 +96,7 @@ model Farm {
   latitude     Float?
   longitude    Float?
   areaM2       Decimal? @map("area_m2") @db.Decimal(10, 2)
-  ponds        Pond[]
+
   feedFormulas FeedFormula[]
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
@@ -105,27 +105,11 @@ model Farm {
   @@map("farms")
 }
 
-model Pond {
-  id               String             @id @default(uuid()) @db.Uuid
-  farmId           String             @map("farm_id") @db.Uuid
-  farm             Farm               @relation(fields: [farmId], references: [id])
-  name             String
-  pondType         PondType           @map("pond_type")
-  areaM2           Decimal?           @map("area_m2") @db.Decimal(10, 2)
-  maxDepthM        Decimal?           @map("max_depth_m") @db.Decimal(10, 2)
-  notes            String?
-  productionCycles ProductionCycle[]
-  createdAt        DateTime           @default(now()) @map("created_at")
-  updatedAt        DateTime           @default(now()) @updatedAt @map("updated_at")
 
-  @@index([farmId])
-  @@map("ponds")
-}
 
 model ProductionCycle {
   id                  String                 @id @default(uuid()) @db.Uuid
-  pondId              String                 @map("pond_id") @db.Uuid
-  pond                Pond                   @relation(fields: [pondId], references: [id])
+
   startDate           DateTime               @map("start_date")
   endDate             DateTime?              @map("end_date")
   status              ProductionCycleStatus  @default(PLANNING)
@@ -140,7 +124,7 @@ model ProductionCycle {
   createdAt           DateTime               @default(now()) @map("created_at")
   updatedAt           DateTime               @default(now()) @updatedAt @map("updated_at")
 
-  @@index([pondId])
+
   @@index([status])
   @@map("production_cycles")
 }

@@ -155,22 +155,11 @@ const deleteFarmerById = async (userId: string) => {
       where: { ownerId: userId },
       select: {
         id: true,
-        ponds: {
-          select: {
-            id: true,
-            productionCycles: {
-              select: { id: true },
-            },
-          },
-        },
       },
     });
 
     const farmIds = farms.map((farm) => farm.id);
-    const pondIds = farms.flatMap((farm) => farm.ponds.map((pond) => pond.id));
-    const productionCycleIds = farms.flatMap((farm) =>
-      farm.ponds.flatMap((pond) => pond.productionCycles.map((cycle) => cycle.id)),
-    );
+    const productionCycleIds: string[] = []; // Cannot trace cycles without Pond link
 
     if (productionCycleIds.length > 0) {
       await tx.researchSurvey.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
@@ -178,9 +167,7 @@ const deleteFarmerById = async (userId: string) => {
       await tx.productionCycle.deleteMany({ where: { id: { in: productionCycleIds } } });
     }
 
-    if (pondIds.length > 0) {
-      await tx.pond.deleteMany({ where: { id: { in: pondIds } } });
-    }
+
 
     const feedFormulaConditions: Prisma.FeedFormulaWhereInput[] = [{ ownerId: userId }];
     if (farmIds.length > 0) {

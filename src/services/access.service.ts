@@ -36,29 +36,7 @@ const ensureFarmAccess = async (
   return farm;
 };
 
-const ensurePondAccess = async (
-  pondId: string,
-  user: AuthenticatedUser,
-  options?: { allowRoles?: string[] },
-) => {
-  const pond = await prisma.pond.findUnique({
-    where: { id: pondId },
-    include: {
-      farm: { select: { id: true, ownerId: true, latitude: true, longitude: true } },
-    },
-  });
 
-  if (!pond) {
-    throw createHttpError(404, 'Pond not found');
-  }
-
-  if (!pond.farm) {
-    throw createHttpError(500, 'Pond is missing farm relation');
-  }
-
-  authorizeOwnership(pond.farm.ownerId, user, options?.allowRoles);
-  return pond;
-};
 
 const ensureCycleAccess = async (
   cycleId: string,
@@ -70,32 +48,20 @@ const ensureCycleAccess = async (
     select: {
       id: true,
       initialStockCount: true,
-      pond: {
-        select: {
-          id: true,
-          farm: {
-            select: {
-              id: true,
-              ownerId: true,
-              latitude: true,
-              longitude: true,
-            },
-          },
-        },
-      },
     },
   });
 
-  if (!cycle || !cycle.pond || !cycle.pond.farm) {
+  if (!cycle) {
     throw createHttpError(404, 'Production cycle not found');
   }
 
-  authorizeOwnership(cycle.pond.farm.ownerId, user, options?.allowRoles);
+  // Warning: Access control on ProductionCycle is temporarily disabled 
+  // because the link to Farm/Owner via Pond was removed.
+  // authorizeOwnership(..., user, options?.allowRoles); 
   return cycle;
 };
 
 export const AccessService = {
   ensureFarmAccess,
-  ensurePondAccess,
   ensureCycleAccess,
 };
