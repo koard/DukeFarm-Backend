@@ -135,10 +135,6 @@ model ProductionCycle {
   notes               String?
   farmType            FarmType?              @map("farm_type")
   dailyRecords        DailyRecord[]
-  feedings            Feeding[]
-  growthMeasurements  GrowthMeasurement[]
-  mortalities         Mortality[]
-  treatments          Treatment[]
   researchSurveys     ResearchSurvey[]
   diseaseCases        DiseaseCase[]
   createdAt           DateTime               @default(now()) @map("created_at")
@@ -169,23 +165,6 @@ model DailyRecord {
   @@map("daily_records")
 }
 
-model FeedType {
-  id             String                 @id @default(uuid()) @db.Uuid
-  name           String
-  brand          String?
-  pelletSizeMm   Float?                 @map("pellet_size_mm")
-  proteinPercent Float?                 @map("protein_percent")
-  lipidPercent   Float?                 @map("lipid_percent")
-  notes          String?
-  feedings       Feeding[]
-  ingredients    FeedFormulaIngredient[]
-  createdAt      DateTime               @default(now()) @map("created_at")
-  updatedAt      DateTime               @default(now()) @updatedAt @map("updated_at")
-
-  @@unique([name, brand])
-  @@map("feed_types")
-}
-
 model FeedFormula {
   id              String                   @id @default(uuid()) @db.Uuid
   name            String
@@ -197,98 +176,13 @@ model FeedFormula {
   ownerId         String?                  @map("owner_id") @db.Uuid
   farm            Farm?                    @relation(fields: [farmId], references: [id])
   owner           User?                    @relation(fields: [ownerId], references: [id])
-  ingredients     FeedFormulaIngredient[]
-  feedings        Feeding[]
   createdAt       DateTime                 @default(now()) @map("created_at")
   updatedAt       DateTime                 @default(now()) @updatedAt @map("updated_at")
 
   @@map("feed_formulas")
 }
 
-model FeedFormulaIngredient {
-  id            String      @id @default(uuid()) @db.Uuid
-  feedFormulaId String      @map("feed_formula_id") @db.Uuid
-  feedTypeId    String      @map("feed_type_id") @db.Uuid
-  inclusionPct  Float       @map("inclusion_pct")
-  feedFormula   FeedFormula @relation(fields: [feedFormulaId], references: [id])
-  feedType      FeedType    @relation(fields: [feedTypeId], references: [id])
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @default(now()) @updatedAt @map("updated_at")
 
-  @@unique([feedFormulaId, feedTypeId])
-  @@map("feed_formula_ingredients")
-}
-
-model Feeding {
-  id                String          @id @default(uuid()) @db.Uuid
-  productionCycleId String          @map("production_cycle_id") @db.Uuid
-  productionCycle   ProductionCycle @relation(fields: [productionCycleId], references: [id])
-  feedTypeId        String?         @map("feed_type_id") @db.Uuid
-  feedFormulaId     String?         @map("feed_formula_id") @db.Uuid
-  feedType          FeedType?       @relation(fields: [feedTypeId], references: [id])
-  feedFormula       FeedFormula?    @relation(fields: [feedFormulaId], references: [id])
-  feedingTime       DateTime        @map("feeding_time")
-  quantityKg        Decimal         @map("quantity_kg") @db.Decimal(10, 2)
-  moisturePercent   Float?          @map("moisture_percent")
-  notes             String?
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @default(now()) @updatedAt @map("updated_at")
-
-  @@index([productionCycleId, feedingTime])
-  @@map("feedings")
-}
-
-model GrowthMeasurement {
-  id                  String            @id @default(uuid()) @db.Uuid
-  productionCycleId   String            @map("production_cycle_id") @db.Uuid
-  productionCycle     ProductionCycle   @relation(fields: [productionCycleId], references: [id])
-  measurementDate     DateTime          @map("measurement_date")
-  sampleSize          Int?              @map("sample_size")
-  averageWeightKg     Decimal?          @map("average_weight_kg") @db.Decimal(8, 3)
-  lengthCm            Float?            @map("length_cm")
-  survivalRatePercent Float?            @map("survival_rate_percent")
-  notes               String?
-  createdAt           DateTime          @default(now()) @map("created_at")
-  updatedAt           DateTime          @default(now()) @updatedAt @map("updated_at")
-
-  @@index([productionCycleId, measurementDate])
-  @@map("growth_measurements")
-}
-
-model Mortality {
-  id                String          @id @default(uuid()) @db.Uuid
-  productionCycleId String          @map("production_cycle_id") @db.Uuid
-  productionCycle   ProductionCycle @relation(fields: [productionCycleId], references: [id])
-  eventDate         DateTime        @map("event_date")
-  count             Int
-  cause             String?
-  notes             String?
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @default(now()) @updatedAt @map("updated_at")
-
-  @@index([productionCycleId, eventDate])
-  @@map("mortalities")
-}
-
-model Treatment {
-  id                String          @id @default(uuid()) @db.Uuid
-  productionCycleId String          @map("production_cycle_id") @db.Uuid
-  productionCycle   ProductionCycle @relation(fields: [productionCycleId], references: [id])
-  diseaseCaseId     String?         @map("disease_case_id") @db.Uuid
-  diseaseCase       DiseaseCase?    @relation(fields: [diseaseCaseId], references: [id])
-  treatmentDate     DateTime        @map("treatment_date")
-  treatmentType     String          @map("treatment_type")
-  productName       String?         @map("product_name")
-  dosage            String?
-  administeredBy    String?         @map("administered_by")
-  notes             String?
-  createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @default(now()) @updatedAt @map("updated_at")
-
-  @@index([productionCycleId, treatmentDate])
-  @@index([diseaseCaseId])
-  @@map("treatments")
-}
 
 model ResearchSurvey {
   id                  String          @id @default(uuid()) @db.Uuid
@@ -428,7 +322,6 @@ model DiseaseCase {
   status             DiseaseCaseStatus       @default(ACTIVE)
   notes              String?
   photos             DiseasePhoto[]
-  treatments         Treatment[]
   createdAt          DateTime                @default(now()) @map("created_at")
   updatedAt          DateTime                @default(now()) @updatedAt @map("updated_at")
 

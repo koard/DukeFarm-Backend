@@ -47,7 +47,7 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
       },
       include: {
         farmerProfile: true,
-         cultivationTypes: true,
+        cultivationTypes: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -174,10 +174,6 @@ const deleteFarmerById = async (userId: string) => {
 
     if (productionCycleIds.length > 0) {
       await tx.researchSurvey.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
-      await tx.treatment.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
-      await tx.mortality.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
-      await tx.growthMeasurement.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
-      await tx.feeding.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
       await tx.dailyRecord.deleteMany({ where: { productionCycleId: { in: productionCycleIds } } });
       await tx.productionCycle.deleteMany({ where: { id: { in: productionCycleIds } } });
     }
@@ -199,7 +195,7 @@ const deleteFarmerById = async (userId: string) => {
     const feedFormulaIds = feedFormulasToDelete.map((formula) => formula.id);
 
     if (feedFormulaIds.length > 0) {
-      await tx.feedFormulaIngredient.deleteMany({ where: { feedFormulaId: { in: feedFormulaIds } } });
+
       await tx.feedFormula.deleteMany({ where: { id: { in: feedFormulaIds } } });
     }
 
