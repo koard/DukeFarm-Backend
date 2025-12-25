@@ -1571,7 +1571,7 @@ Get curated list of symptom chips categorized for quick selection.
   "data": [
     {
       "category": "อาการทั่วไป",
-      "chips": ["เบื่ออาหาร", "ว่ายหมุน", "ลอยหัว", "ซึม", "แฉลบ/ถูตัว"]
+      "chips": ["เบื่ออาหาร", "ว่ายหมุน", "ลอยหัว", "ซึม", "ถูตัว"]
     },
     {
       "category": "ลักษณะภายนอก",
