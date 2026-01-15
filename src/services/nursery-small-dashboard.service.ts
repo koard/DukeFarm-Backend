@@ -89,17 +89,8 @@ const getLatestFishAge = async (
   const latestFishAgeLabel = entry?.fishAgeLabel ?? null;
   const recordedAgeDays = entry?.fishAgeDays ?? null;
 
-  let projectedAgeDays = recordedAgeDays;
-  if (recordedAgeDays !== null && entry?.recordedAt) {
-    const recordDate = new Date(entry.recordedAt);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - recordDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (now > recordDate) {
-      projectedAgeDays = recordedAgeDays + diffDays;
-    }
-  }
+  // Use recorded age directly. Frontend will handle real-time projection.
+  const projectedAgeDays = recordedAgeDays;
 
   return {
     latestFishAgeLabel,

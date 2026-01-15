@@ -212,17 +212,8 @@ const getLatestFishMetrics = async (userId: string): Promise<LatestFishMetrics> 
   const latestFishAgeDays = recentEntries[0]?.fishAgeDays ?? null;
 
   // Calculate projected age if we have a valid record date and age
-  let projectedAgeDays = latestFishAgeDays;
-  if (latestFishAgeDays !== null && recentEntries[0]?.recordedAt) {
-    const recordDate = new Date(recentEntries[0].recordedAt);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - recordDate.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    // If recorded in the past, add difference. If future (shouldn't happen), assume same age.
-    if (now > recordDate) {
-      projectedAgeDays = latestFishAgeDays + diffDays;
-    }
-  }
+  // Use recorded age directly. Frontend will handle real-time projection.
+  const projectedAgeDays = latestFishAgeDays;
 
   const latestHarvestStatus = recentEntries[0]?.harvestStatus ?? null;
   const latestHarvestStatusReason = recentEntries[0]?.harvestStatusReason ?? null;
