@@ -78,6 +78,7 @@ const getLatestFishAge = async (
     select: {
       fishAgeLabel: true,
       fishAgeDays: true,
+      recordedAt: true,
     },
     orderBy: {
       recordedAt: 'desc',
