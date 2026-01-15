@@ -84,9 +84,25 @@ const getLatestFishAge = async (
     },
   });
 
+  // Calculate projected age if we have a valid record date and age
+  const latestFishAgeLabel = entry?.fishAgeLabel ?? null;
+  const recordedAgeDays = entry?.fishAgeDays ?? null;
+
+  let projectedAgeDays = recordedAgeDays;
+  if (recordedAgeDays !== null && entry?.recordedAt) {
+    const recordDate = new Date(entry.recordedAt);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - recordDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (now > recordDate) {
+      projectedAgeDays = recordedAgeDays + diffDays;
+    }
+  }
+
   return {
-    latestFishAgeLabel: entry?.fishAgeLabel ?? null,
-    latestFishAgeDays: entry?.fishAgeDays ?? null,
+    latestFishAgeLabel,
+    latestFishAgeDays: projectedAgeDays,
   };
 };
 
