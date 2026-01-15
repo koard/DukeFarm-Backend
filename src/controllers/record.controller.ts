@@ -105,10 +105,10 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
 
     const weatherPayload = req.body?.weather
       ? {
-          temperatureC: req.body.weather.temperatureC !== undefined ? Number(req.body.weather.temperatureC) : null,
-          rainMm: req.body.weather.rainMm !== undefined ? Number(req.body.weather.rainMm) : null,
-          humidityPct: req.body.weather.humidityPct !== undefined ? Number(req.body.weather.humidityPct) : null,
-        }
+        temperatureC: req.body.weather.temperatureC !== undefined ? Number(req.body.weather.temperatureC) : null,
+        rainMm: req.body.weather.rainMm !== undefined ? Number(req.body.weather.rainMm) : null,
+        humidityPct: req.body.weather.humidityPct !== undefined ? Number(req.body.weather.humidityPct) : null,
+      }
       : null;
 
     if (weatherPayload) {

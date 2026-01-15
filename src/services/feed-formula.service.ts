@@ -5,7 +5,8 @@ type CreateFeedFormulaInput = {
   name: string;
   targetStage: string;
   farmType?: FarmType | null;
-  description?: string;
+  ingredients?: string;
+  instruction?: string;
   recommendations?: string;
   createdBy: string; // Admin user ID
 };
@@ -14,7 +15,8 @@ type UpdateFeedFormulaInput = {
   name?: string;
   targetStage?: string;
   farmType?: FarmType | null;
-  description?: string;
+  ingredients?: string;
+  instruction?: string;
   recommendations?: string;
 };
 
@@ -23,7 +25,8 @@ type FeedFormulaListItem = {
   name: string;
   targetStage: string;
   farmType: string | null;
-  description: string | null;
+  ingredients: string | null;
+  instruction: string | null;
   recommendations: string | null;
   createdBy: string;
   createdAt: string;
@@ -51,7 +54,8 @@ const createFeedFormula = async (input: CreateFeedFormulaInput) => {
       name: input.name,
       targetStage: input.targetStage,
       farmType: input.farmType ?? null,
-      description: input.description || null,
+      ingredients: input.ingredients || null,
+      instruction: input.instruction || null,
       recommendations: input.recommendations || null,
       ownerId: input.createdBy,
     },
@@ -61,7 +65,8 @@ const createFeedFormula = async (input: CreateFeedFormulaInput) => {
     id: formula.id,
     name: formula.name,
     targetStage: formula.targetStage,
-    description: formula.description,
+    ingredients: formula.ingredients,
+    instruction: formula.instruction,
     recommendations: formula.recommendations,
     createdBy: formula.ownerId || '',
     createdAt: formula.createdAt.toISOString(),
@@ -89,7 +94,8 @@ const getFeedFormulaList = async (params: PaginationParams): Promise<FeedFormula
     name: formula.name,
     targetStage: formula.targetStage || '',
     farmType: formula.farmType,
-    description: formula.description,
+    ingredients: formula.ingredients,
+    instruction: formula.instruction,
     recommendations: formula.recommendations,
     createdBy: formula.ownerId || '',
     createdAt: formula.createdAt.toISOString(),
@@ -123,7 +129,8 @@ const getFeedFormulaById = async (id: string) => {
     name: formula.name,
     targetStage: formula.targetStage,
     farmType: formula.farmType,
-    description: formula.description,
+    ingredients: formula.ingredients,
+    instruction: formula.instruction,
     recommendations: formula.recommendations,
     createdBy: formula.ownerId || '',
     createdAt: formula.createdAt.toISOString(),
@@ -138,7 +145,8 @@ const updateFeedFormula = async (id: string, input: UpdateFeedFormulaInput) => {
       ...(input.name && { name: input.name }),
       ...(input.targetStage && { targetStage: input.targetStage }),
       ...(input.farmType !== undefined && { farmType: input.farmType ?? null }),
-      ...(input.description !== undefined && { description: input.description || null }),
+      ...(input.ingredients !== undefined && { ingredients: input.ingredients || null }),
+      ...(input.instruction !== undefined && { instruction: input.instruction || null }),
       ...(input.recommendations !== undefined && { recommendations: input.recommendations || null }),
     },
   });
@@ -148,7 +156,8 @@ const updateFeedFormula = async (id: string, input: UpdateFeedFormulaInput) => {
     name: formula.name,
     targetStage: formula.targetStage,
     farmType: formula.farmType,
-    description: formula.description,
+    ingredients: formula.ingredients,
+    instruction: formula.instruction,
     recommendations: formula.recommendations,
     createdBy: formula.ownerId || '',
     createdAt: formula.createdAt.toISOString(),

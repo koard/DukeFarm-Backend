@@ -74,8 +74,8 @@ const fetchWeatherSnapshot = async (
 
   const hasCoordinates = Boolean(
     farmerProfile &&
-      typeof farmerProfile.farmLatitude === 'number' &&
-      typeof farmerProfile.farmLongitude === 'number',
+    typeof farmerProfile.farmLatitude === 'number' &&
+    typeof farmerProfile.farmLongitude === 'number',
   );
 
   if (!hasCoordinates || farmerProfile === null) {

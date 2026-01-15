@@ -26,7 +26,7 @@ const parseFarmType = (raw: unknown, allowUndefined = false): FarmType | null | 
 };
 
 const createFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
-  const { name, targetStage, description, recommendations, farmType: rawFarmType } = req.body;
+  const { name, targetStage, ingredients, instruction, recommendations, farmType: rawFarmType } = req.body;
 
   // Validation
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -39,8 +39,12 @@ const createFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
     });
   }
 
-  if (description !== undefined && typeof description !== 'string') {
-    return res.status(400).json({ message: 'Description must be a string' });
+  if (ingredients !== undefined && typeof ingredients !== 'string') {
+    return res.status(400).json({ message: 'Ingredients must be a string' });
+  }
+
+  if (instruction !== undefined && typeof instruction !== 'string') {
+    return res.status(400).json({ message: 'Instruction must be a string' });
   }
 
   if (recommendations !== undefined && typeof recommendations !== 'string') {
@@ -57,7 +61,8 @@ const createFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
   const result = await FeedFormulaService.createFeedFormula({
     name: name.trim(),
     targetStage: targetStage.trim(),
-    description: description?.trim(),
+    ingredients: ingredients?.trim(),
+    instruction: instruction?.trim(),
     recommendations: recommendations?.trim(),
     farmType,
     createdBy: req.user!.id,
@@ -100,7 +105,7 @@ const getFeedFormulaById = async (req: AuthenticatedRequest, res: Response) => {
 
 const updateFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
-  const { name, targetStage, description, recommendations, farmType: rawFarmType } = req.body;
+  const { name, targetStage, ingredients, instruction, recommendations, farmType: rawFarmType } = req.body;
 
   if (!id) {
     return res.status(400).json({ message: 'Feed formula ID is required' });
@@ -118,8 +123,12 @@ const updateFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
     return res.status(400).json({ message: 'Target stage must be a non-empty string' });
   }
 
-  if (description !== undefined && typeof description !== 'string') {
-    return res.status(400).json({ message: 'Description must be a string' });
+  if (ingredients !== undefined && typeof ingredients !== 'string') {
+    return res.status(400).json({ message: 'Ingredients must be a string' });
+  }
+
+  if (instruction !== undefined && typeof instruction !== 'string') {
+    return res.status(400).json({ message: 'Instruction must be a string' });
   }
 
   if (recommendations !== undefined && typeof recommendations !== 'string') {
@@ -137,13 +146,15 @@ const updateFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
     const payload: {
       name?: string;
       targetStage?: string;
-      description?: string;
+      ingredients?: string;
+      instruction?: string;
       recommendations?: string;
       farmType?: FarmType | null;
     } = {
       name: name?.trim(),
       targetStage: targetStage?.trim(),
-      description: description?.trim(),
+      ingredients: ingredients?.trim(),
+      instruction: instruction?.trim(),
       recommendations: recommendations?.trim(),
     };
 
