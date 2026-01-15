@@ -27,6 +27,7 @@ export type CreateEntryInput = {
   pondType?: PondType | null;
   pondCount?: number | null;
   fishCountText?: string | null;
+  foodAmountKg?: number | null;
   weather?: {
     temperatureC?: number | null;
     rainMm?: number | null;
@@ -206,6 +207,7 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
       fishCount: numericFishCount,
       fishCountText: normalizedFishCountText,
       averageFishWeightGr,
+      foodAmountKg: applyNumeric(input.foodAmountKg),
       weatherTemperatureC: applyNumeric(input.weather?.temperatureC ?? null),
       weatherRainMm: applyNumeric(input.weather?.rainMm ?? null),
       weatherHumidityPct: applyNumeric(input.weather?.humidityPct ?? null),

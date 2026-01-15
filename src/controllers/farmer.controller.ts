@@ -26,7 +26,15 @@ const getFarmerById = async (req: AuthenticatedRequest, res: Response, next: Nex
   }
 
   try {
-    const farmer = await FarmerService.getFarmerById(farmerId);
+    const farmType = req.query.farmType as string | undefined; // Optional farm type filter
+
+    // Validate farmType if provided
+    let validFarmType: any = undefined;
+    if (farmType && ['SMALL', 'LARGE', 'MARKET'].includes(farmType)) {
+      validFarmType = farmType;
+    }
+
+    const farmer = await FarmerService.getFarmerById(farmerId, validFarmType);
     return res.json({ data: farmer });
   } catch (error) {
     return next(error);

@@ -97,7 +97,43 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
   };
 };
 
-const getFarmerById = async (userId: string): Promise<FarmerListItem> => {
+
+type FarmerDetailStats = {
+  averageFishWeight: number | null; // will be null for now
+  survivalRate: number | null;
+  survivalRatePct: number | null; // For compatibility
+  latestFishAgeDays: number | null;
+  latestFishAgeLabel: string | null;
+  latestFishCount: number | null;
+  totalPonds: number | null;
+};
+
+type FarmerDetailEntry = {
+  id: string;
+  recordedAt: string;
+  fishAgeDays: number | null;
+  fishAgeLabel: string | null;
+  pondType: string | null;
+  pondCount: number | null;
+  fishCount: number | null;
+  fishCountText: string | null;
+  foodAmountKg: number | null; // null for now
+  weatherTemperatureC: number | null;
+  weatherRainMm: number | null;
+  weatherHumidityPct: number | null;
+  fishAverageWeight: number | null; // null for now
+};
+
+type FarmerDetailResponse = FarmerListItem & {
+  stats: FarmerDetailStats;
+  entries: FarmerDetailEntry[];
+  availableFarmTypes: FarmType[];
+};
+
+const getFarmerById = async (
+  userId: string,
+  farmTypeQuery?: FarmType,
+): Promise<FarmerDetailResponse> => {
   const farmer = await prisma.user.findFirst({
     where: {
       id: userId,
@@ -114,17 +150,73 @@ const getFarmerById = async (userId: string): Promise<FarmerListItem> => {
     throw createHttpError(404, 'Farmer not found');
   }
 
-  return {
+  // Determine which farm type to show
+  // 1. If query param provided, use it
+  // 2. Else use primary farm type
+  // 3. Else use first available cultivation type
+  // 4. Fallback to SMALL
+  let targetFarmType = farmTypeQuery;
+  if (!targetFarmType) {
+    targetFarmType =
+      farmer.farmerProfile?.primaryFarmType ||
+      farmer.cultivationTypes[0]?.farmType ||
+      FarmType.SMALL;
+  }
+
+  // Fetch ALL historical records for this user & farm type
+  const entries = await prisma.farmDataEntry.findMany({
+    where: {
+      userId,
+      farmType: targetFarmType,
+    },
+    orderBy: {
+      recordedAt: 'desc',
+    },
+  });
+
+  // Calculate Survival Rate
+  // Logic: (Latest Valid Count / Initial Count) * 100
+  // "Initial Count" is the count from the EARLIEST record in this cycle.
+  // Since we don't have explicit cycles in FarmDataEntry (it's simple mode), 
+  // currently we just take the earliest record vs latest record survival calculation 
+  // OR we follow NurserySmallDashboard logic which sorts ASC and takes first valid vs latest valid.
+
+  // Sort asc for calculation
+  const sortedAsc = [...entries].sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
+
+  let survivalRatePct = 100;
+
+  // Find initial count (first valid numeric count)
+  const initialEntry = sortedAsc.find(e => e.fishCount !== null && e.fishCount > 0);
+  const latestEntry = [...sortedAsc].reverse().find(e => e.fishCount !== null && e.fishCount >= 0);
+
+  if (initialEntry && latestEntry && initialEntry.fishCount) {
+    const start = initialEntry.fishCount;
+    const current = latestEntry.fishCount!;
+    survivalRatePct = Math.max(0, Math.min(100, Math.round((current / start) * 100)));
+  }
+
+  // Stats
+  const latestRecord = entries[0];
+  const stats: FarmerDetailStats = {
+    averageFishWeight: null, // As requested, currently not available/reliable
+    survivalRate: survivalRatePct,
+    survivalRatePct: survivalRatePct,
+    latestFishAgeDays: latestRecord?.fishAgeDays ?? null,
+    latestFishAgeLabel: latestRecord?.fishAgeLabel ?? null,
+    latestFishCount: latestEntry?.fishCount ?? null,
+    totalPonds: farmer.farmerProfile?.declaredPondCount ?? null, // From profile, or could be from latest entry? Profile is safer for "Total Ponds". Record has "Pond Count" (active ponds).
+  };
+
+  // Farmer Base Info
+  const baseInfo: FarmerListItem = {
     userId: farmer.id,
-    no: 1,
+    no: 1, // Not relevant for detail view
     fullName: farmer.farmerProfile
       ? `${farmer.farmerProfile.firstName} ${farmer.farmerProfile.lastName}`
       : farmer.displayName || 'N/A',
     phone: farmer.farmerProfile?.phone || '-',
-    farmType:
-      farmer.farmerProfile?.primaryFarmType ||
-      farmer.cultivationTypes[0]?.farmType ||
-      FarmType.SMALL,
+    farmType: targetFarmType, // The currently viewed farm type
     farmTypes: farmer.cultivationTypes.map((item) => item.farmType),
     registrationStatus: farmer.registrationStatus,
     pondCount: farmer.farmerProfile?.declaredPondCount || null,
@@ -133,6 +225,27 @@ const getFarmerById = async (userId: string): Promise<FarmerListItem> => {
     farmAreaRai: decimalToNumber(farmer.farmerProfile?.farmAreaRai),
     pondsPerRai: decimalToNumber(farmer.farmerProfile?.pondsPerRai),
     registeredAt: farmer.createdAt.toISOString(),
+  };
+
+  return {
+    ...baseInfo,
+    stats,
+    entries: entries.map((e) => ({
+      id: e.id,
+      recordedAt: e.recordedAt.toISOString(),
+      fishAgeDays: e.fishAgeDays,
+      fishAgeLabel: e.fishAgeLabel,
+      pondType: e.pondType ? e.pondType.toString() : null,
+      pondCount: e.pondCount,
+      fishCount: e.fishCount,
+      fishCountText: e.fishCountText,
+      foodAmountKg: null, // As requested/Schema limitation
+      weatherTemperatureC: e.weatherTemperatureC,
+      weatherRainMm: e.weatherRainMm,
+      weatherHumidityPct: e.weatherHumidityPct,
+      fishAverageWeight: null, // As requested
+    })),
+    availableFarmTypes: farmer.cultivationTypes.map((t) => t.farmType),
   };
 };
 

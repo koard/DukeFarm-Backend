@@ -287,7 +287,7 @@ Complete overview of all available API endpoints organized by feature domain.
 | Method | Path | Auth | Rate Limit | Description |
 | --- | --- | --- | --- | --- |
 | `GET` | `/farmers` | Admin/Researcher | 60/min | List all registered farmers with pagination |
-| `GET` | `/farmers/:farmerId` | Admin/Researcher | 60/min | Fetch single farmer detail |
+| `GET` | `/farmers/:farmerId` | Admin/Researcher | 60/min | Fetch single farmer detail with stats and history (supports `?farmType=SMALL`) |
 | `DELETE` | `/farmers/:farmerId` | Admin | 30/min | Permanently delete a farmer account and related data |
 
 ### 🍽️ Feed Formulas Management
@@ -1221,27 +1221,55 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ### GET `/farmers/:farmerId`
 - **Auth:** Admin or Researcher.
-- **Path params:** `farmerId` is required and must be a valid user ID (UUID).
+- **Path params:** `farmerId` is required (UUID).
+- **Query params:**
+  - `farmType` (optional): Filter stats and history by farm type (`SMALL`, `LARGE`, `MARKET`). Defaults to user's primary farm type.
 - **Response:**
 ```json
 {
   "data": {
     "userId": "uuid",
-    "no": 1,
     "fullName": "Somchai Prasert",
     "phone": "0812345678",
     "farmType": "SMALL",
+    "availableFarmTypes": ["SMALL", "LARGE"],
     "registrationStatus": "COMPLETED",
-    "pondCount": 6,
+    "pondCount": 4,
     "latitude": 14.077,
     "longitude": 100.608,
-    "registeredAt": "2025-11-27T12:00:00.000Z"
+    "registeredAt": "2025-11-27T12:00:00.000Z",
+    "stats": {
+      "averageFishWeight": null,
+      "survivalRate": 95,
+      "survivalRatePct": 95,
+      "latestFishAgeDays": 45,
+      "latestFishAgeLabel": "45 วัน",
+      "latestFishCount": 2500,
+      "totalPonds": 4
+    },
+    "entries": [
+      {
+        "id": "entry-uuid",
+        "recordedAt": "2025-12-20T10:00:00.000Z",
+        "fishAgeDays": 45,
+        "fishAgeLabel": "45 วัน",
+        "pondType": "EARTHEN",
+        "pondCount": 4,
+        "fishCount": 2500,
+        "fishCountText": "2500",
+        "foodAmountKg": null,
+        "weatherTemperatureC": 32.5,
+        "weatherRainMm": 0,
+        "weatherHumidityPct": 60,
+        "fishAverageWeight": null
+      }
+    ]
   }
 }
 ```
 - **Error cases:**
   - `400` if `farmerId` is missing
-  - `404` if farmer does not exist or registration is not completed
+  - `404` if farmer does not exist
 
 ---
 
