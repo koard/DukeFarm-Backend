@@ -301,7 +301,7 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
 
   return {
     group: FarmType.SMALL,
-    hasData: airTemperatureC !== null,
+    hasData: survivalSeries.length > 0,
     summary: {
       asOf,
       airTemperatureC,
