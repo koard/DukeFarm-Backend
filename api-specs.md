@@ -1267,8 +1267,9 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 {
   "name": "สูตรลูกปลา 16-30 วัน",
   "targetStage": "16-30 วัน",
-  "description": "อาหารเม็ดเล็ก ขนาด 0.5-1.0 มม. โปรตีน 35-40%",
-  "recommendations": "ให้ 2 ครั้งต่อวัน เช้า-เย็น\nเพิ่มส่วนผสมพรีไบโอติก\nติดตาม FCR",
+  "ingredients": "ปลาป่น 35%, กากถั่วเหลือง 25%, รำละเอียด 20%, ปลายข้าว 15%, วิตามินและแร่ธาตุ 5%",
+  "instruction": "บดวัตถุดิบทั้งหมดให้ละเอียด ผสมให้เข้ากัน เติมน้ำพอหมาด อัดเป็นเม็ดขนาด 0.5-1.0 มม. ตากแดดให้แห้ง",
+  "recommendations": "ให้ 2 ครั้งต่อวัน เช้า-เย็น\nปรับปริมาณตามสภาพอากาศ",
   "farmType": "SMALL"
 }
 ```
@@ -1280,8 +1281,9 @@ const icon = weatherIcons[weatherCode] || '🌡️';
     "id": "uuid",
     "name": "สูตรลูกปลา 16-30 วัน",
     "targetStage": "16-30 วัน",
-    "description": "อาหารเม็ดเล็ก ขนาด 0.5-1.0 มม. โปรตีน 35-40%",
-    "recommendations": "ให้ 2 ครั้งต่อวัน เช้า-เย็น\nเพิ่มส่วนผสมพรีไบโอติก\nติดตาม FCR",
+    "ingredients": "ปลาป่น 35%...",
+    "instruction": "บดวัตถุดิบทั้งหมด...",
+    "recommendations": "ให้ 2 ครั้งต่อวัน...",
     "farmType": "SMALL",
     "createdBy": "admin-id",
     "createdAt": "2025-11-27T12:00:00.000Z",
@@ -1302,7 +1304,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
         "id": "uuid",
         "name": "สูตรลูกปลา 16-30 วัน",
         "targetStage": "16-30 วัน",
-        "description": "อาหารเม็ดเล็ก",
+        "ingredients": "ปลาป่น 35%...",
         "recommendations": "ให้ 2 ครั้งต่อวัน",
         "createdBy": "admin-id",
         "createdAt": "2025-11-27T12:00:00.000Z",
@@ -1321,7 +1323,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ### GET `/feed-formulas/:id`
 - **Auth:** Any authenticated user.
-- **Response:** Same as create response
+- **Response:** Same as create response including `ingredients` and `instruction`.
 
 ### PUT `/feed-formulas/:id`
 - **Auth:** Admin only.
