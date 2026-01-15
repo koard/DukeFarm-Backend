@@ -37,6 +37,7 @@ DukeFarm Backend provides a comprehensive RESTful API for managing catfish farmi
 - **🍽️ Feed Formula Management**: CRUD operations for feeding formulas with stage-based recommendations
 - **📈 Smart Analytics**: Temperature-based feeding adjustments with percentage-based recommendations
 - **🏥 Disease Intelligence**: AI-powered disease diagnosis with 9 pre-configured diseases and symptom-based search
+- **📅 Dynamic Age Tracking**: Automatic fish age calculation based on stocking date and elapsed time
 
 ## ✨ Features
 

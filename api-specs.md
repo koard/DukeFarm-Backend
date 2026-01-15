@@ -43,7 +43,7 @@ The DukeFarm API provides a comprehensive backend service for managing catfish f
 - **👥 Role-Based Access Control**: Three user roles (Admin, Farmer, Researcher)
 - **🌤️ Weather Intelligence**: Real-time weather data via Google Maps Weather API
 - **📊 Smart Dashboards**: Farm group overviews with feeding recommendations
-- **🐟 Fish Age Intelligence**: Automatic fish-age day estimation, stage lookup, and harvest readiness signals
+- **🐟 Fish Age Intelligence**: Automatic fish-age day estimation based on last record date + elapsed time, stage lookup, and harvest readiness signals
 - **📝 Farm Data Logging**: Structured farm record submission with weather snapshots and cultivation tracking
 - **🔬 Research Tools**: Survey management and data collection
 - **📈 Analytics**: Temperature-based feeding adjustments
