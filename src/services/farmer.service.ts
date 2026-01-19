@@ -117,7 +117,7 @@ type FarmerDetailEntry = {
   pondCount: number | null;
   fishCount: number | null;
   fishCountText: string | null;
-  foodAmountKg: number | null; // null for now
+  foodAmountKg: number | null;
   weatherTemperatureC: number | null;
   weatherRainMm: number | null;
   weatherHumidityPct: number | null;
@@ -239,7 +239,7 @@ const getFarmerById = async (
       pondCount: e.pondCount,
       fishCount: e.fishCount,
       fishCountText: e.fishCountText,
-      foodAmountKg: null, // As requested/Schema limitation
+      foodAmountKg: e.foodAmountKg,
       weatherTemperatureC: e.weatherTemperatureC,
       weatherRainMm: e.weatherRainMm,
       weatherHumidityPct: e.weatherHumidityPct,
