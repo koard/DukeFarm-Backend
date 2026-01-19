@@ -30,7 +30,7 @@ const getFarmerById = async (req: AuthenticatedRequest, res: Response, next: Nex
 
     // Validate farmType if provided
     let validFarmType: any = undefined;
-    if (farmType && ['SMALL', 'LARGE', 'MARKET'].includes(farmType)) {
+    if (farmType && ['SMALL', 'LARGE', 'MARKET', 'ALL'].includes(farmType)) {
       validFarmType = farmType;
     }
 

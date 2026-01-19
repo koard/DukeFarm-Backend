@@ -1248,7 +1248,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 - **Auth:** Admin or Researcher.
 - **Path params:** `farmerId` is required (UUID).
 - **Query params:**
-  - `farmType` (optional): Filter stats and history by farm type (`SMALL`, `LARGE`, `MARKET`). Defaults to user's primary farm type.
+  - `farmType` (optional): Filter stats and history by farm type (`SMALL`, `LARGE`, `MARKET`, or `ALL`). Defaults to user's primary farm type. `ALL` returns records from all types.
 - **Response:**
 ```json
 {
@@ -1276,6 +1276,7 @@ const icon = weatherIcons[weatherCode] || '🌡️';
       {
         "id": "entry-uuid",
         "recordedAt": "2025-12-20T10:00:00.000Z",
+        "farmType": "SMALL",
         "fishAgeDays": 45,
         "fishAgeLabel": "45 วัน",
         "pondType": "EARTHEN",

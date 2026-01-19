@@ -111,6 +111,7 @@ type FarmerDetailStats = {
 type FarmerDetailEntry = {
   id: string;
   recordedAt: string;
+  farmType: FarmType;
   fishAgeDays: number | null;
   fishAgeLabel: string | null;
   pondType: string | null;
@@ -132,7 +133,7 @@ type FarmerDetailResponse = FarmerListItem & {
 
 const getFarmerById = async (
   userId: string,
-  farmTypeQuery?: FarmType,
+  farmTypeQuery?: FarmType | 'ALL',
 ): Promise<FarmerDetailResponse> => {
   const farmer = await prisma.user.findFirst({
     where: {
@@ -150,25 +151,33 @@ const getFarmerById = async (
     throw createHttpError(404, 'Farmer not found');
   }
 
-  // Determine which farm type to show
-  // 1. If query param provided, use it
-  // 2. Else use primary farm type
-  // 3. Else use first available cultivation type
-  // 4. Fallback to SMALL
-  let targetFarmType = farmTypeQuery;
-  if (!targetFarmType) {
-    targetFarmType =
+  // Determine filtering
+  // If 'ALL', we validly explicitly want everything.
+  // If specific, we filter by it.
+  // If undefined, we fallback to default logic (primary type).
+
+  let filterFarmType: FarmType | undefined;
+
+  if (farmTypeQuery === 'ALL') {
+    filterFarmType = undefined; // No filter
+  } else if (farmTypeQuery) {
+    filterFarmType = farmTypeQuery;
+  } else {
+    // Default fallback
+    filterFarmType =
       farmer.farmerProfile?.primaryFarmType ||
       farmer.cultivationTypes[0]?.farmType ||
       FarmType.SMALL;
   }
 
-  // Fetch ALL historical records for this user & farm type
+  // Fetch historical records
+  const whereClause: Prisma.FarmDataEntryWhereInput = { userId };
+  if (filterFarmType) {
+    whereClause.farmType = filterFarmType;
+  }
+
   const entries = await prisma.farmDataEntry.findMany({
-    where: {
-      userId,
-      farmType: targetFarmType,
-    },
+    where: whereClause,
     orderBy: {
       recordedAt: 'desc',
     },
@@ -176,12 +185,9 @@ const getFarmerById = async (
 
   // Calculate Survival Rate
   // Logic: (Latest Valid Count / Initial Count) * 100
-  // "Initial Count" is the count from the EARLIEST record in this cycle.
-  // Since we don't have explicit cycles in FarmDataEntry (it's simple mode), 
-  // currently we just take the earliest record vs latest record survival calculation 
-  // OR we follow NurserySmallDashboard logic which sorts ASC and takes first valid vs latest valid.
+  // Note: If ALL is selected, this stat might be messy if mixing pond types/groups. 
+  // We'll calculate it based on the *very first* record vs *very last* record found in the set, strictly by time.
 
-  // Sort asc for calculation
   const sortedAsc = [...entries].sort((a, b) => a.recordedAt.getTime() - b.recordedAt.getTime());
 
   let survivalRatePct = 100;
@@ -197,26 +203,29 @@ const getFarmerById = async (
   }
 
   // Stats
+  // For 'ALL', we just show the latest record's data for context, or maybe we should return nulls?
+  // Let's stick to "Latest Record" regardless of it switching types.
   const latestRecord = entries[0];
+
   const stats: FarmerDetailStats = {
-    averageFishWeight: null, // As requested, currently not available/reliable
+    averageFishWeight: null,
     survivalRate: survivalRatePct,
     survivalRatePct: survivalRatePct,
     latestFishAgeDays: latestRecord?.fishAgeDays ?? null,
     latestFishAgeLabel: latestRecord?.fishAgeLabel ?? null,
     latestFishCount: latestEntry?.fishCount ?? null,
-    totalPonds: farmer.farmerProfile?.declaredPondCount ?? null, // From profile, or could be from latest entry? Profile is safer for "Total Ponds". Record has "Pond Count" (active ponds).
+    totalPonds: farmer.farmerProfile?.declaredPondCount ?? null,
   };
 
   // Farmer Base Info
   const baseInfo: FarmerListItem = {
     userId: farmer.id,
-    no: 1, // Not relevant for detail view
+    no: 1,
     fullName: farmer.farmerProfile
       ? `${farmer.farmerProfile.firstName} ${farmer.farmerProfile.lastName}`
       : farmer.displayName || 'N/A',
     phone: farmer.farmerProfile?.phone || '-',
-    farmType: targetFarmType, // The currently viewed farm type
+    farmType: filterFarmType || farmer.farmerProfile?.primaryFarmType || FarmType.SMALL, // Just show something representative
     farmTypes: farmer.cultivationTypes.map((item) => item.farmType),
     registrationStatus: farmer.registrationStatus,
     pondCount: farmer.farmerProfile?.declaredPondCount || null,
@@ -233,6 +242,7 @@ const getFarmerById = async (
     entries: entries.map((e) => ({
       id: e.id,
       recordedAt: e.recordedAt.toISOString(),
+      farmType: e.farmType,
       fishAgeDays: e.fishAgeDays,
       fishAgeLabel: e.fishAgeLabel,
       pondType: e.pondType ? e.pondType.toString() : null,
@@ -243,7 +253,7 @@ const getFarmerById = async (
       weatherTemperatureC: e.weatherTemperatureC,
       weatherRainMm: e.weatherRainMm,
       weatherHumidityPct: e.weatherHumidityPct,
-      fishAverageWeight: null, // As requested
+      fishAverageWeight: null,
     })),
     availableFarmTypes: farmer.cultivationTypes.map((t) => t.farmType),
   };
