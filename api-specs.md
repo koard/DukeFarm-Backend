@@ -275,6 +275,8 @@ Complete overview of all available API endpoints organized by feature domain.
 | --- | --- | --- | --- | --- |
 | `GET` | `/records/form-state?farmType=<type>` | Required | 30/min | Prefill record form with current time, farm type, and weather snapshot |
 | `POST` | `/records` | Farmer | 30/min | Submit a farm data entry with fish-age label, pond data, and weather |
+| `PUT` | `/records/:id` | Farmer/Admin | 30/min | Update an existing farm record |
+| `DELETE` | `/records/:id` | Farmer/Admin | 30/min | Delete a farm record |
 
 ### 🌤️ Weather Services
 
@@ -1076,6 +1078,29 @@ The feeding adjustment algorithm uses **daily mean air temperature** from Google
   - `fishAgeStageId` references the catalog seeded via Prisma migrations (upserted for each farm type).
   - `harvestStatus` + `harvestStatusReason` explain whether the fish cohort is ready for harvest.
   - `cultivationTypeId` links back to the appropriate `FarmerCultivationType` row for longitudinal analytics.
+
+### PUT `/records/:id`
+- **Auth:** FARMER or ADMIN role.
+- **Path params:** `id` (required, UUID).
+- **Body:** `Partial<CreateEntryInput>` - identical to POST body, but all fields are optional.
+- **Behavior:** 
+  - Updates only the provided fields.
+  - Recalculates `fishAgeDays`, `fishAgeStage`, and `harvestStatus` if `fishAgeLabel` is changed.
+  - Updates weather data if a new weather block is provided.
+- **Response:** Updated record (same format as POST response).
+- **Error cases:**
+  - `404`: Record not found.
+  - `400`: Validation error (e.g., negative numbers).
+
+### DELETE `/records/:id`
+- **Auth:** FARMER or ADMIN role.
+- **Path params:** `id` (required, UUID).
+- **Response:**
+```json
+{
+  "message": "Record deleted successfully"
+}
+```
 
 ---
 
