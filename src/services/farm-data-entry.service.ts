@@ -18,6 +18,11 @@ export type FormStatePayload = {
   farmType: FarmType;
   locationAvailable: boolean;
   weather: WeatherSnapshot | null;
+  latestEntry: {
+    recordedAt: Date;
+    fishAgeDays: number | null;
+    fishCount: number | null;
+  } | null;
 };
 
 export type CreateEntryInput = {
@@ -34,35 +39,6 @@ export type CreateEntryInput = {
     humidityPct?: number | null;
   } | null;
   notes?: string | null;
-};
-
-const resolveAverageWeightForAge = (label: string): number | null => {
-  const days = FishStageService.estimateDaysFromLabel(label);
-  if (days === null) {
-    return null;
-  }
-
-  if (days <= 10) {
-    return 4; // Pla Tum ~4 g
-  }
-
-  if (days <= 30) {
-    return 15; // Pla Nio ~15 g
-  }
-
-  if (days <= 60) {
-    return 80; // Early grow-out ~80 g
-  }
-
-  if (days <= 120) {
-    return 250; // Mid grow-out ~250 g
-  }
-
-  if (days <= 180) {
-    return 450; // Late grow-out ~450 g
-  }
-
-  return 500; // Extended holding ~500 g
 };
 
 const fetchWeatherSnapshot = async (
@@ -118,13 +94,37 @@ const fetchWeatherSnapshot = async (
 
 const getFormState = async (userId: string, farmType: FarmType): Promise<FormStatePayload> => {
   const now = new Date();
-  const { weather, locationAvailable } = await fetchWeatherSnapshot(userId);
+
+  const [weatherSnapshot, latestEntry] = await Promise.all([
+    fetchWeatherSnapshot(userId),
+    prisma.farmDataEntry.findFirst({
+      where: {
+        userId,
+        farmType,
+      },
+      orderBy: {
+        recordedAt: 'desc',
+      },
+      select: {
+        recordedAt: true,
+        fishAgeDays: true,
+        fishCount: true,
+      },
+    }),
+  ]);
 
   return {
     currentDateTime: now.toISOString(),
     farmType,
-    locationAvailable,
-    weather,
+    locationAvailable: weatherSnapshot.locationAvailable,
+    weather: weatherSnapshot.weather,
+    latestEntry: latestEntry
+      ? {
+        recordedAt: latestEntry.recordedAt,
+        fishAgeDays: latestEntry.fishAgeDays,
+        fishCount: latestEntry.fishCount,
+      }
+      : null,
   };
 };
 
@@ -180,7 +180,6 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
   const normalizedFishAge = input.fishAgeLabel.trim();
   const normalizedFishCountText = input.fishCountText?.trim() || null;
   const numericFishCount = parseFishCount(normalizedFishCountText);
-  const averageFishWeightGr = resolveAverageWeightForAge(normalizedFishAge);
 
   const [cultivationType, stageAssessment] = await Promise.all([
     ensureCultivationType(userId, input.farmType),
@@ -206,7 +205,7 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
       pondCount: applyNumeric(input.pondCount ?? null),
       fishCount: numericFishCount,
       fishCountText: normalizedFishCountText,
-      averageFishWeightGr,
+      averageFishWeightGr: null,
       foodAmountKg: applyNumeric(input.foodAmountKg),
       weatherTemperatureC: applyNumeric(input.weather?.temperatureC ?? null),
       weatherRainMm: applyNumeric(input.weather?.rainMm ?? null),
