@@ -101,6 +101,7 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
     const pondType = parsePondType(req.body?.pondType);
     const pondCount = parsePositiveNumber(req.body?.pondCount, 'pondCount');
     const fishCountText = typeof req.body?.fishCountText === 'string' ? req.body.fishCountText : undefined;
+    const foodAmountKg = parsePositiveNumber(req.body?.foodAmountKg, 'foodAmountKg');
     const notes = typeof req.body?.notes === 'string' ? req.body.notes : undefined;
 
     const weatherPayload = req.body?.weather
@@ -128,6 +129,7 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
       pondType,
       pondCount,
       fishCountText,
+      foodAmountKg,
       weather: weatherPayload,
       notes,
     });
