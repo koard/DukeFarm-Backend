@@ -3,6 +3,7 @@ import { prisma } from '../clients/prisma';
 import { WeatherService } from './weather.service';
 import { logger } from '../utils/logger';
 import { FishStageService } from './fish-stage.service';
+import { createHttpError } from '../utils/httpError';
 
 export type WeatherSnapshot = {
   observedAt: string | null;
@@ -40,6 +41,8 @@ export type CreateEntryInput = {
   } | null;
   notes?: string | null;
 };
+
+export type UpdateEntryInput = Partial<CreateEntryInput>;
 
 const fetchWeatherSnapshot = async (
   userId: string,
@@ -215,7 +218,68 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
   });
 };
 
+const updateEntry = async (id: string, input: UpdateEntryInput) => {
+  const existing = await prisma.farmDataEntry.findUnique({
+    where: { id },
+  });
+
+  if (!existing) {
+    throw createHttpError(404, 'Record not found');
+  }
+
+  const data: any = {};
+
+  if (input.recordedAt) data.recordedAt = input.recordedAt;
+
+  if (input.fishCountText !== undefined) {
+    data.fishCountText = input.fishCountText;
+    data.fishCount = parseFishCount(input.fishCountText);
+  }
+
+  if (input.pondType !== undefined) data.pondType = input.pondType ?? null;
+  if (input.pondCount !== undefined) data.pondCount = applyNumeric(input.pondCount);
+  if (input.foodAmountKg !== undefined) data.foodAmountKg = applyNumeric(input.foodAmountKg);
+  if (input.notes !== undefined) data.notes = input.notes;
+
+  if (input.fishAgeLabel) {
+    data.fishAgeLabel = input.fishAgeLabel;
+
+    // Use new values if provided, otherwise fallback to existing
+    const farmTypeForAssess = input.farmType ?? existing.farmType;
+    const recordedAtForAssess = input.recordedAt ?? existing.recordedAt;
+
+    const assessment = await FishStageService.assessFishStage({
+      farmType: farmTypeForAssess,
+      recordedAt: recordedAtForAssess,
+      fishAgeLabel: input.fishAgeLabel,
+    });
+    data.fishAgeDays = assessment.fishAgeDays;
+    data.fishAgeStageId = assessment.stage?.id ?? null;
+    data.harvestStatus = assessment.harvestStatus;
+    data.harvestStatusReason = assessment.harvestStatusReason;
+  }
+
+  if (input.weather) {
+    if (input.weather.temperatureC !== undefined) data.weatherTemperatureC = applyNumeric(input.weather.temperatureC);
+    if (input.weather.rainMm !== undefined) data.weatherRainMm = applyNumeric(input.weather.rainMm);
+    if (input.weather.humidityPct !== undefined) data.weatherHumidityPct = applyNumeric(input.weather.humidityPct);
+  }
+
+  return prisma.farmDataEntry.update({
+    where: { id },
+    data,
+  });
+};
+
+const deleteEntry = async (id: string) => {
+  return prisma.farmDataEntry.delete({
+    where: { id },
+  });
+};
+
 export const FarmDataEntryService = {
   getFormState,
   createEntry,
+  updateEntry,
+  deleteEntry,
 };

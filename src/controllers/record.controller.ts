@@ -140,7 +140,66 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
   }
 };
 
+const updateRecord = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      throw createHttpError(401, 'Unauthorized');
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      throw createHttpError(400, 'Record ID is required');
+    }
+
+    const updateInput: any = {};
+    if (req.body?.recordedAt) updateInput.recordedAt = parseRecordDate(req.body.recordedAt);
+    if (typeof req.body?.fishAgeLabel === 'string') updateInput.fishAgeLabel = req.body.fishAgeLabel.trim();
+    if (req.body?.pondType) updateInput.pondType = parsePondType(req.body.pondType);
+    if (req.body?.pondCount) updateInput.pondCount = parsePositiveNumber(req.body.pondCount, 'pondCount');
+    if (typeof req.body?.fishCountText === 'string') updateInput.fishCountText = req.body.fishCountText;
+    if (req.body?.foodAmountKg) updateInput.foodAmountKg = parsePositiveNumber(req.body.foodAmountKg, 'foodAmountKg');
+    if (typeof req.body?.notes === 'string') updateInput.notes = req.body.notes;
+
+    if (req.body?.weather) {
+      updateInput.weather = {
+        temperatureC: req.body.weather.temperatureC !== undefined ? Number(req.body.weather.temperatureC) : null,
+        rainMm: req.body.weather.rainMm !== undefined ? Number(req.body.weather.rainMm) : null,
+        humidityPct: req.body.weather.humidityPct !== undefined ? Number(req.body.weather.humidityPct) : null,
+      };
+    }
+
+    const entry = await FarmDataEntryService.updateEntry(id, updateInput);
+
+    res.json({ data: entry });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteRecord = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      throw createHttpError(401, 'Unauthorized');
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      throw createHttpError(400, 'Record ID is required');
+    }
+
+    await FarmDataEntryService.deleteEntry(id);
+    res.json({ message: 'Record deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const RecordController = {
   getFormState,
   createRecord,
+  updateRecord,
+  deleteRecord,
 };
