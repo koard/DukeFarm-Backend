@@ -59,15 +59,12 @@ const getDashboardStats = async (
         }
     });
 
-    // Total Ponds (Sum declared ponds from profiles matching farmType)
-    // Note: declaredPondCount is per profile, ideally we should sum from FarmerCultivationType if available, 
-    // but let's stick to profile for simplicity or aggregation.
-    // Actually, FarmerCultivationType has 'pondsInStage'. Let's use that for more accuracy if available, else fallback.
-    const cultivationTypes = await prisma.farmerCultivationType.findMany({
-        where: { farmType },
-        select: { pondsInStage: true }
+    // Total Ponds: Sum declaredPondCount from FarmerProfile for farmers with this primaryFarmType
+    const profileAgg = await prisma.farmerProfile.aggregate({
+        where: { primaryFarmType: farmType },
+        _sum: { declaredPondCount: true }
     });
-    const totalPonds = cultivationTypes.reduce((sum, ct) => sum + (ct.pondsInStage || 0), 0);
+    const totalPonds = profileAgg._sum.declaredPondCount || 0;
 
     // Total Fish (Sum of latest fishCount from all active cycles/entries of this farmType)
     // This is tricky. We need the *latest* entry for each farmer for this farmType.
