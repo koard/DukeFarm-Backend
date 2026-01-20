@@ -163,11 +163,8 @@ const getFarmerById = async (
   } else if (farmTypeQuery) {
     filterFarmType = farmTypeQuery;
   } else {
-    // Default fallback
-    filterFarmType =
-      farmer.farmerProfile?.primaryFarmType ||
-      farmer.cultivationTypes[0]?.farmType ||
-      FarmType.SMALL;
+    // Default: แสดงทั้งหมด (ALL) เมื่อไม่ได้ระบุ farmType
+    filterFarmType = undefined;
   }
 
   // Fetch historical records
