@@ -418,7 +418,7 @@ const getDashboard = async (userId: string): Promise<NurseryLargeDashboard> => {
 
   return {
     group: FarmType.LARGE,
-    hasData: monthlyFeedingData.length > 0,
+    hasData: survivalSeries.length > 0,
     summary: {
       asOf,
       airTemperatureC,

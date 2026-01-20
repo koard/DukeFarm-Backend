@@ -412,7 +412,7 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
 
   return {
     group: FarmType.MARKET,
-    hasData: monthlyFeedingData.length > 0,
+    hasData: survivalSeries.length > 0,
     summary: {
       asOf,
       airTemperatureC,
