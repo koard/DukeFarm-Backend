@@ -188,10 +188,80 @@ const getDashboardStats = async (
     // Let's check if we can get data from `ProductionCycle`?
     // If not, we'll output 0 for now to be honest "Real Data" (which is missing).
 
-    const survivalChart: MonthlyChartData[] = months.map(m => ({
-        month: m,
-        value: 0 // Placeholder: requires ProductionCycle implementation for accuracy
-    }));
+    // Survival Rate Trend (Monthly Avg)
+    const survivalMap = new Map<string, { totalRate: number; count: number }>();
+    months.forEach(m => survivalMap.set(m, { totalRate: 0, count: 0 }));
+
+    // We need to calculate the "Survival Rate" for each month.
+    // Logic: For each month, look at the status of ALL active farms at that time.
+    // Status at Month M = The latest entry of a farmer where recordedAt <= End of Month M of this Year.
+
+    // Optimized Approach:
+    // 1. Fetch all entries for the year (already have some, but might need all fields)
+    // Actually, we need entries even from previous years if the cycle started before? 
+    // For simpler logic, let's look at entries within this year for now, or just all entries for simplicity.
+    // Let's us `feedRecords` as a base but we need `fishCount`. Let's fetch `fishCount` entries.
+    const fishEntries = await prisma.farmDataEntry.findMany({
+        where: {
+            farmType,
+            userId: { in: farmerIds },
+            fishCount: { not: null },
+            recordedAt: { lte: endDate } // Up to end of this year
+        },
+        select: { userId: true, fishCount: true, recordedAt: true },
+        orderBy: { recordedAt: 'asc' }
+    });
+
+    // Group entries by User
+    const userEntriesMap = new Map<string, typeof fishEntries>();
+    fishEntries.forEach(e => {
+        if (!userEntriesMap.has(e.userId)) userEntriesMap.set(e.userId, []);
+        userEntriesMap.get(e.userId)?.push(e);
+    });
+
+    // For each month, calculate avg survival
+    months.forEach((monthName, monthIndex) => {
+        const monthEnd = new Date(year, monthIndex + 1, 0); // Last day of month
+        let monthlySumRate = 0;
+        let monthlyCount = 0;
+
+        userEntriesMap.forEach((entries) => {
+            // Find latest entry for this user <= monthEnd
+            // And also, to calculate 'Survival', we need 'Initial' for this user (Max of cycle).
+            // Simplification: Max of entries UP TO this point in time?
+            // Or Max of ALL entries for this user in this dataset?
+            // Let's use Max up to this point to simulate "what we knew then".
+
+            const entriesUntilNow = entries.filter(e => e.recordedAt <= monthEnd);
+            if (entriesUntilNow.length > 0) {
+                const latestEntry = entriesUntilNow[entriesUntilNow.length - 1]; // Last one due to sort
+
+                // Heuristic for Initial: Max fishCount in the entries found so far (assuming simple declining cycle)
+                // Filter out obviously low "initials" if possible, but Max is safest.
+                const maxCount = Math.max(...entriesUntilNow.map(e => e.fishCount || 0));
+
+                if (maxCount > 0 && latestEntry && latestEntry.fishCount !== null) {
+                    const currentCount = latestEntry.fishCount;
+                    // Survival Rate %
+                    const rate = (currentCount / maxCount) * 100;
+                    monthlySumRate += rate;
+                    monthlyCount++;
+                }
+            }
+        });
+
+        if (monthlyCount > 0) {
+            survivalMap.set(monthName, { totalRate: monthlySumRate, count: monthlyCount });
+        }
+    });
+
+    const survivalChart: MonthlyChartData[] = months.map(m => {
+        const data = survivalMap.get(m);
+        return {
+            month: m,
+            value: data && data.count > 0 ? parseFloat((data.totalRate / data.count).toFixed(2)) : 0
+        };
+    });
 
 
     // 3. Ranking Tables
