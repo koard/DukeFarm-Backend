@@ -16,7 +16,7 @@ const getDashboardByFarmType = async (req: AuthenticatedRequest, res: Response, 
     } catch (parseError) {
       throw createHttpError(400, (parseError as Error).message);
     }
-    const dashboard = await DashboardService.getDashboard(user.id, user.role, farmType);
+    const dashboard = await DashboardService.getDashboard(user.id, user.role || '', farmType);
 
     res.json({ data: dashboard });
   } catch (error) {

@@ -228,7 +228,7 @@ const getDashboardStats = async (
                 // Mock: survivalRate: 250, deathRate: 8.
                 // Let's return Fish Count as 'Survival' and Dead as 'Death' (derived?)
                 deathRate: initial - current,
-                lastUpdate: userEntries[userEntries.length - 1].recordedAt.toLocaleDateString('th-TH')
+                lastUpdate: userEntries[userEntries.length - 1]?.recordedAt.toLocaleDateString('th-TH') || '-'
             });
         }
     }
