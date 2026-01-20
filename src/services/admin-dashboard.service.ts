@@ -59,9 +59,17 @@ const getDashboardStats = async (
         }
     });
 
-    // Total Ponds: Sum declaredPondCount from FarmerProfile for farmers with this primaryFarmType
+    // Total Ponds: Sum declaredPondCount from FarmerProfile for farmers with this farmType (Primary OR Cultivation)
     const profileAgg = await prisma.farmerProfile.aggregate({
-        where: { primaryFarmType: farmType },
+        where: {
+            user: {
+                role: 'FARMER',
+                OR: [
+                    { farmerProfile: { primaryFarmType: farmType } },
+                    { cultivationTypes: { some: { farmType: farmType } } }
+                ]
+            }
+        },
         _sum: { declaredPondCount: true }
     });
     const totalPonds = profileAgg._sum.declaredPondCount || 0;
