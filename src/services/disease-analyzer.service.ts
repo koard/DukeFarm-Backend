@@ -83,12 +83,20 @@ export const DiseaseAnalyzerService = {
     // Initialize scores
     profiles.forEach(p => diseaseScores.set(p.id, { score: 0, reasons: [] }));
 
-    // --- A. Evaluation from Fuzzy Text (Typo tolerant) ---
+    // Combine symptomText and symptomTags into unified text
+    // This ensures clicking tags behaves the same as typing the text
+    const combinedText = [
+      symptomText || '',
+      ...(symptomTags || [])
+    ].join(' ').trim();
+
+    // --- Unified Evaluation from Fuzzy Text (Typo tolerant) ---
     // Split input into tokens and search each
-    if (symptomText) {
+    if (combinedText) {
       // Simple split by whitespace for now. 
       // Note: Thai text often has no spaces, but users might separate key symptoms or we can rely on partial matches.
-      const tokens = symptomText.split(/\s+/).filter(t => t.length > 1);
+      // Use Set to deduplicate tokens (e.g., if user both types and clicks same symptom)
+      const tokens = [...new Set(combinedText.split(/\s+/).filter(t => t.length > 1))];
 
       tokens.forEach(token => {
         const results = fuse.search(token);
@@ -99,36 +107,15 @@ export const DiseaseAnalyzerService = {
             const confidence = (1 - res.score);
             const current = diseaseScores.get(res.item.id)!;
             // Add weighted score per matched token
-            // Weight: 0.3 per matched token? 
+            // Weight: 0.3 per matched token
             current.score += confidence * 0.3;
 
-            // Avoid duplicate reasons for same token/disease combo? 
-            // Just add general reason
-            if (!current.reasons.includes(`Text Match: ${token}`)) {
-              current.reasons.push(`Text Match: ${token}`);
+            // Avoid duplicate reasons for same token/disease combo
+            if (!current.reasons.includes(`Match: ${token}`)) {
+              current.reasons.push(`Match: ${token}`);
             }
           }
         });
-      });
-    }
-
-    // --- B. Evaluation from Tags (Chips) ---
-    if (symptomTags && symptomTags.length > 0) {
-      profiles.forEach(disease => {
-        const diseaseTags = new Set(disease.tags.map(t => t.toLowerCase()));
-        let matchedTagsCount = 0;
-        symptomTags.forEach(uq => {
-          if (diseaseTags.has(uq.toLowerCase())) {
-            matchedTagsCount++;
-          }
-        });
-
-        if (matchedTagsCount > 0) {
-          const current = diseaseScores.get(disease.id)!;
-          // High weight for explicit tags
-          current.score += (matchedTagsCount / symptomTags.length) * 1.5;
-          current.reasons.push(`Tags Match: ${matchedTagsCount}/${symptomTags.length}`);
-        }
       });
     }
 
