@@ -1314,31 +1314,51 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 ---
 
 ## 8. Feed Formulas Management
+
+### Data Model
+
+Feed formulas now include a `foodType` categorization:
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | string | Yes | Formula name (Thai) |
+| `foodType` | enum | Yes | `FRESH`, `PELLET`, or `SUPPLEMENT` |
+| `targetStage` | string | No | Target fish size (e.g., "2-5 ซม.", ">10 ซม.") |
+| `nutrients` | string | No | Nutritional benefits (multi-line text) |
+| `usage` | string | No | Feeding instructions (multi-line text) |
+| `recommendations` | string | No | Warnings and tips (multi-line text) |
+| `farmType` | enum | No | `SMALL`, `LARGE`, or `MARKET` |
+
 ### POST `/feed-formulas`
 - **Auth:** Admin only.
 - **Body:**
 ```json
 {
-  "name": "สูตรลูกปลา 16-30 วัน",
-  "targetStage": "16-30 วัน",
-  "ingredients": "ปลาป่น 35%, กากถั่วเหลือง 25%, รำละเอียด 20%, ปลายข้าว 15%, วิตามินและแร่ธาตุ 5%",
-  "instruction": "บดวัตถุดิบทั้งหมดให้ละเอียด ผสมให้เข้ากัน เติมน้ำพอหมาด อัดเป็นเม็ดขนาด 0.5-1.0 มม. ตากแดดให้แห้ง",
-  "recommendations": "ให้ 2 ครั้งต่อวัน เช้า-เย็น\nปรับปริมาณตามสภาพอากาศ",
-  "farmType": "SMALL"
+  "name": "เครื่องในไก่/หมู",
+  "foodType": "FRESH",
+  "targetStage": ">10 ซม.",
+  "nutrients": "• โปรตีน 15-25%\n• ธาตุเหล็กสูง\n• วิตามินบีรวม",
+  "usage": "• สับให้ละเอียดก่อนให้\n• แช่เย็นเก็บได้ 2-3 วัน\n• ให้วันละ 1-2 ครั้ง",
+  "recommendations": "ถ้ามีกลิ่น เสี่ยงติดเชื้อในเลือด\nไขมันสูง น้ำเสียง่าย",
+  "farmType": "MARKET"
 }
 ```
-- **Validation:** `farmType` is optional. Values: `SMALL`, `LARGE`, `MARKET` (case-insensitive).
+- **Validation:** 
+  - `name` is required
+  - `foodType` is required. Values: `FRESH`, `PELLET`, `SUPPLEMENT` (case-insensitive)
+  - `farmType` is optional. Values: `SMALL`, `LARGE`, `MARKET` (case-insensitive)
 - **Response:**
 ```json
 {
   "data": {
     "id": "uuid",
-    "name": "สูตรลูกปลา 16-30 วัน",
-    "targetStage": "16-30 วัน",
-    "ingredients": "ปลาป่น 35%...",
-    "instruction": "บดวัตถุดิบทั้งหมด...",
-    "recommendations": "ให้ 2 ครั้งต่อวัน...",
-    "farmType": "SMALL",
+    "name": "เครื่องในไก่/หมู",
+    "foodType": "FRESH",
+    "targetStage": ">10 ซม.",
+    "nutrients": "• โปรตีน 15-25%...",
+    "usage": "• สับให้ละเอียดก่อนให้...",
+    "recommendations": "ถ้ามีกลิ่น เสี่ยงติดเชื้อในเลือด...",
+    "farmType": "MARKET",
     "createdBy": "admin-id",
     "createdAt": "2025-11-27T12:00:00.000Z",
     "updatedAt": "2025-11-27T12:00:00.000Z"
@@ -1356,10 +1376,13 @@ const icon = weatherIcons[weatherCode] || '🌡️';
     "data": [
       {
         "id": "uuid",
-        "name": "สูตรลูกปลา 16-30 วัน",
-        "targetStage": "16-30 วัน",
-        "ingredients": "ปลาป่น 35%...",
-        "recommendations": "ให้ 2 ครั้งต่อวัน",
+        "name": "เครื่องในไก่/หมู",
+        "foodType": "FRESH",
+        "targetStage": ">10 ซม.",
+        "nutrients": "• โปรตีน 15-25%...",
+        "usage": "• สับให้ละเอียดก่อนให้...",
+        "recommendations": "ถ้ามีกลิ่น เสี่ยงติดเชื้อในเลือด...",
+        "farmType": "MARKET",
         "createdBy": "admin-id",
         "createdAt": "2025-11-27T12:00:00.000Z",
         "updatedAt": "2025-11-27T12:00:00.000Z"
@@ -1377,11 +1400,11 @@ const icon = weatherIcons[weatherCode] || '🌡️';
 
 ### GET `/feed-formulas/:id`
 - **Auth:** Any authenticated user.
-- **Response:** Same as create response including `ingredients` and `instruction`.
+- **Response:** Same as create response.
 
 ### PUT `/feed-formulas/:id`
 - **Auth:** Admin only.
-- **Body:** Same as POST (all fields optional)
+- **Body:** Same as POST (all fields optional except during update)
 - **Response:** Same as create response
 
 ### DELETE `/feed-formulas/:id`
