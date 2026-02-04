@@ -232,7 +232,7 @@ const feedFormulas = [
 
         // --- FRESH: อาหารสด ---
         {
-                name: 'ไรแดง (Moina)',
+                name: 'ไรแดง',
                 foodType: FoodType.FRESH,
                 targetStage: '2-5 ซม.',
                 farmType: FarmType.SMALL,
@@ -247,7 +247,7 @@ const feedFormulas = [
 ⚠️ ระวังปนเปื้อนพยาธิ`
         },
         {
-                name: 'หนอนแดง (Bloodworm)',
+                name: 'หนอนแดง',
                 foodType: FoodType.FRESH,
                 targetStage: '2-5 ซม.',
                 farmType: FarmType.SMALL,
@@ -310,7 +310,7 @@ const feedFormulas = [
 ⚠️ เสื่อมง่ายเมื่อถูกแสง/ความร้อน`
         },
         {
-                name: 'โปรไบโอติก (Bacillus/Lactobacillus)',
+                name: 'โปรไบโอติก',
                 foodType: FoodType.SUPPLEMENT,
                 targetStage: '2-5 ซม.',
                 farmType: FarmType.SMALL,
