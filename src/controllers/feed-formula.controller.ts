@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { FarmType } from '@prisma/client';
+import { FarmType, FoodType } from '@prisma/client';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { FeedFormulaService } from '../services/feed-formula.service';
 
@@ -25,8 +25,30 @@ const parseFarmType = (raw: unknown, allowUndefined = false): FarmType | null | 
   return upper as FarmType;
 };
 
+const parseFoodType = (raw: unknown, allowUndefined = false): FoodType | undefined => {
+  if (raw === undefined) {
+    return allowUndefined ? undefined : undefined;
+  }
+
+  if (raw === null || raw === '') {
+    throw new Error('foodType cannot be null or empty');
+  }
+
+  if (typeof raw !== 'string') {
+    throw new Error('foodType must be a string');
+  }
+
+  const upper = raw.toUpperCase();
+  const values = Object.values(FoodType);
+  if (!values.includes(upper as FoodType)) {
+    throw new Error(`Unsupported foodType: ${raw}. Valid values: FRESH, PELLET, SUPPLEMENT`);
+  }
+
+  return upper as FoodType;
+};
+
 const createFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
-  const { name, targetStage, ingredients, instruction, recommendations, farmType: rawFarmType } = req.body;
+  const { name, targetStage, nutrients, usage, recommendations, farmType: rawFarmType, foodType: rawFoodType } = req.body;
 
   // Validation
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -39,12 +61,12 @@ const createFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
     });
   }
 
-  if (ingredients !== undefined && typeof ingredients !== 'string') {
-    return res.status(400).json({ message: 'Ingredients must be a string' });
+  if (nutrients !== undefined && typeof nutrients !== 'string') {
+    return res.status(400).json({ message: 'Nutrients must be a string' });
   }
 
-  if (instruction !== undefined && typeof instruction !== 'string') {
-    return res.status(400).json({ message: 'Instruction must be a string' });
+  if (usage !== undefined && typeof usage !== 'string') {
+    return res.status(400).json({ message: 'Usage must be a string' });
   }
 
   if (recommendations !== undefined && typeof recommendations !== 'string') {
@@ -52,8 +74,14 @@ const createFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
   }
 
   let farmType: FarmType | null;
+  let foodType: FoodType;
   try {
     farmType = parseFarmType(rawFarmType) ?? null;
+    const parsedFoodType = parseFoodType(rawFoodType);
+    if (!parsedFoodType) {
+      return res.status(400).json({ message: 'foodType is required. Valid values: FRESH, PELLET, SUPPLEMENT' });
+    }
+    foodType = parsedFoodType;
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }
@@ -61,10 +89,11 @@ const createFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
   const result = await FeedFormulaService.createFeedFormula({
     name: name.trim(),
     targetStage: targetStage.trim(),
-    ingredients: ingredients?.trim(),
-    instruction: instruction?.trim(),
+    nutrients: nutrients?.trim(),
+    usage: usage?.trim(),
     recommendations: recommendations?.trim(),
     farmType,
+    foodType,
     createdBy: req.user!.id,
   });
 
@@ -105,7 +134,7 @@ const getFeedFormulaById = async (req: AuthenticatedRequest, res: Response) => {
 
 const updateFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
-  const { name, targetStage, ingredients, instruction, recommendations, farmType: rawFarmType } = req.body;
+  const { name, targetStage, nutrients, usage, recommendations, farmType: rawFarmType, foodType: rawFoodType } = req.body;
 
   if (!id) {
     return res.status(400).json({ message: 'Feed formula ID is required' });
@@ -123,12 +152,12 @@ const updateFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
     return res.status(400).json({ message: 'Target stage must be a non-empty string' });
   }
 
-  if (ingredients !== undefined && typeof ingredients !== 'string') {
-    return res.status(400).json({ message: 'Ingredients must be a string' });
+  if (nutrients !== undefined && typeof nutrients !== 'string') {
+    return res.status(400).json({ message: 'Nutrients must be a string' });
   }
 
-  if (instruction !== undefined && typeof instruction !== 'string') {
-    return res.status(400).json({ message: 'Instruction must be a string' });
+  if (usage !== undefined && typeof usage !== 'string') {
+    return res.status(400).json({ message: 'Usage must be a string' });
   }
 
   if (recommendations !== undefined && typeof recommendations !== 'string') {
@@ -136,8 +165,10 @@ const updateFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
   }
 
   let farmType: FarmType | null | undefined;
+  let foodType: FoodType | undefined;
   try {
     farmType = parseFarmType(rawFarmType, true);
+    foodType = parseFoodType(rawFoodType, true);
   } catch (error: any) {
     return res.status(400).json({ message: error.message });
   }
@@ -146,20 +177,25 @@ const updateFeedFormula = async (req: AuthenticatedRequest, res: Response) => {
     const payload: {
       name?: string;
       targetStage?: string;
-      ingredients?: string;
-      instruction?: string;
+      nutrients?: string;
+      usage?: string;
       recommendations?: string;
       farmType?: FarmType | null;
+      foodType?: FoodType;
     } = {
       name: name?.trim(),
       targetStage: targetStage?.trim(),
-      ingredients: ingredients?.trim(),
-      instruction: instruction?.trim(),
+      nutrients: nutrients?.trim(),
+      usage: usage?.trim(),
       recommendations: recommendations?.trim(),
     };
 
     if (farmType !== undefined) {
       payload.farmType = farmType;
+    }
+
+    if (foodType !== undefined) {
+      payload.foodType = foodType;
     }
 
     const result = await FeedFormulaService.updateFeedFormula(id, payload);

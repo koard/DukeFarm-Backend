@@ -49,6 +49,12 @@ enum DiseaseSeverity {
   CRITICAL
 }
 
+enum FoodType {
+  FRESH      // อาหารสด
+  PELLET     // อาหารเม็ด
+  SUPPLEMENT // วิตามิน/โปรไบโอติก
+}
+
 enum ProductionCycleStatus {
   PLANNING
   STOCKING
@@ -150,19 +156,20 @@ model DailyRecord {
 }
 
 model FeedFormula {
-  id              String                   @id @default(uuid()) @db.Uuid
+  id              String    @id @default(uuid()) @db.Uuid
   name            String
-  ingredients     String?                  @map("ingredients")
-  instruction     String?                  @map("instruction")
+  foodType        FoodType  @default(FRESH) @map("food_type")
+  nutrients       String?   @map("nutrients")
+  usage           String?   @map("usage")
   recommendations String?
-  targetStage     String?                  @map("target_stage")
-  farmType        FarmType?                @map("farm_type")
-  farmId          String?                  @map("farm_id") @db.Uuid
-  ownerId         String?                  @map("owner_id") @db.Uuid
-  farm            Farm?                    @relation(fields: [farmId], references: [id])
-  owner           User?                    @relation(fields: [ownerId], references: [id])
-  createdAt       DateTime                 @default(now()) @map("created_at")
-  updatedAt       DateTime                 @default(now()) @updatedAt @map("updated_at")
+  targetStage     String?   @map("target_stage")
+  farmType        FarmType? @map("farm_type")
+  farmId          String?   @map("farm_id") @db.Uuid
+  ownerId         String?   @map("owner_id") @db.Uuid
+  farm            Farm?     @relation(fields: [farmId], references: [id])
+  owner           User?     @relation(fields: [ownerId], references: [id])
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at")
 
   @@map("feed_formulas")
 }
