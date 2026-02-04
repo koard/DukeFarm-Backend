@@ -427,7 +427,7 @@ const feedFormulas = [
         {
                 name: 'เครื่องในไก่/หมู',
                 foodType: FoodType.FRESH,
-                targetStage: '>150 กรัม',
+                targetStage: '>10 ซม.',
                 farmType: FarmType.MARKET,
                 nutrients: `• โปรตีน 15-25%
 • ธาตุเหล็กสูง
@@ -442,7 +442,7 @@ const feedFormulas = [
         {
                 name: 'เศษปลาโรงงาน',
                 foodType: FoodType.FRESH,
-                targetStage: '>150 กรัม',
+                targetStage: '>10 ซม.',
                 farmType: FarmType.MARKET,
                 nutrients: `• โปรตีน 50-60%
 • แคลเซียม (จากกระดูก)
@@ -457,7 +457,7 @@ const feedFormulas = [
         {
                 name: 'หอยบด (หอยเชอรี่/หอยขม)',
                 foodType: FoodType.FRESH,
-                targetStage: '>150 กรัม',
+                targetStage: '>10 ซม.',
                 farmType: FarmType.MARKET,
                 nutrients: `• โปรตีน 50-60%
 • แคลเซียมสูงมาก (จากเปลือก)
@@ -474,7 +474,7 @@ const feedFormulas = [
         {
                 name: 'อาหารเม็ด โปรตีน 28-32%',
                 foodType: FoodType.PELLET,
-                targetStage: '>150 กรัม',
+                targetStage: '>10 ซม.',
                 farmType: FarmType.MARKET,
                 nutrients: `• โปรตีน 28-32%
 • พลังงานเพียงพอ
@@ -490,7 +490,7 @@ const feedFormulas = [
         {
                 name: 'วิตามิน C+E',
                 foodType: FoodType.SUPPLEMENT,
-                targetStage: '>150 กรัม',
+                targetStage: '>10 ซม.',
                 farmType: FarmType.MARKET,
                 nutrients: `• ลดความเครียดช่วงขุน
 • ป้องกันโรค
@@ -502,7 +502,7 @@ const feedFormulas = [
         {
                 name: 'โปรไบโอติก',
                 foodType: FoodType.SUPPLEMENT,
-                targetStage: '>150 กรัม',
+                targetStage: '>10 ซม.',
                 farmType: FarmType.MARKET,
                 nutrients: `• ควบคุมคุณภาพน้ำ
 • ลดแอมโมเนีย
