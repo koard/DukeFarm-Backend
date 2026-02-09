@@ -4,12 +4,21 @@ import {
   FarmerProfile as FarmerProfileModel,
   ResearcherProfile as ResearcherProfileModel,
   FarmType,
+  PondType,
   Prisma,
 } from '@prisma/client';
 import { prisma } from '../clients/prisma';
 import { createHttpError } from '../utils/httpError';
 
 const SUPPORTED_ONBOARDING_ROLES: UserRole[] = [UserRole.FARMER, UserRole.RESEARCHER];
+
+type PondInput = {
+  pondType: PondType;
+  widthM: number;
+  lengthM: number;
+  depthM: number;
+  volumeM3: number;
+};
 
 type FarmerProfilePayload = {
   firstName: string;
@@ -21,6 +30,7 @@ type FarmerProfilePayload = {
   farmLongitude: number;
   farmAreaRai: number | null;
   pondsPerRai: number | null;
+  ponds: PondInput[];
 };
 
 type ResearcherProfilePayload = {
@@ -144,6 +154,23 @@ const completeFarmerProfile = async (
       },
     });
 
+    // Delete existing ponds and create new ones
+    await tx.pond.deleteMany({ where: { profileId: userId } });
+    const createdPonds = await Promise.all(
+      payload.ponds.map((pond) =>
+        tx.pond.create({
+          data: {
+            profileId: userId,
+            pondType: pond.pondType,
+            widthM: pond.widthM,
+            lengthM: pond.lengthM,
+            depthM: pond.depthM,
+            volumeM3: pond.volumeM3,
+          },
+        }),
+      ),
+    );
+
     const cultivatedTypes = await syncFarmerCultivationTypes(tx, userId, farmTypes);
     await tx.researcherProfile.deleteMany({ where: { userId } });
 
@@ -156,7 +183,7 @@ const completeFarmerProfile = async (
       select: { id: true, role: true, registrationStatus: true },
     });
 
-    return { profile: { ...profile, selectedFarmTypes: cultivatedTypes }, user };
+    return { profile: { ...profile, selectedFarmTypes: cultivatedTypes, ponds: createdPonds }, user };
   });
 
   return result;

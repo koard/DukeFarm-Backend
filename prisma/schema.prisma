@@ -205,10 +205,27 @@ model FarmerProfile {
   farmLongitude     Float?        @map("farm_longitude")
   farmAreaRai       Decimal?      @map("farm_area_rai") @db.Decimal(10, 2)
   pondsPerRai       Decimal?      @map("ponds_per_rai") @db.Decimal(10, 2)
+  ponds             Pond[]
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @default(now()) @updatedAt @map("updated_at")
 
   @@map("farmer_profiles")
+}
+
+model Pond {
+  id           String         @id @default(uuid()) @db.Uuid
+  profileId    String         @map("profile_id") @db.Uuid
+  profile      FarmerProfile  @relation(fields: [profileId], references: [userId], onDelete: Cascade)
+  pondType     PondType       @map("pond_type")
+  widthM       Decimal        @map("width_m") @db.Decimal(10, 2)
+  lengthM      Decimal        @map("length_m") @db.Decimal(10, 2)
+  depthM       Decimal        @map("depth_m") @db.Decimal(10, 2)
+  volumeM3     Decimal        @map("volume_m3") @db.Decimal(12, 2)
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at")
+
+  @@index([profileId])
+  @@map("ponds")
 }
 
 model FarmerCultivationType {

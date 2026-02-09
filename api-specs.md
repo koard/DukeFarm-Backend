@@ -681,14 +681,37 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
   "firstName": "Somchai",
   "lastName": "Prasert",
   "phone": "0812345678",
-    "primaryFarmType": "SMALL",
-  "declaredPondCount": 4,
+  "primaryFarmType": "SMALL",
   "farmLatitude": 14.077,
-  "farmLongitude": 100.608
+  "farmLongitude": 100.608,
+  "ponds": [
+    {
+      "pondType": "EARTHEN",
+      "widthM": 3,
+      "lengthM": 5,
+      "depthM": 1
+    },
+    {
+      "pondType": "CONCRETE",
+      "widthM": 3,
+      "lengthM": 5,
+      "depthM": 1
+    }
+  ]
 }
 ```
-  - **Validation:** `firstName`, `lastName`, `phone`, `primaryFarmType`, `farmLatitude`, and `farmLongitude` required. `primaryFarmType` must be one of `SMALL`, `LARGE`, `MARKET` (case-insensitive). `declaredPondCount` must be a non-negative integer when provided. `farmLatitude` must be between -90 and 90, `farmLongitude` between -180 and 180. `SMALL` maps to the fingerling/Pla Tum window (7-10 days) and `LARGE` maps to the Pla Nio juvenile window (11-30 days).
-- **Behavior:** Upserts the `farmer_profiles` record, removes any researcher profile, and updates the user to `{ role: FARMER, registrationStatus: COMPLETED }`.
+  - **Validation:**
+    - `firstName`, `lastName`, `phone`, `primaryFarmType`, `farmLatitude`, `farmLongitude`, and `ponds` are required.
+    - `primaryFarmType` must be one of `SMALL`, `LARGE`, `MARKET` (case-insensitive).
+    - `farmLatitude` must be between -90 and 90, `farmLongitude` between -180 and 180.
+    - `ponds` must be a non-empty array (at least 1 pond required). Each pond must have:
+      - `pondType`: `EARTHEN` or `CONCRETE` (case-insensitive)
+      - `widthM`: positive number (meters)
+      - `lengthM`: positive number (meters)
+      - `depthM`: positive number (meters)
+    - `declaredPondCount` is auto-calculated from the number of ponds submitted.
+    - `volumeM3` is auto-calculated server-side as `widthM × lengthM × depthM`.
+- **Behavior:** Upserts the `farmer_profiles` record, creates pond records (deletes any existing ponds first), removes any researcher profile, and updates the user to `{ role: FARMER, registrationStatus: COMPLETED }`.
 - **Response:**
 ```json
 {
@@ -699,11 +722,31 @@ http://localhost:3000/auth/callback?token=eyJhbGc...&user=%7B%22id%22%3A%22abc12
       "lastName": "Prasert",
       "phone": "0812345678",
       "primaryFarmType": "SMALL",
-      "declaredPondCount": 4,
+      "declaredPondCount": 2,
       "farmLatitude": 14.077,
       "farmLongitude": 100.608,
       "createdAt": "2025-11-21T06:30:00.000Z",
-      "updatedAt": "2025-11-21T06:30:00.000Z"
+      "updatedAt": "2025-11-21T06:30:00.000Z",
+      "ponds": [
+        {
+          "id": "uuid",
+          "pondType": "EARTHEN",
+          "widthM": 3,
+          "lengthM": 5,
+          "depthM": 1,
+          "volumeM3": 15,
+          "createdAt": "2025-11-21T06:30:00.000Z"
+        },
+        {
+          "id": "uuid",
+          "pondType": "CONCRETE",
+          "widthM": 3,
+          "lengthM": 5,
+          "depthM": 1,
+          "volumeM3": 15,
+          "createdAt": "2025-11-21T06:30:00.000Z"
+        }
+      ]
     },
     "user": {
       "id": "uuid",

@@ -1,4 +1,4 @@
-import { FarmType, UserRole } from '@prisma/client';
+import { FarmType, PondType, UserRole } from '@prisma/client';
 import { NextFunction, Response } from 'express';
 import { AuthenticatedRequest } from '../middlewares/auth.middleware';
 import { createHttpError } from '../utils/httpError';
@@ -84,6 +84,60 @@ const parseFarmTypes = (raw: unknown): FarmType[] => {
   throw createHttpError(400, 'farmTypes is required and must contain at least one value');
 };
 
+type PondInput = {
+  pondType: PondType;
+  widthM: number;
+  lengthM: number;
+  depthM: number;
+  volumeM3: number;
+};
+
+const parsePositiveNumber = (value: unknown, field: string): number => {
+  if (value === undefined || value === null) {
+    throw createHttpError(400, `${field} is required`);
+  }
+  const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+  if (isNaN(num) || num <= 0) {
+    throw createHttpError(400, `${field} must be a positive number`);
+  }
+  return num;
+};
+
+const parsePondType = (raw: unknown): PondType => {
+  if (typeof raw !== 'string') {
+    throw createHttpError(400, 'pondType is required');
+  }
+  const upper = raw.toUpperCase();
+  if (upper !== PondType.EARTHEN && upper !== PondType.CONCRETE) {
+    throw createHttpError(400, 'pondType must be EARTHEN or CONCRETE');
+  }
+  return upper as PondType;
+};
+
+const parsePonds = (raw: unknown): PondInput[] => {
+  if (!Array.isArray(raw)) {
+    throw createHttpError(400, 'ponds is required and must be an array');
+  }
+
+  if (raw.length === 0) {
+    throw createHttpError(400, 'At least one pond is required');
+  }
+
+  return raw.map((pond, index) => {
+    if (typeof pond !== 'object' || pond === null) {
+      throw createHttpError(400, `ponds[${index}] must be an object`);
+    }
+
+    const pondType = parsePondType((pond as Record<string, unknown>).pondType);
+    const widthM = parsePositiveNumber((pond as Record<string, unknown>).widthM, `ponds[${index}].widthM`);
+    const lengthM = parsePositiveNumber((pond as Record<string, unknown>).lengthM, `ponds[${index}].lengthM`);
+    const depthM = parsePositiveNumber((pond as Record<string, unknown>).depthM, `ponds[${index}].depthM`);
+    const volumeM3 = Math.round(widthM * lengthM * depthM * 100) / 100;
+
+    return { pondType, widthM, lengthM, depthM, volumeM3 };
+  });
+};
+
 const parseDeclaredPondCount = (value: unknown): number | null => {
   const parsed = parseOptionalNumber(value, 'declaredPondCount');
   if (parsed === undefined || parsed === null) {
@@ -150,6 +204,7 @@ const selectRole = async (req: AuthenticatedRequest, res: Response, next: NextFu
 const submitFarmerProfile = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const user = ensureAuthenticated(req);
+    const ponds = parsePonds(req.body?.ponds);
 
     const payload = {
       firstName: requireTrimmedString(req.body?.firstName, 'firstName'),
@@ -158,11 +213,12 @@ const submitFarmerProfile = async (req: AuthenticatedRequest, res: Response, nex
       farmTypes: parseFarmTypes(
         req.body?.farmTypes ?? req.body?.selectedFarmTypes ?? req.body?.primaryFarmType,
       ),
-      declaredPondCount: parseDeclaredPondCount(req.body?.declaredPondCount),
+      declaredPondCount: ponds.length,
       farmLatitude: parseLatitude(req.body?.farmLatitude),
       farmLongitude: parseLongitude(req.body?.farmLongitude),
       farmAreaRai: parseNonNegativeDecimal(req.body?.farmAreaRai, 'farmAreaRai'),
       pondsPerRai: parseNonNegativeDecimal(req.body?.pondsPerRai, 'pondsPerRai'),
+      ponds,
     };
 
     const result = await OnboardingService.completeFarmerProfile(user.id, payload);
