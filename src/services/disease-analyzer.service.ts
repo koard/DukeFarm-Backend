@@ -244,25 +244,12 @@ export const DiseaseAnalyzerService = {
 
   getSymptomChips: async () => {
     // Return curated chips for frontend "Quick Select"
-    // Tags here must match actual disease tags in seed data
     // Note: diseases still have more tags for fuzzy matching — these are just UI shortcuts
     return [
-      {
-        category: 'อาการทั่วไป',
-        chips: ['ซึม', 'เบื่ออาหาร', 'ถูตัว', 'หายใจเร็ว', 'เมือกมาก']
-      },
-      {
-        category: 'แผลและผิวหนัง',
-        chips: ['จุดเลือดออก', 'แผลหลุม', 'แผลอักเสบ', 'แผลเรื้อรัง', 'ท้องบวม']
-      },
-      {
-        category: 'ลักษณะภายนอก',
-        chips: ['จุดขาว', 'ด่างขาว', 'ครีบกร่อน', 'เหงือกอักเสบ', 'ปรสิตเกาะ']
-      },
-      {
-        category: 'โครงสร้าง',
-        chips: ['กะโหลกร้าว']
-      }
+      'ซึม', 'เบื่ออาหาร', 'ถูตัว', 'หายใจเร็ว', 'เมือกมาก',
+      'จุดเลือดออก', 'แผลหลุม', 'แผลอักเสบ', 'แผลเรื้อรัง', 'ท้องบวม',
+      'จุดขาว', 'ด่างขาว', 'ครีบกร่อน', 'เหงือกอักเสบ', 'ปรสิตเกาะ',
+      'กะโหลกร้าว'
     ];
   },
 };
