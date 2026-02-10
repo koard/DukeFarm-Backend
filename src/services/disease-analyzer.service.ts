@@ -245,14 +245,15 @@ export const DiseaseAnalyzerService = {
   getSymptomChips: async () => {
     // Return curated chips for frontend "Quick Select"
     // Tags here must match actual disease tags in seed data
+    // Note: diseases still have more tags for fuzzy matching — these are just UI shortcuts
     return [
       {
         category: 'อาการทั่วไป',
-        chips: ['ซึม', 'เบื่ออาหาร', 'ถูตัว', 'ระคายเคือง', 'หายใจเร็ว', 'เมือกมาก', 'โตช้า']
+        chips: ['ซึม', 'เบื่ออาหาร', 'ถูตัว', 'หายใจเร็ว', 'เมือกมาก']
       },
       {
         category: 'แผลและผิวหนัง',
-        chips: ['จุดเลือดออก', 'แผลเลือดออก', 'แผลหลุม', 'แผลอักเสบ', 'แผลลึก', 'แผลเรื้อรัง', 'ท้องบวม']
+        chips: ['จุดเลือดออก', 'แผลหลุม', 'แผลอักเสบ', 'แผลเรื้อรัง', 'ท้องบวม']
       },
       {
         category: 'ลักษณะภายนอก',
@@ -260,7 +261,7 @@ export const DiseaseAnalyzerService = {
       },
       {
         category: 'โครงสร้าง',
-        chips: ['กะโหลกร้าว', 'รอยแยก', 'เนื้อแตก']
+        chips: ['กะโหลกร้าว']
       }
     ];
   },
