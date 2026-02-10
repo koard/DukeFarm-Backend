@@ -37,8 +37,8 @@ async function main() {
     // Test Case 4: Symptom Chips
     console.log('\n[Test 4] Fetching Symptom Chips');
     const chips = await DiseaseAnalyzerService.getSymptomChips();
-    console.log('Categories:', chips.map(c => c.category).join(', '));
-    console.log('Total Categories:', chips.length);
+    console.log('Chips:', chips.join(', '));
+    console.log('Total Chips:', chips.length);
 
     await prisma.$disconnect();
 }
