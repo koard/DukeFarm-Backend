@@ -1,10 +1,12 @@
 import { NextFunction, Request, Response } from 'express';
 import { PondService } from '../services/pond.service';
+import { createHttpError } from '../utils/httpError';
 
 export const PondController = {
     getActiveCycle: async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
+            if (!id) throw createHttpError(400, 'Pond ID is required');
             const cycle = await PondService.getActiveCycle(id);
             res.json({ data: cycle });
         } catch (error) {
@@ -15,6 +17,7 @@ export const PondController = {
     endCycle: async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;
+            if (!id) throw createHttpError(400, 'Pond ID is required');
             const cycle = await PondService.closeActiveCycle(id);
             res.json({ data: cycle });
         } catch (error) {
