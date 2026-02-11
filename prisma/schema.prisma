@@ -213,16 +213,18 @@ model FarmerProfile {
 }
 
 model Pond {
-  id           String         @id @default(uuid()) @db.Uuid
-  profileId    String         @map("profile_id") @db.Uuid
-  profile      FarmerProfile  @relation(fields: [profileId], references: [userId], onDelete: Cascade)
-  pondType     PondType       @map("pond_type")
-  widthM       Decimal        @map("width_m") @db.Decimal(10, 2)
-  lengthM      Decimal        @map("length_m") @db.Decimal(10, 2)
-  depthM       Decimal        @map("depth_m") @db.Decimal(10, 2)
-  volumeM3     Decimal        @map("volume_m3") @db.Decimal(12, 2)
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @default(now()) @updatedAt @map("updated_at")
+  id              String          @id @default(uuid()) @db.Uuid
+  profileId       String          @map("profile_id") @db.Uuid
+  profile         FarmerProfile   @relation(fields: [profileId], references: [userId], onDelete: Cascade)
+  pondType        PondType        @map("pond_type")
+  farmType        FarmType        @default(SMALL) @map("farm_type")
+  widthM          Decimal         @map("width_m") @db.Decimal(10, 2)
+  lengthM         Decimal         @map("length_m") @db.Decimal(10, 2)
+  depthM          Decimal         @map("depth_m") @db.Decimal(10, 2)
+  volumeM3        Decimal         @map("volume_m3") @db.Decimal(12, 2)
+  farmDataEntries FarmDataEntry[]
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @default(now()) @updatedAt @map("updated_at")
 
   @@index([profileId])
   @@map("ponds")
@@ -288,6 +290,8 @@ model FarmDataEntry {
   farmType           FarmType  @map("farm_type")
   cultivationTypeId  String?   @map("cultivation_type_id") @db.Uuid
   cultivationType    FarmerCultivationType? @relation(fields: [cultivationTypeId], references: [id])
+  pondId             String?   @map("pond_id") @db.Uuid
+  pond               Pond?     @relation(fields: [pondId], references: [id])
   recordedAt         DateTime  @map("recorded_at")
   fishAgeLabel       String    @map("fish_age_label")
   fishAgeDays        Int?      @map("fish_age_days")
@@ -311,6 +315,7 @@ model FarmDataEntry {
   @@index([userId, recordedAt])
   @@index([cultivationTypeId])
   @@index([fishAgeStageId])
+  @@index([pondId])
   @@map("farm_data_entries")
 }
 

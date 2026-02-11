@@ -30,6 +30,7 @@ export type CreateEntryInput = {
   farmType: FarmType;
   recordedAt: Date;
   fishAgeLabel: string;
+  pondId?: string | null;
   pondType?: PondType | null;
   pondCount?: number | null;
   fishCountText?: string | null;
@@ -198,6 +199,7 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
       userId,
       farmType: input.farmType,
       cultivationTypeId: cultivationType?.id ?? null,
+      pondId: input.pondId ?? null,
       recordedAt: input.recordedAt,
       fishAgeLabel: normalizedFishAge,
       fishAgeDays: stageAssessment.fishAgeDays,
@@ -277,9 +279,67 @@ const deleteEntry = async (id: string) => {
   });
 };
 
+const getUserEntries = async (
+  userId: string,
+  pondId: string | undefined,
+  page: number = 1,
+  limit: number = 20,
+) => {
+  const where: any = { userId };
+  if (pondId) {
+    where.pondId = pondId;
+  }
+
+  const skip = (page - 1) * limit;
+
+  const [entries, totalItems] = await Promise.all([
+    prisma.farmDataEntry.findMany({
+      where,
+      orderBy: { recordedAt: 'desc' },
+      skip,
+      take: limit,
+      include: {
+        pond: {
+          select: { id: true, pondType: true, farmType: true },
+        },
+      },
+    }),
+    prisma.farmDataEntry.count({ where }),
+  ]);
+
+  return {
+    data: entries.map((e) => ({
+      id: e.id,
+      farmType: e.farmType,
+      pondId: e.pondId,
+      pond: e.pond,
+      recordedAt: e.recordedAt.toISOString(),
+      fishAgeLabel: e.fishAgeLabel,
+      fishAgeDays: e.fishAgeDays,
+      fishCount: e.fishCount,
+      fishCountText: e.fishCountText,
+      foodAmountKg: e.foodAmountKg,
+      pondType: e.pondType,
+      pondCount: e.pondCount,
+      weatherTemperatureC: e.weatherTemperatureC,
+      weatherRainMm: e.weatherRainMm,
+      weatherHumidityPct: e.weatherHumidityPct,
+      notes: e.notes,
+      createdAt: e.createdAt.toISOString(),
+    })),
+    pagination: {
+      currentPage: page,
+      totalPages: Math.ceil(totalItems / limit),
+      totalItems,
+      itemsPerPage: limit,
+    },
+  };
+};
+
 export const FarmDataEntryService = {
   getFormState,
   createEntry,
   updateEntry,
   deleteEntry,
+  getUserEntries,
 };

@@ -14,6 +14,7 @@ const SUPPORTED_ONBOARDING_ROLES: UserRole[] = [UserRole.FARMER, UserRole.RESEAR
 
 type PondInput = {
   pondType: PondType;
+  farmType: FarmType;
   widthM: number;
   lengthM: number;
   depthM: number;
@@ -162,6 +163,7 @@ const completeFarmerProfile = async (
           data: {
             profileId: userId,
             pondType: pond.pondType,
+            farmType: pond.farmType,
             widthM: pond.widthM,
             lengthM: pond.lengthM,
             depthM: pond.depthM,

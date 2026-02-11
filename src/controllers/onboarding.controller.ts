@@ -86,6 +86,7 @@ const parseFarmTypes = (raw: unknown): FarmType[] => {
 
 type PondInput = {
   pondType: PondType;
+  farmType: FarmType;
   widthM: number;
   lengthM: number;
   depthM: number;
@@ -114,6 +115,18 @@ const parsePondType = (raw: unknown): PondType => {
   return upper as PondType;
 };
 
+const parseFarmType = (raw: unknown, field: string): FarmType => {
+  if (typeof raw !== 'string') {
+    throw createHttpError(400, `${field} is required`);
+  }
+  const upper = raw.toUpperCase();
+  const validValues = Object.values(FarmType);
+  if (!validValues.includes(upper as FarmType)) {
+    throw createHttpError(400, `${field} must be one of: ${validValues.join(', ')}`);
+  }
+  return upper as FarmType;
+};
+
 const parsePonds = (raw: unknown): PondInput[] => {
   if (!Array.isArray(raw)) {
     throw createHttpError(400, 'ponds is required and must be an array');
@@ -128,13 +141,15 @@ const parsePonds = (raw: unknown): PondInput[] => {
       throw createHttpError(400, `ponds[${index}] must be an object`);
     }
 
-    const pondType = parsePondType((pond as Record<string, unknown>).pondType);
-    const widthM = parsePositiveNumber((pond as Record<string, unknown>).widthM, `ponds[${index}].widthM`);
-    const lengthM = parsePositiveNumber((pond as Record<string, unknown>).lengthM, `ponds[${index}].lengthM`);
-    const depthM = parsePositiveNumber((pond as Record<string, unknown>).depthM, `ponds[${index}].depthM`);
+    const p = pond as Record<string, unknown>;
+    const pondType = parsePondType(p.pondType);
+    const farmType = parseFarmType(p.farmType, `ponds[${index}].farmType`);
+    const widthM = parsePositiveNumber(p.widthM, `ponds[${index}].widthM`);
+    const lengthM = parsePositiveNumber(p.lengthM, `ponds[${index}].lengthM`);
+    const depthM = parsePositiveNumber(p.depthM, `ponds[${index}].depthM`);
     const volumeM3 = Math.round(widthM * lengthM * depthM * 100) / 100;
 
-    return { pondType, widthM, lengthM, depthM, volumeM3 };
+    return { pondType, farmType, widthM, lengthM, depthM, volumeM3 };
   });
 };
 

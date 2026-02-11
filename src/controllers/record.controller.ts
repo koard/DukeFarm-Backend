@@ -79,6 +79,24 @@ const getFormState = async (req: AuthenticatedRequest, res: Response, next: Next
   }
 };
 
+const getRecords = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      throw createHttpError(401, 'Unauthorized');
+    }
+
+    const pondId = typeof req.query.pondId === 'string' ? req.query.pondId : undefined;
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
+
+    const result = await FarmDataEntryService.getUserEntries(user.id, pondId, page, limit);
+    res.json({ data: result.data, pagination: result.pagination });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const createRecord = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const user = req.user;
@@ -122,10 +140,13 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
       });
     }
 
+    const pondId = typeof req.body?.pondId === 'string' ? req.body.pondId : undefined;
+
     const entry = await FarmDataEntryService.createEntry(user.id, {
       farmType,
       recordedAt,
       fishAgeLabel: fishAgeLabelRaw,
+      pondId,
       pondType,
       pondCount,
       fishCountText,
@@ -199,6 +220,7 @@ const deleteRecord = async (req: AuthenticatedRequest, res: Response, next: Next
 
 export const RecordController = {
   getFormState,
+  getRecords,
   createRecord,
   updateRecord,
   deleteRecord,
