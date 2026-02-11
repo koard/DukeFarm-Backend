@@ -149,10 +149,12 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
     const medicineName = typeof req.body?.medicineName === 'string' ? req.body.medicineName : undefined;
     const foodCostBaht = parsePositiveNumber(req.body?.foodCostBaht, 'foodCostBaht');
     const medicineCostBaht = parsePositiveNumber(req.body?.medicineCostBaht, 'medicineCostBaht');
+    const cycleStartDate = req.body?.cycleStartDate ? new Date(req.body.cycleStartDate) : undefined;
 
     const entry = await FarmDataEntryService.createEntry(user.id, {
       farmType,
       recordedAt,
+      cycleStartDate,
       fishAgeLabel: fishAgeLabelRaw,
       pondId,
       pondType,

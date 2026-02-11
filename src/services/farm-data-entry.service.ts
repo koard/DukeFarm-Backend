@@ -29,6 +29,7 @@ export type FormStatePayload = {
 export type CreateEntryInput = {
   farmType: FarmType;
   recordedAt: Date;
+  cycleStartDate?: Date | null;
   fishAgeLabel: string;
   pondId?: string | null;
   pondType?: PondType | null;
@@ -218,7 +219,7 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
       const newCycle = await prisma.productionCycle.create({
         data: {
           pondId: input.pondId,
-          startDate: input.recordedAt,
+          startDate: input.cycleStartDate ?? input.recordedAt,
           status: ProductionCycleStatus.STOCKING,
           farmType: input.farmType,
           initialStockCount: numericFishCount ?? 0,
