@@ -141,6 +141,14 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
     }
 
     const pondId = typeof req.body?.pondId === 'string' ? req.body.pondId : undefined;
+    const fishCount = parsePositiveNumber(req.body?.fishCount, 'fishCount');
+    const fishRemaining = parsePositiveNumber(req.body?.fishRemaining, 'fishRemaining');
+    const averageFishWeightGr = parsePositiveNumber(req.body?.averageFishWeightGr, 'averageFishWeightGr');
+    const feedFormulaName = typeof req.body?.feedFormulaName === 'string' ? req.body.feedFormulaName : undefined;
+    const supplementName = typeof req.body?.supplementName === 'string' ? req.body.supplementName : undefined;
+    const medicineName = typeof req.body?.medicineName === 'string' ? req.body.medicineName : undefined;
+    const foodCostBaht = parsePositiveNumber(req.body?.foodCostBaht, 'foodCostBaht');
+    const medicineCostBaht = parsePositiveNumber(req.body?.medicineCostBaht, 'medicineCostBaht');
 
     const entry = await FarmDataEntryService.createEntry(user.id, {
       farmType,
@@ -149,8 +157,15 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
       pondId,
       pondType,
       pondCount,
-      fishCountText,
+      fishCountText: fishCountText ?? (fishCount != null ? String(fishCount) : undefined),
+      fishRemaining: fishRemaining ?? undefined,
+      averageFishWeightGr,
       foodAmountKg,
+      feedFormulaName,
+      supplementName,
+      medicineName,
+      foodCostBaht,
+      medicineCostBaht,
       weather: weatherPayload,
       notes,
     });

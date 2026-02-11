@@ -34,7 +34,14 @@ export type CreateEntryInput = {
   pondType?: PondType | null;
   pondCount?: number | null;
   fishCountText?: string | null;
+  fishRemaining?: number | null;
+  averageFishWeightGr?: number | null;
   foodAmountKg?: number | null;
+  feedFormulaName?: string | null;
+  supplementName?: string | null;
+  medicineName?: string | null;
+  foodCostBaht?: number | null;
+  medicineCostBaht?: number | null;
   weather?: {
     temperatureC?: number | null;
     rainMm?: number | null;
@@ -210,8 +217,14 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
       pondCount: applyNumeric(input.pondCount ?? null),
       fishCount: numericFishCount,
       fishCountText: normalizedFishCountText,
-      averageFishWeightGr: null,
+      fishRemaining: input.fishRemaining ?? null,
+      averageFishWeightGr: input.averageFishWeightGr ?? null,
       foodAmountKg: applyNumeric(input.foodAmountKg),
+      feedFormulaName: input.feedFormulaName ?? null,
+      supplementName: input.supplementName ?? null,
+      medicineName: input.medicineName ?? null,
+      foodCostBaht: applyNumeric(input.foodCostBaht),
+      medicineCostBaht: applyNumeric(input.medicineCostBaht),
       weatherTemperatureC: applyNumeric(input.weather?.temperatureC ?? null),
       weatherRainMm: applyNumeric(input.weather?.rainMm ?? null),
       weatherHumidityPct: applyNumeric(input.weather?.humidityPct ?? null),
