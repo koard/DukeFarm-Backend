@@ -158,7 +158,7 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
       pondType,
       pondCount,
       fishCountText: fishCountText ?? (fishCount != null ? String(fishCount) : undefined),
-      fishRemaining: fishRemaining ?? undefined,
+      fishRemaining: fishRemaining ?? null,
       averageFishWeightGr,
       foodAmountKg,
       feedFormulaName,

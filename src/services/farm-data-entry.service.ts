@@ -1,4 +1,4 @@
-import { FarmType, PondType } from '@prisma/client';
+import { FarmType, PondType, ProductionCycleStatus } from '@prisma/client';
 import { prisma } from '../clients/prisma';
 import { WeatherService } from './weather.service';
 import { logger } from '../utils/logger';
@@ -201,12 +201,41 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
     }),
   ]);
 
+  let productionCycleId: string | null = null;
+  if (input.pondId) {
+    const activeCycle = await prisma.productionCycle.findFirst({
+      where: {
+        pondId: input.pondId,
+        status: { in: [ProductionCycleStatus.PLANNING, ProductionCycleStatus.STOCKING, ProductionCycleStatus.GROWOUT, ProductionCycleStatus.HARVEST_READY] }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (activeCycle) {
+      productionCycleId = activeCycle.id;
+    } else {
+      // Create new cycle
+      const newCycle = await prisma.productionCycle.create({
+        data: {
+          pondId: input.pondId,
+          startDate: input.recordedAt,
+          status: ProductionCycleStatus.STOCKING,
+          farmType: input.farmType,
+          initialStockCount: numericFishCount ?? 0,
+          initialAvgWeightKg: input.averageFishWeightGr ? (input.averageFishWeightGr / 1000) : null,
+        }
+      });
+      productionCycleId = newCycle.id;
+    }
+  }
+
   return prisma.farmDataEntry.create({
     data: {
       userId,
       farmType: input.farmType,
       cultivationTypeId: cultivationType?.id ?? null,
       pondId: input.pondId ?? null,
+      productionCycleId,
       recordedAt: input.recordedAt,
       fishAgeLabel: normalizedFishAge,
       fishAgeDays: stageAssessment.fishAgeDays,

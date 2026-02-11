@@ -10,6 +10,8 @@ import { researcherRouter } from './researcher.routes';
 import { recordRouter } from './record.routes';
 import { diseaseAnalyzerRouter } from './disease-analyzer.routes';
 
+import { pondRouter } from './pond.routes';
+
 const router = Router();
 
 router.use('/v1', v1Router);
@@ -20,6 +22,7 @@ router.use('/farmers', farmerRouter);
 router.use('/feed-formulas', feedFormulaRouter);
 router.use('/researchers', researcherRouter);
 router.use('/records', recordRouter);
+router.use('/ponds', pondRouter);
 router.use('/', diseaseAnalyzerRouter);
 router.use('/', homeRouter);
 

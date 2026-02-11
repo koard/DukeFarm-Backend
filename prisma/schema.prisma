@@ -124,6 +124,9 @@ model ProductionCycle {
   targetHarvestDate   DateTime?              @map("target_harvest_date")
   notes               String?
   farmType            FarmType?              @map("farm_type")
+  pondId              String?                @map("pond_id") @db.Uuid
+  pond                Pond?                  @relation(fields: [pondId], references: [id])
+  farmDataEntries     FarmDataEntry[]
   dailyRecords        DailyRecord[]
   researchSurveys     ResearchSurvey[]
   diseaseCases        DiseaseCase[]
@@ -132,6 +135,7 @@ model ProductionCycle {
 
 
   @@index([status])
+  @@index([pondId])
   @@map("production_cycles")
 }
 
@@ -223,6 +227,7 @@ model Pond {
   depthM          Decimal         @map("depth_m") @db.Decimal(10, 2)
   volumeM3        Decimal         @map("volume_m3") @db.Decimal(12, 2)
   farmDataEntries FarmDataEntry[]
+  productionCycles ProductionCycle[]
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @default(now()) @updatedAt @map("updated_at")
 
@@ -292,6 +297,8 @@ model FarmDataEntry {
   cultivationType    FarmerCultivationType? @relation(fields: [cultivationTypeId], references: [id])
   pondId             String?   @map("pond_id") @db.Uuid
   pond               Pond?     @relation(fields: [pondId], references: [id])
+  productionCycleId  String?   @map("production_cycle_id") @db.Uuid
+  productionCycle    ProductionCycle? @relation(fields: [productionCycleId], references: [id])
   recordedAt         DateTime  @map("recorded_at")
   fishAgeLabel       String    @map("fish_age_label")
   fishAgeDays        Int?      @map("fish_age_days")
