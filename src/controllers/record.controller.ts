@@ -87,10 +87,22 @@ const getRecords = async (req: AuthenticatedRequest, res: Response, next: NextFu
     }
 
     const pondId = typeof req.query.pondId === 'string' ? req.query.pondId : undefined;
+    const farmTypeParam = typeof req.query.farmType === 'string' ? req.query.farmType : undefined;
+    let farmType: FarmType | undefined;
+    if (farmTypeParam) {
+      try {
+        farmType = parseFarmType(farmTypeParam);
+      } catch (e) {
+        // ignore or throw? Better to ignore invalid farmType filter for listing? 
+        // Or strict? strict is better.
+        throw createHttpError(400, `Invalid farmType: ${farmTypeParam}`);
+      }
+    }
+
     const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
 
-    const result = await FarmDataEntryService.getUserEntries(user.id, pondId, page, limit);
+    const result = await FarmDataEntryService.getUserEntries(user.id, pondId, farmType, page, limit);
     res.json({ data: result.data, pagination: result.pagination });
   } catch (error) {
     next(error);

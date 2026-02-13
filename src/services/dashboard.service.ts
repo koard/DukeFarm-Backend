@@ -9,7 +9,7 @@ import { createHttpError } from '../utils/httpError';
 
 import { AdminDashboardService } from './admin-dashboard.service';
 
-const getDashboard = async (userId: string, role: string, group: string): Promise<any> => {
+const getDashboard = async (userId: string, role: string, group: string, pondId?: string): Promise<any> => {
   // If Admin, utilize AdminDashboardService
   if (role === 'ADMIN') {
     // group (farmType) and year (implicit or param? Let's parse year if passed, or default current)
@@ -35,11 +35,11 @@ const getDashboard = async (userId: string, role: string, group: string): Promis
   const farmType = group as FarmTypeValue; // Cast safely or validate
   switch (farmType) {
     case FarmType.SMALL:
-      return NurserySmallDashboardService.getDashboard(userId);
+      return NurserySmallDashboardService.getDashboard(userId, pondId);
     case FarmType.LARGE:
-      return NurseryLargeDashboardService.getDashboard(userId);
+      return NurseryLargeDashboardService.getDashboard(userId, pondId);
     case FarmType.MARKET:
-      return GrowoutDashboardService.getDashboard(userId);
+      return GrowoutDashboardService.getDashboard(userId, pondId);
     default:
       throw createHttpError(400, `Unknown group type: ${group}`);
   }

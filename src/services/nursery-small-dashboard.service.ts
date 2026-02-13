@@ -69,12 +69,18 @@ const fetchWeather = async (
 
 const getLatestFishAge = async (
   userId: string,
+  pondId?: string,
 ): Promise<{ latestFishAgeLabel: string | null; latestFishAgeDays: number | null }> => {
+  const whereClause: any = {
+    userId,
+    farmType: FarmType.SMALL,
+  };
+  if (pondId) {
+    whereClause.pondId = pondId;
+  }
+
   const entry = await prisma.farmDataEntry.findFirst({
-    where: {
-      userId,
-      farmType: FarmType.SMALL,
-    },
+    where: whereClause,
     select: {
       fishAgeLabel: true,
       fishAgeDays: true,
@@ -106,12 +112,18 @@ const formatGraphLabel = (date: Date): string =>
 
 const getSurvivalSeries = async (
   userId: string,
+  pondId?: string,
 ): Promise<{ survivalRatePct: number; survivalSeries: Array<{ month: string; value: number }> }> => {
+  const whereClause: any = {
+    userId,
+    farmType: FarmType.SMALL,
+  };
+  if (pondId) {
+    whereClause.pondId = pondId;
+  }
+
   const entries = await prisma.farmDataEntry.findMany({
-    where: {
-      userId,
-      farmType: FarmType.SMALL,
-    },
+    where: whereClause,
     select: {
       recordedAt: true,
       fishCount: true,
@@ -163,7 +175,7 @@ const getSurvivalSeries = async (
   return { survivalRatePct, survivalSeries: series };
 };
 
-const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
+const getDashboard = async (userId: string, pondId?: string): Promise<NurserySmallDashboard> => {
   const [farmerProfile, cultivationType] = await Promise.all([
     prisma.farmerProfile.findUnique({
       where: { userId },
@@ -296,8 +308,8 @@ const getDashboard = async (userId: string): Promise<NurserySmallDashboard> => {
     };
   });
 
-  const { latestFishAgeLabel, latestFishAgeDays } = await getLatestFishAge(userId);
-  const { survivalRatePct, survivalSeries } = await getSurvivalSeries(userId);
+  const { latestFishAgeLabel, latestFishAgeDays } = await getLatestFishAge(userId, pondId);
+  const { survivalRatePct, survivalSeries } = await getSurvivalSeries(userId, pondId);
 
   return {
     group: FarmType.SMALL,

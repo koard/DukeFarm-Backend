@@ -325,12 +325,16 @@ const deleteEntry = async (id: string) => {
 const getUserEntries = async (
   userId: string,
   pondId: string | undefined,
+  farmType: FarmType | undefined,
   page: number = 1,
   limit: number = 20,
 ) => {
   const where: any = { userId };
   if (pondId) {
     where.pondId = pondId;
+  }
+  if (farmType) {
+    where.farmType = farmType;
   }
 
   const skip = (page - 1) * limit;

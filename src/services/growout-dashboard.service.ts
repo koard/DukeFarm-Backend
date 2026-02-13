@@ -68,20 +68,26 @@ const calculateWeightChangePct = (current: number | null, previous: number | nul
 
 const buildGrowthSeries = async (
   userId: string,
+  pondId?: string,
 ): Promise<{ points: MonthlyFeedingData[] }> => {
   const since = new Date(Date.now() - GRAPH_LOOKBACK_DAYS * DAY_IN_MS);
 
-  const entries = await prisma.farmDataEntry.findMany({
-    where: {
-      userId,
-      farmType: FarmType.MARKET,
-      averageFishWeightGr: {
-        not: null,
-      },
-      recordedAt: {
-        gte: since,
-      },
+  const whereClause: any = {
+    userId,
+    farmType: FarmType.MARKET,
+    averageFishWeightGr: {
+      not: null,
     },
+    recordedAt: {
+      gte: since,
+    },
+  };
+  if (pondId) {
+    whereClause.pondId = pondId;
+  }
+
+  const entries = await prisma.farmDataEntry.findMany({
+    where: whereClause,
     select: {
       recordedAt: true,
       averageFishWeightGr: true,
@@ -114,12 +120,18 @@ type LatestFishMetrics = {
 
 const getSurvivalSeries = async (
   userId: string,
+  pondId?: string,
 ): Promise<{ survivalRatePct: number; survivalSeries: MonthlyFeedingData[] }> => {
+  const whereClause: any = {
+    userId,
+    farmType: FarmType.MARKET,
+  };
+  if (pondId) {
+    whereClause.pondId = pondId;
+  }
+
   const entries = await prisma.farmDataEntry.findMany({
-    where: {
-      userId,
-      farmType: FarmType.MARKET,
-    },
+    where: whereClause,
     select: {
       recordedAt: true,
       fishCount: true,
@@ -171,12 +183,17 @@ const getSurvivalSeries = async (
   return { survivalRatePct, survivalSeries };
 };
 
-const getLatestFishMetrics = async (userId: string): Promise<LatestFishMetrics> => {
+const getLatestFishMetrics = async (userId: string, pondId?: string): Promise<LatestFishMetrics> => {
+  const whereClause: any = {
+    userId,
+    farmType: FarmType.MARKET,
+  };
+  if (pondId) {
+    whereClause.pondId = pondId;
+  }
+
   const recentEntries = await prisma.farmDataEntry.findMany({
-    where: {
-      userId,
-      farmType: FarmType.MARKET,
-    },
+    where: whereClause,
     select: {
       recordedAt: true,
       fishAgeLabel: true,
@@ -249,7 +266,7 @@ const calculateFoodCosts = (): { pelletCost: number; freshCost: number } => {
   };
 };
 
-const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
+const getDashboard = async (userId: string, pondId?: string): Promise<GrowoutDashboard> => {
   const [farmerProfile, cultivationType] = await Promise.all([
     prisma.farmerProfile.findUnique({
       where: { userId },
@@ -317,9 +334,9 @@ const getDashboard = async (userId: string): Promise<GrowoutDashboard> => {
     },
     { survivalRatePct, survivalSeries },
   ] = await Promise.all([
-    buildGrowthSeries(userId),
-    getLatestFishMetrics(userId),
-    getSurvivalSeries(userId),
+    buildGrowthSeries(userId, pondId),
+    getLatestFishMetrics(userId, pondId),
+    getSurvivalSeries(userId, pondId),
   ]);
 
   // Fetch weather using farmer profile location

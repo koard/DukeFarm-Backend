@@ -16,7 +16,10 @@ const getDashboardByFarmType = async (req: AuthenticatedRequest, res: Response, 
     } catch (parseError) {
       throw createHttpError(400, (parseError as Error).message);
     }
-    const dashboard = await DashboardService.getDashboard(user.id, user.role || '', farmType);
+
+    const pondId = req.query.pondId as string | undefined;
+
+    const dashboard = await DashboardService.getDashboard(user.id, user.role || '', farmType, pondId);
 
     res.json({ data: dashboard });
   } catch (error) {
