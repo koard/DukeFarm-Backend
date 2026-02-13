@@ -28,7 +28,7 @@ type DashboardSummary = {
   totalReleased: number | null; // Initial count
   currentCount: number | null;  // Latest count
   releaseDate: string | null;   // Date of first record
-  survivalRatePct: number;
+  survivalRatePct: number | null;
   survivalSeries: Array<{ month: string; value: number }>;
 };
 
@@ -124,7 +124,7 @@ const getSurvivalAndCounts = async (
   userId: string,
   pondId?: string,
 ): Promise<{
-  survivalRatePct: number;
+  survivalRatePct: number | null;
   survivalSeries: Array<{ month: string; value: number }>;
   totalReleased: number | null;
   currentCount: number | null;
@@ -169,7 +169,7 @@ const getSurvivalAndCounts = async (
 
   if (!normalized.length) {
     return {
-      survivalRatePct: 100,
+      survivalRatePct: null,
       survivalSeries: [],
       totalReleased: null,
       currentCount: null,
@@ -183,7 +183,7 @@ const getSurvivalAndCounts = async (
 
   if (!Number.isFinite(initialCount) || initialCount <= 0) {
     return {
-      survivalRatePct: 100,
+      survivalRatePct: null,
       survivalSeries: [],
       totalReleased: initialCount > 0 ? initialCount : null,
       currentCount: Number.isFinite(currentCount) ? currentCount : null,
@@ -202,7 +202,7 @@ const getSurvivalAndCounts = async (
     };
   });
 
-  const survivalRatePct = series.length ? series[series.length - 1]?.value ?? 100 : 100;
+  const survivalRatePct = series.length ? series[series.length - 1]?.value ?? null : null;
   return {
     survivalRatePct,
     survivalSeries: series,

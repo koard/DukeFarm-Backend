@@ -39,7 +39,7 @@ type DashboardSummary = {
   pelletFoodCost: number;
   freshFoodCost: number;
   monthlyFeedingData: MonthlyFeedingData[];
-  survivalRatePct: number;
+  survivalRatePct: number | null;
   survivalSeries: MonthlyFeedingData[];
 };
 
@@ -125,7 +125,7 @@ const getSurvivalAndCounts = async (
   userId: string,
   pondId?: string,
 ): Promise<{
-  survivalRatePct: number;
+  survivalRatePct: number | null;
   survivalSeries: MonthlyFeedingData[];
   totalReleased: number | null;
   currentCount: number | null;
@@ -170,7 +170,7 @@ const getSurvivalAndCounts = async (
 
   if (!normalized.length) {
     return {
-      survivalRatePct: 100,
+      survivalRatePct: null,
       survivalSeries: [],
       totalReleased: null,
       currentCount: null,
@@ -184,7 +184,7 @@ const getSurvivalAndCounts = async (
 
   if (!Number.isFinite(initialCount) || initialCount <= 0) {
     return {
-      survivalRatePct: 100,
+      survivalRatePct: null,
       survivalSeries: [],
       totalReleased: initialCount > 0 ? initialCount : null,
       currentCount: Number.isFinite(currentCount) ? currentCount : null,
@@ -203,7 +203,7 @@ const getSurvivalAndCounts = async (
     };
   });
 
-  const survivalRatePct = survivalSeries.length ? survivalSeries[survivalSeries.length - 1]?.value ?? 100 : 100;
+  const survivalRatePct = survivalSeries.length ? survivalSeries[survivalSeries.length - 1]?.value ?? null : null;
   return {
     survivalRatePct,
     survivalSeries,
