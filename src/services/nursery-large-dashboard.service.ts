@@ -33,6 +33,9 @@ type DashboardSummary = {
   latestFishStageName: string | null;
   latestHarvestStatus: HarvestReadinessStatus | null;
   latestHarvestStatusReason: string | null;
+  totalReleased: number | null;
+  currentCount: number | null;
+  releaseDate: string | null;
   pelletFoodCost: number;
   freshFoodCost: number;
   monthlyFeedingData: MonthlyFeedingData[];
@@ -118,10 +121,16 @@ type LatestFishMetrics = {
   latestHarvestStatusReason: string | null;
 };
 
-const getSurvivalSeries = async (
+const getSurvivalAndCounts = async (
   userId: string,
   pondId?: string,
-): Promise<{ survivalRatePct: number; survivalSeries: MonthlyFeedingData[] }> => {
+): Promise<{
+  survivalRatePct: number;
+  survivalSeries: MonthlyFeedingData[];
+  totalReleased: number | null;
+  currentCount: number | null;
+  releaseDate: string | null;
+}> => {
   const whereClause: any = {
     userId,
     farmType: FarmType.LARGE,
@@ -160,12 +169,27 @@ const getSurvivalSeries = async (
     .filter((entry): entry is { recordedAt: Date; fishCount: number } => Boolean(entry));
 
   if (!normalized.length) {
-    return { survivalRatePct: 100, survivalSeries: [] };
+    return {
+      survivalRatePct: 100,
+      survivalSeries: [],
+      totalReleased: null,
+      currentCount: null,
+      releaseDate: null
+    };
   }
 
   const initialCount = Number(normalized[0]?.fishCount ?? NaN);
+  const currentCount = Number(normalized[normalized.length - 1]?.fishCount ?? NaN);
+  const releaseDate = normalized[0]?.recordedAt.toISOString() ?? null;
+
   if (!Number.isFinite(initialCount) || initialCount <= 0) {
-    return { survivalRatePct: 100, survivalSeries: [] };
+    return {
+      survivalRatePct: 100,
+      survivalSeries: [],
+      totalReleased: initialCount > 0 ? initialCount : null,
+      currentCount: Number.isFinite(currentCount) ? currentCount : null,
+      releaseDate
+    };
   }
 
   const survivalSeries: MonthlyFeedingData[] = normalized.map((entry) => {
@@ -180,7 +204,13 @@ const getSurvivalSeries = async (
   });
 
   const survivalRatePct = survivalSeries.length ? survivalSeries[survivalSeries.length - 1]?.value ?? 100 : 100;
-  return { survivalRatePct, survivalSeries };
+  return {
+    survivalRatePct,
+    survivalSeries,
+    totalReleased: initialCount,
+    currentCount,
+    releaseDate
+  };
 };
 
 const getLatestFishMetrics = async (userId: string, pondId?: string): Promise<LatestFishMetrics> => {
@@ -311,6 +341,9 @@ const getDashboard = async (userId: string, pondId?: string): Promise<NurseryLar
         latestFishStageName: null,
         latestHarvestStatus: null,
         latestHarvestStatusReason: null,
+        totalReleased: null,
+        currentCount: null,
+        releaseDate: null,
         pelletFoodCost: pelletCost,
         freshFoodCost: freshCost,
         monthlyFeedingData: [],
@@ -338,11 +371,11 @@ const getDashboard = async (userId: string, pondId?: string): Promise<NurseryLar
       latestHarvestStatus,
       latestHarvestStatusReason,
     },
-    { survivalRatePct, survivalSeries },
+    { survivalRatePct, survivalSeries, totalReleased, currentCount, releaseDate },
   ] = await Promise.all([
     buildGrowthSeries(userId, pondId),
     getLatestFishMetrics(userId, pondId),
-    getSurvivalSeries(userId, pondId),
+    getSurvivalAndCounts(userId, pondId),
   ]);
 
   // Fetch weather using farmer profile location
@@ -451,6 +484,9 @@ const getDashboard = async (userId: string, pondId?: string): Promise<NurseryLar
       latestFishStageName,
       latestHarvestStatus,
       latestHarvestStatusReason,
+      totalReleased,
+      currentCount,
+      releaseDate,
       pelletFoodCost: pelletCost,
       freshFoodCost: freshCost,
       monthlyFeedingData,

@@ -23,6 +23,11 @@ type DashboardSummary = {
   hourlyForecast: HourlyForecast[];
   latestFishAgeLabel: string | null;
   latestFishAgeDays: number | null;
+  latestFishStageName: string | null;
+  averageFishWeight: number | null;
+  totalReleased: number | null; // Initial count
+  currentCount: number | null;  // Latest count
+  releaseDate: string | null;   // Date of first record
   survivalRatePct: number;
   survivalSeries: Array<{ month: string; value: number }>;
 };
@@ -33,8 +38,6 @@ export type NurserySmallDashboard = {
   summary: DashboardSummary;
   feedingPlan: FeedingPlanRow[];
 };
-
-
 
 const pickFarmWithLocation = (
   farms: Array<{ id: string; latitude: number | null; longitude: number | null }>,
@@ -67,10 +70,15 @@ const fetchWeather = async (
   }
 };
 
-const getLatestFishAge = async (
+const getLatestFishData = async (
   userId: string,
   pondId?: string,
-): Promise<{ latestFishAgeLabel: string | null; latestFishAgeDays: number | null }> => {
+): Promise<{
+  latestFishAgeLabel: string | null;
+  latestFishAgeDays: number | null;
+  latestFishStageName: string | null;
+  averageFishWeight: number | null;
+}> => {
   const whereClause: any = {
     userId,
     farmType: FarmType.SMALL,
@@ -85,22 +93,24 @@ const getLatestFishAge = async (
       fishAgeLabel: true,
       fishAgeDays: true,
       recordedAt: true,
+      averageFishWeightGr: true,
+      fishAgeStage: {
+        select: { displayName: true }
+      }
     },
     orderBy: {
       recordedAt: 'desc',
     },
   });
 
-  // Calculate projected age if we have a valid record date and age
-  const latestFishAgeLabel = entry?.fishAgeLabel ?? null;
-  const recordedAgeDays = entry?.fishAgeDays ?? null;
-
   // Use recorded age directly. Frontend will handle real-time projection.
-  const projectedAgeDays = recordedAgeDays;
+  const projectedAgeDays = entry?.fishAgeDays ?? null;
 
   return {
-    latestFishAgeLabel,
+    latestFishAgeLabel: entry?.fishAgeLabel ?? null,
     latestFishAgeDays: projectedAgeDays,
+    latestFishStageName: entry?.fishAgeStage?.displayName ?? null,
+    averageFishWeight: entry?.averageFishWeightGr ? Number(entry.averageFishWeightGr) : null,
   };
 };
 
@@ -110,10 +120,16 @@ const formatGraphLabel = (date: Date): string =>
     month: 'short',
   });
 
-const getSurvivalSeries = async (
+const getSurvivalAndCounts = async (
   userId: string,
   pondId?: string,
-): Promise<{ survivalRatePct: number; survivalSeries: Array<{ month: string; value: number }> }> => {
+): Promise<{
+  survivalRatePct: number;
+  survivalSeries: Array<{ month: string; value: number }>;
+  totalReleased: number | null;
+  currentCount: number | null;
+  releaseDate: string | null;
+}> => {
   const whereClause: any = {
     userId,
     farmType: FarmType.SMALL,
@@ -152,12 +168,27 @@ const getSurvivalSeries = async (
     .filter((entry): entry is { recordedAt: Date; fishCount: number } => Boolean(entry));
 
   if (!normalized.length) {
-    return { survivalRatePct: 100, survivalSeries: [] };
+    return {
+      survivalRatePct: 100,
+      survivalSeries: [],
+      totalReleased: null,
+      currentCount: null,
+      releaseDate: null
+    };
   }
 
   const initialCount = Number(normalized[0]?.fishCount ?? NaN);
+  const currentCount = Number(normalized[normalized.length - 1]?.fishCount ?? NaN);
+  const releaseDate = normalized[0]?.recordedAt.toISOString() ?? null;
+
   if (!Number.isFinite(initialCount) || initialCount <= 0) {
-    return { survivalRatePct: 100, survivalSeries: [] };
+    return {
+      survivalRatePct: 100,
+      survivalSeries: [],
+      totalReleased: initialCount > 0 ? initialCount : null,
+      currentCount: Number.isFinite(currentCount) ? currentCount : null,
+      releaseDate
+    };
   }
 
   const series = normalized.map((entry) => {
@@ -172,7 +203,13 @@ const getSurvivalSeries = async (
   });
 
   const survivalRatePct = series.length ? series[series.length - 1]?.value ?? 100 : 100;
-  return { survivalRatePct, survivalSeries: series };
+  return {
+    survivalRatePct,
+    survivalSeries: series,
+    totalReleased: initialCount,
+    currentCount,
+    releaseDate
+  };
 };
 
 const getDashboard = async (userId: string, pondId?: string): Promise<NurserySmallDashboard> => {
@@ -208,6 +245,11 @@ const getDashboard = async (userId: string, pondId?: string): Promise<NurserySma
         hourlyForecast: [],
         latestFishAgeLabel: null,
         latestFishAgeDays: null,
+        latestFishStageName: null,
+        averageFishWeight: null,
+        totalReleased: null,
+        currentCount: null,
+        releaseDate: null,
         survivalRatePct: 100,
         survivalSeries: [],
       },
@@ -308,8 +350,8 @@ const getDashboard = async (userId: string, pondId?: string): Promise<NurserySma
     };
   });
 
-  const { latestFishAgeLabel, latestFishAgeDays } = await getLatestFishAge(userId, pondId);
-  const { survivalRatePct, survivalSeries } = await getSurvivalSeries(userId, pondId);
+  const { latestFishAgeLabel, latestFishAgeDays, latestFishStageName, averageFishWeight } = await getLatestFishData(userId, pondId);
+  const { survivalRatePct, survivalSeries, totalReleased, currentCount, releaseDate } = await getSurvivalAndCounts(userId, pondId);
 
   return {
     group: FarmType.SMALL,
@@ -324,6 +366,11 @@ const getDashboard = async (userId: string, pondId?: string): Promise<NurserySma
       hourlyForecast,
       latestFishAgeLabel,
       latestFishAgeDays,
+      latestFishStageName,
+      averageFishWeight,
+      totalReleased,
+      currentCount,
+      releaseDate,
       survivalRatePct,
       survivalSeries,
     },
