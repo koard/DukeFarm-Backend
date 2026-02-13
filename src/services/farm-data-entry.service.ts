@@ -380,10 +380,50 @@ const getUserEntries = async (
   };
 };
 
+const getEntryById = async (id: string) => {
+  const entry = await prisma.farmDataEntry.findUnique({
+    where: { id },
+    include: {
+      pond: {
+        select: { id: true, pondType: true, farmType: true, widthM: true, lengthM: true, depthM: true },
+      },
+    },
+  });
+
+  if (!entry) return null;
+
+  return {
+    id: entry.id,
+    farmType: entry.farmType,
+    pondId: entry.pondId,
+    pond: entry.pond,
+    recordedAt: entry.recordedAt.toISOString(),
+    fishAgeLabel: entry.fishAgeLabel,
+    fishAgeDays: entry.fishAgeDays,
+    fishReleased: entry.fishReleased,
+    fishRemaining: entry.fishRemaining,
+    averageFishWeightGr: entry.averageFishWeightGr,
+    foodAmountKg: entry.foodAmountKg,
+    feedFormulaName: entry.feedFormulaName,
+    supplementName: entry.supplementName,
+    medicineName: entry.medicineName,
+    foodCostBaht: entry.foodCostBaht,
+    medicineCostBaht: entry.medicineCostBaht,
+    pondType: entry.pondType,
+    pondCount: entry.pondCount,
+    weatherTemperatureC: entry.weatherTemperatureC,
+    weatherRainMm: entry.weatherRainMm,
+    weatherHumidityPct: entry.weatherHumidityPct,
+    notes: entry.notes,
+    createdAt: entry.createdAt.toISOString(),
+  };
+};
+
 export const FarmDataEntryService = {
   getFormState,
   createEntry,
   updateEntry,
   deleteEntry,
   getUserEntries,
+  getEntryById,
 };

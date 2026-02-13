@@ -248,9 +248,35 @@ const deleteRecord = async (req: AuthenticatedRequest, res: Response, next: Next
   }
 };
 
+
+
+const getRecordById = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      throw createHttpError(401, 'Unauthorized');
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      throw createHttpError(400, 'Record ID is required');
+    }
+
+    const entry = await FarmDataEntryService.getEntryById(id);
+    if (!entry) {
+      throw createHttpError(404, 'Record not found');
+    }
+
+    res.json({ data: entry });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const RecordController = {
   getFormState,
   getRecords,
+  getRecordById,
   createRecord,
   updateRecord,
   deleteRecord,
