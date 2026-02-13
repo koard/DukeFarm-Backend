@@ -109,7 +109,7 @@ const getLatestFishData = async (
   return {
     latestFishAgeLabel: entry?.fishAgeLabel ?? null,
     latestFishAgeDays: projectedAgeDays,
-    latestFishStageName: entry?.fishAgeStage?.displayName ?? null,
+    latestFishStageName: entry?.fishAgeStage?.displayName ?? 'ปลาตุ้ม',
     averageFishWeight: entry?.averageFishWeightGr ? Number(entry.averageFishWeightGr) : null,
   };
 };

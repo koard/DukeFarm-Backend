@@ -257,7 +257,7 @@ const getLatestFishMetrics = async (userId: string, pondId?: string): Promise<La
 
   const latestFishAgeLabel = recentEntries[0]?.fishAgeLabel ?? null;
   const latestFishAgeDays = recentEntries[0]?.fishAgeDays ?? null;
-  const latestFishStageName = recentEntries[0]?.fishAgeStage?.displayName ?? null;
+  const latestFishStageName = recentEntries[0]?.fishAgeStage?.displayName ?? 'ปลาตลาด';
   const latestHarvestStatus = recentEntries[0]?.harvestStatus ?? null;
   const latestHarvestStatusReason = recentEntries[0]?.harvestStatusReason ?? null;
 

@@ -264,7 +264,7 @@ const getLatestFishMetrics = async (userId: string, pondId?: string): Promise<La
 
   const latestHarvestStatus = recentEntries[0]?.harvestStatus ?? null;
   const latestHarvestStatusReason = recentEntries[0]?.harvestStatusReason ?? null;
-  const latestFishStageName = recentEntries[0]?.fishAgeStage?.displayName ?? null;
+  const latestFishStageName = recentEntries[0]?.fishAgeStage?.displayName ?? 'ปลานิ้ว';
 
   const weightEntries = recentEntries.filter((entry) => entry.averageFishWeightGr !== null);
 

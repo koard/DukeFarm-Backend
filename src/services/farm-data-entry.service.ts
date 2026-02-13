@@ -34,6 +34,7 @@ export type CreateEntryInput = {
   pondId?: string | null;
   pondType?: PondType | null;
   pondCount?: number | null;
+  fishCount?: number | null;
   fishCountText?: string | null;
   fishRemaining?: number | null;
   averageFishWeightGr?: number | null;
@@ -191,7 +192,7 @@ const ensureCultivationType = async (userId: string, farmType: FarmType) =>
 const createEntry = async (userId: string, input: CreateEntryInput) => {
   const normalizedFishAge = input.fishAgeLabel.trim();
   const normalizedFishCountText = input.fishCountText?.trim() || null;
-  const numericFishCount = parseFishCount(normalizedFishCountText);
+  const numericFishCount = input.fishCount ?? parseFishCount(normalizedFishCountText);
 
   const [cultivationType, stageAssessment] = await Promise.all([
     ensureCultivationType(userId, input.farmType),
