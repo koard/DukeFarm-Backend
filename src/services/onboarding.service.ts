@@ -27,6 +27,7 @@ type FarmerProfilePayload = {
   phone: string;
   farmTypes: FarmType[];
   declaredPondCount: number | null;
+  recordedPondCount: number | null;
   farmLatitude: number;
   farmLongitude: number;
   farmAreaRai: number | null;
@@ -135,6 +136,7 @@ const completeFarmerProfile = async (
     lastName: payload.lastName,
     phone: payload.phone,
     declaredPondCount: payload.declaredPondCount,
+    recordedPondCount: payload.recordedPondCount,
     farmLatitude: payload.farmLatitude,
     farmLongitude: payload.farmLongitude,
     farmAreaRai: payload.farmAreaRai,

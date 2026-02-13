@@ -204,7 +204,8 @@ model FarmerProfile {
   lastName          String        @map("last_name")
   phone             String        @map("phone")
   primaryFarmType   FarmType      @map("primary_farm_type")
-  declaredPondCount Int?          @map("declared_pond_count")
+  declaredPondCount Int?          @map("declared_pond_count") // Total number of ponds (can be just a number)
+  recordedPondCount Int?          @map("recorded_pond_count") // Number of ponds user wants to record data for
   farmLatitude      Float?        @map("farm_latitude")
   farmLongitude     Float?        @map("farm_longitude")
   farmAreaRai       Decimal?      @map("farm_area_rai") @db.Decimal(10, 2)

@@ -228,7 +228,8 @@ const submitFarmerProfile = async (req: AuthenticatedRequest, res: Response, nex
       farmTypes: parseFarmTypes(
         req.body?.farmTypes ?? req.body?.selectedFarmTypes ?? req.body?.primaryFarmType,
       ),
-      declaredPondCount: ponds.length,
+      declaredPondCount: parseDeclaredPondCount(req.body?.declaredPondCount),
+      recordedPondCount: ponds.length,
       farmLatitude: parseLatitude(req.body?.farmLatitude),
       farmLongitude: parseLongitude(req.body?.farmLongitude),
       farmAreaRai: parseNonNegativeDecimal(req.body?.farmAreaRai, 'farmAreaRai'),
