@@ -111,7 +111,26 @@ const getFeedFormulaList = async (req: AuthenticatedRequest, res: Response) => {
     });
   }
 
-  const result = await FeedFormulaService.getFeedFormulaList({ page, limit });
+  // Parse filters
+  let foodType: FoodType | undefined;
+  let farmType: FarmType | undefined;
+
+  try {
+    if (req.query.foodType) {
+      foodType = parseFoodType(req.query.foodType as string);
+    }
+    if (req.query.farmType) {
+      farmType = parseFarmType(req.query.farmType as string) || undefined;
+    }
+  } catch (error: any) {
+    return res.status(400).json({ message: error.message });
+  }
+
+  const params: any = { page, limit };
+  if (foodType) params.foodType = foodType;
+  if (farmType) params.farmType = farmType;
+
+  const result = await FeedFormulaService.getFeedFormulaList(params);
 
   return res.json({ data: result });
 };

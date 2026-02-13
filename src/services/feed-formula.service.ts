@@ -39,6 +39,8 @@ type FeedFormulaListItem = {
 type PaginationParams = {
   page: number;
   limit: number;
+  foodType?: FoodType;
+  farmType?: FarmType;
 };
 
 type FeedFormulaListResponse = {
@@ -80,18 +82,23 @@ const createFeedFormula = async (input: CreateFeedFormulaInput) => {
 };
 
 const getFeedFormulaList = async (params: PaginationParams): Promise<FeedFormulaListResponse> => {
-  const { page, limit } = params;
+  const { page, limit, foodType, farmType } = params;
   const skip = (page - 1) * limit;
+
+  const where: any = {};
+  if (foodType) where.foodType = foodType;
+  if (farmType) where.farmType = farmType;
 
   const [formulas, totalCount] = await Promise.all([
     prisma.feedFormula.findMany({
+      where,
       orderBy: {
         createdAt: 'desc',
       },
       skip,
       take: limit,
     }),
-    prisma.feedFormula.count(),
+    prisma.feedFormula.count({ where }),
   ]);
 
   const data: FeedFormulaListItem[] = formulas.map((formula) => ({
