@@ -325,6 +325,7 @@ const getUserEntries = async (
   farmType: FarmType | undefined,
   page: number = 1,
   limit: number = 20,
+  productionCycleId?: string,
 ) => {
   const where: any = { userId };
   if (pondId) {
@@ -332,6 +333,9 @@ const getUserEntries = async (
   }
   if (farmType) {
     where.farmType = farmType;
+  }
+  if (productionCycleId) {
+    where.productionCycleId = productionCycleId;
   }
 
   const skip = (page - 1) * limit;
