@@ -116,8 +116,8 @@ type FarmerDetailEntry = {
   fishAgeLabel: string | null;
   pondType: string | null;
   pondCount: number | null;
-  fishCount: number | null;
-  fishCountText: string | null;
+  fishRemaining: number | null;
+  fishReleased: number | null;
   foodAmountKg: number | null;
   weatherTemperatureC: number | null;
   weatherRainMm: number | null;
@@ -189,14 +189,16 @@ const getFarmerById = async (
 
   let survivalRatePct = 100;
 
-  // Find initial count (first valid numeric count)
-  const initialEntry = sortedAsc.find(e => e.fishCount !== null && e.fishCount > 0);
-  const latestEntry = [...sortedAsc].reverse().find(e => e.fishCount !== null && e.fishCount >= 0);
+  // Find initial count (prefer fishReleased, then max remaining)
+  const initialEntry = sortedAsc.find(e => (e.fishReleased !== null && e.fishReleased > 0) || (e.fishRemaining !== null && e.fishRemaining > 0));
+  const latestEntry = [...sortedAsc].reverse().find(e => e.fishRemaining !== null && e.fishRemaining >= 0);
 
-  if (initialEntry && latestEntry && initialEntry.fishCount) {
-    const start = initialEntry.fishCount;
-    const current = latestEntry.fishCount!;
-    survivalRatePct = Math.max(0, Math.min(100, Math.round((current / start) * 100)));
+  if (initialEntry && latestEntry && latestEntry.fishRemaining !== null) {
+    const start = initialEntry.fishReleased || initialEntry.fishRemaining || 0;
+    const current = latestEntry.fishRemaining;
+    if (start > 0) {
+      survivalRatePct = Math.max(0, Math.min(100, Math.round((current / start) * 100)));
+    }
   }
 
   // Stats
@@ -210,7 +212,7 @@ const getFarmerById = async (
     survivalRatePct: survivalRatePct,
     latestFishAgeDays: latestRecord?.fishAgeDays ?? null,
     latestFishAgeLabel: latestRecord?.fishAgeLabel ?? null,
-    latestFishCount: latestEntry?.fishCount ?? null,
+    latestFishCount: latestRecord?.fishRemaining ?? null,
     totalPonds: farmer.farmerProfile?.declaredPondCount ?? null,
   };
 
@@ -244,8 +246,8 @@ const getFarmerById = async (
       fishAgeLabel: e.fishAgeLabel,
       pondType: e.pondType ? e.pondType.toString() : null,
       pondCount: e.pondCount,
-      fishCount: e.fishCount,
-      fishCountText: e.fishCountText,
+      fishRemaining: e.fishRemaining,
+      fishReleased: e.fishReleased,
       foodAmountKg: e.foodAmountKg,
       weatherTemperatureC: e.weatherTemperatureC,
       weatherRainMm: e.weatherRainMm,

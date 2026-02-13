@@ -74,11 +74,8 @@ const getDashboardStats = async (
     });
     const totalPonds = profileAgg._sum.declaredPondCount || 0;
 
-    // Total Fish (Sum of latest fishCount from all active cycles/entries of this farmType)
-    // This is tricky. We need the *latest* entry for each farmer for this farmType.
+    // Total Fish (Sum of latest fishRemaining from all active cycles/entries of this farmType)
     // We can group by user or fetch all latest entries.
-    // Simplified approach: Sum `fishCount` from `FarmDataEntry` where `recordedAt` is recent? 
-    // Better: Get all farmers of this type, then for each, get their latest entry.
     const farmers = await prisma.user.findMany({
         where: {
             role: 'FARMER',
@@ -93,19 +90,15 @@ const getDashboardStats = async (
     let totalFish = 0;
     const farmerIds = farmers.map(f => f.id);
 
-    // Optimization: We could use raw query for speed, but let's loop for now (assuming low user count)
-    // or `findMany` with distinct? Prisma distinct on non-id is supported.
-    // Let's try to fetch "latest entry per user"
-    // Actually, `FarmDataEntry` doesn't track "Current Stock" perfectly unless we look at the latest record.
     const latestEntries = await Promise.all(farmerIds.map(userId =>
         prisma.farmDataEntry.findFirst({
             where: { userId, farmType },
             orderBy: { recordedAt: 'desc' },
-            select: { fishCount: true }
+            select: { fishRemaining: true }
         })
     ));
 
-    totalFish = latestEntries.reduce((sum, entry) => sum + (entry?.fishCount || 0), 0);
+    totalFish = latestEntries.reduce((sum, entry) => sum + (entry?.fishRemaining || 0), 0);
 
 
     // Total Feed (Sum of foodAmountKg in the given year)
@@ -123,19 +116,6 @@ const getDashboardStats = async (
     // 2. Charts
 
     // Feeding Chart (Monthly Sum)
-    // We can use groupBy if using PostgreSQL
-    const feedingByMonth = await prisma.farmDataEntry.groupBy({
-        by: ['recordedAt'], // Prisma groupBy date is tricky, usually we fetch and process in JS or use raw query.
-        // Let's fetch all feed records for the year and aggregate in JS for simplicity.
-        where: {
-            farmType,
-            recordedAt: { gte: startDate, lte: endDate },
-            foodAmountKg: { not: null }
-        },
-        _sum: { foodAmountKg: true }
-    });
-
-    // Actually, groupBy recordedAt returns distinct timestamps. We need detailed records to group by month in JS.
     const feedRecords = await prisma.farmDataEntry.findMany({
         where: {
             farmType,
@@ -162,33 +142,6 @@ const getDashboardStats = async (
 
 
     // Survival Rate Trend (Monthly Avg)
-    // Survival Rate = Current Fish / Initial Fish (Needs Production Cycle context, which we might lack in simple entries)
-    // Proxy: If we don't have explicit cycles, we can't easily calc global survival trend without tracking batches.
-    // APPROXIMATION: Average `(fishCount / pondCount * avg_density_constant)`? No.
-    // Let's use the provided `harvestStatus` or just mock a realistic trend for now OR
-    // calculate it based on farmers who HAVE `fishCount` + `initialStock`.
-    // Given the complexity, let's use a PLACEHOLDER calculation based on `fishCount` drop-off if possible,
-    // OR simply mock it for the "Trend" since we can't accurately derive historical survival global average without cohort analysis.
-    // WAIT, we can look at `FarmDataEntry` that has `fishCount`.
-    // Let's just Aggregated avg fish count / user? No.
-
-    // Real implementation: We need `ProductionCycle` to do this right. 
-    // If we don't use `ProductionCycle`, we can't do this accurately.
-    // For this MVF (Minimum Viable Feature), let's simply return 0s or a static realistic curve?
-    // User asked for "Survival Rate Trend".
-    // Let's try to see if we can calculate "Average Survival %" from active cycles?
-    // Since we don't fully use ProductionCycle yet, let's return a flat 90-80% trend or 
-    // calculate from distinct `fishCount` records?
-    // Correct approach for now: return 100% flat if no data, or simple mock variability 
-    // BUT user wants REAL data.
-    // If no "Initial Stock" is recorded in FarmDataEntry, we can't calc survival.
-    // `FarmDataEntry` has no `initialStock`.
-    // Only `ProductionCycle` has `initialStock`.
-    // Are we using ProductionCycle? (Checked schema, yes, but services mainly use FarmDataEntry directly?)
-    // Let's check if we can get data from `ProductionCycle`?
-    // If not, we'll output 0 for now to be honest "Real Data" (which is missing).
-
-    // Survival Rate Trend (Monthly Avg)
     const survivalMap = new Map<string, { totalRate: number; count: number }>();
     months.forEach(m => survivalMap.set(m, { totalRate: 0, count: 0 }));
 
@@ -196,19 +149,17 @@ const getDashboardStats = async (
     // Logic: For each month, look at the status of ALL active farms at that time.
     // Status at Month M = The latest entry of a farmer where recordedAt <= End of Month M of this Year.
 
-    // Optimized Approach:
-    // 1. Fetch all entries for the year (already have some, but might need all fields)
-    // Actually, we need entries even from previous years if the cycle started before? 
-    // For simpler logic, let's look at entries within this year for now, or just all entries for simplicity.
-    // Let's us `feedRecords` as a base but we need `fishCount`. Let's fetch `fishCount` entries.
     const fishEntries = await prisma.farmDataEntry.findMany({
         where: {
             farmType,
             userId: { in: farmerIds },
-            fishCount: { not: null },
+            OR: [
+                { fishRemaining: { not: null } },
+                { fishReleased: { not: null } }
+            ],
             recordedAt: { lte: endDate } // Up to end of this year
         },
-        select: { userId: true, fishCount: true, recordedAt: true },
+        select: { userId: true, fishRemaining: true, fishReleased: true, recordedAt: true },
         orderBy: { recordedAt: 'asc' }
     });
 
@@ -227,21 +178,18 @@ const getDashboardStats = async (
 
         userEntriesMap.forEach((entries) => {
             // Find latest entry for this user <= monthEnd
-            // And also, to calculate 'Survival', we need 'Initial' for this user (Max of cycle).
-            // Simplification: Max of entries UP TO this point in time?
-            // Or Max of ALL entries for this user in this dataset?
-            // Let's use Max up to this point to simulate "what we knew then".
-
             const entriesUntilNow = entries.filter(e => e.recordedAt <= monthEnd);
             if (entriesUntilNow.length > 0) {
                 const latestEntry = entriesUntilNow[entriesUntilNow.length - 1]; // Last one due to sort
 
-                // Heuristic for Initial: Max fishCount in the entries found so far (assuming simple declining cycle)
-                // Filter out obviously low "initials" if possible, but Max is safest.
-                const maxCount = Math.max(...entriesUntilNow.map(e => e.fishCount || 0));
+                // Heuristic for Initial: Max fishReleased or fishRemaining
+                const maxCount = Math.max(
+                    ...entriesUntilNow.map(e => e.fishReleased || 0),
+                    ...entriesUntilNow.map(e => e.fishRemaining || 0)
+                );
 
-                if (maxCount > 0 && latestEntry && latestEntry.fishCount !== null) {
-                    const currentCount = latestEntry.fishCount;
+                if (maxCount > 0 && latestEntry && latestEntry.fishRemaining !== null) {
+                    const currentCount = latestEntry.fishRemaining;
                     // Survival Rate %
                     const rate = (currentCount / maxCount) * 100;
                     monthlySumRate += rate;
@@ -267,29 +215,30 @@ const getDashboardStats = async (
     // 3. Ranking Tables
 
     // Top 5 Survival Current (Based on latest entry of active farmers)
-    // We need `fishCount` vs `pondCount`? No, survival is vs initial. 
-    // Without initial, we can't rank survival.
-    // Fallback: Rank by "Total Fish Count" (Largest Farms)? 
-    // Or "Best Feed Conversion"?
-    // User asked for "Survival Rate".
-    // Let's try to infer initial from the Max fishCount observed for that user? (Heuristic)
     const survivalRanking: RankingItem[] = [];
 
     for (const userId of farmerIds) {
         const userEntries = await prisma.farmDataEntry.findMany({
             where: { userId, farmType },
             orderBy: { recordedAt: 'asc' },
-            select: { fishCount: true, recordedAt: true }
+            select: { fishRemaining: true, fishReleased: true, recordedAt: true }
         });
 
         if (userEntries.length > 0) {
             // Simple Heuristic: Max fish count seen = Initial?
-            const counts = userEntries.map(e => e.fishCount || 0).filter(c => c > 0);
-            const initial = Math.max(...counts, 1);
-            const current = counts[counts.length - 1] || 0;
-            const survivalRate = Math.round((current / initial) * 100); // Percentage/Points?
+            const initials = userEntries.map(e => e.fishReleased || 0).filter(c => c > 0);
+            const remainings = userEntries.map(e => e.fishRemaining || 0).filter(c => c >= 0);
 
-            // This is "Survival Score"
+            let initial = Math.max(...initials);
+            if (initial === 0) initial = Math.max(...remainings, 1);
+
+            const lastEntry = userEntries[userEntries.length - 1];
+            const current = lastEntry?.fishRemaining ?? 0;
+
+            // Survival Rate
+            // Displaying absolute number as per mock? Mock showed '250' which looks like Count, but header says Rate. 
+            // Let's use current count for now matching legacy logic behavior if strict rate isn't required by type.
+            // Wait, type says `survivalRate: number`.
 
             const profile = await prisma.farmerProfile.findUnique({ where: { userId } });
             const name = profile ? `${profile.firstName} ${profile.lastName}` : 'Unknown';
