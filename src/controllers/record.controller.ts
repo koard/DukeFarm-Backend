@@ -130,7 +130,7 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
 
     const pondType = parsePondType(req.body?.pondType);
     const pondCount = parsePositiveNumber(req.body?.pondCount, 'pondCount');
-    const fishCountText = typeof req.body?.fishCountText === 'string' ? req.body.fishCountText : undefined;
+
     const foodAmountKg = parsePositiveNumber(req.body?.foodAmountKg, 'foodAmountKg');
     const notes = typeof req.body?.notes === 'string' ? req.body.notes : undefined;
 
@@ -153,7 +153,7 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
     }
 
     const pondId = typeof req.body?.pondId === 'string' ? req.body.pondId : undefined;
-    const fishCount = parsePositiveNumber(req.body?.fishCount, 'fishCount');
+    const fishReleased = parsePositiveNumber(req.body?.fishReleased, 'fishReleased');
     const fishRemaining = parsePositiveNumber(req.body?.fishRemaining, 'fishRemaining');
     const averageFishWeightGr = parsePositiveNumber(req.body?.averageFishWeightGr, 'averageFishWeightGr');
     const feedFormulaName = typeof req.body?.feedFormulaName === 'string' ? req.body.feedFormulaName : undefined;
@@ -171,7 +171,7 @@ const createRecord = async (req: AuthenticatedRequest, res: Response, next: Next
       pondId,
       pondType,
       pondCount,
-      fishCountText: fishCountText ?? (fishCount != null ? String(fishCount) : undefined),
+      fishReleased: fishReleased ?? null,
       fishRemaining: fishRemaining ?? null,
       averageFishWeightGr,
       foodAmountKg,
@@ -207,7 +207,8 @@ const updateRecord = async (req: AuthenticatedRequest, res: Response, next: Next
     if (typeof req.body?.fishAgeLabel === 'string') updateInput.fishAgeLabel = req.body.fishAgeLabel.trim();
     if (req.body?.pondType) updateInput.pondType = parsePondType(req.body.pondType);
     if (req.body?.pondCount) updateInput.pondCount = parsePositiveNumber(req.body.pondCount, 'pondCount');
-    if (typeof req.body?.fishCountText === 'string') updateInput.fishCountText = req.body.fishCountText;
+    if (req.body?.fishReleased) updateInput.fishReleased = parsePositiveNumber(req.body.fishReleased, 'fishReleased');
+    if (req.body?.fishRemaining) updateInput.fishRemaining = parsePositiveNumber(req.body.fishRemaining, 'fishRemaining');
     if (req.body?.foodAmountKg) updateInput.foodAmountKg = parsePositiveNumber(req.body.foodAmountKg, 'foodAmountKg');
     if (typeof req.body?.notes === 'string') updateInput.notes = req.body.notes;
 

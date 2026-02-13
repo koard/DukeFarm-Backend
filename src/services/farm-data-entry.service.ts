@@ -22,7 +22,7 @@ export type FormStatePayload = {
   latestEntry: {
     recordedAt: Date;
     fishAgeDays: number | null;
-    fishCount: number | null;
+    fishRemaining: number | null;
   } | null;
 };
 
@@ -34,8 +34,7 @@ export type CreateEntryInput = {
   pondId?: string | null;
   pondType?: PondType | null;
   pondCount?: number | null;
-  fishCount?: number | null;
-  fishCountText?: string | null;
+  fishReleased?: number | null;
   fishRemaining?: number | null;
   averageFishWeightGr?: number | null;
   foodAmountKg?: number | null;
@@ -121,7 +120,7 @@ const getFormState = async (userId: string, farmType: FarmType): Promise<FormSta
       select: {
         recordedAt: true,
         fishAgeDays: true,
-        fishCount: true,
+        fishRemaining: true,
       },
     }),
   ]);
@@ -135,7 +134,7 @@ const getFormState = async (userId: string, farmType: FarmType): Promise<FormSta
       ? {
         recordedAt: latestEntry.recordedAt,
         fishAgeDays: latestEntry.fishAgeDays,
-        fishCount: latestEntry.fishCount,
+        fishRemaining: latestEntry.fishRemaining,
       }
       : null,
   };
@@ -191,8 +190,8 @@ const ensureCultivationType = async (userId: string, farmType: FarmType) =>
 
 const createEntry = async (userId: string, input: CreateEntryInput) => {
   const normalizedFishAge = input.fishAgeLabel.trim();
-  const normalizedFishCountText = input.fishCountText?.trim() || null;
-  const numericFishCount = input.fishCount ?? parseFishCount(normalizedFishCountText);
+  // const normalizedFishCountText = input.fishCountText?.trim() || null; // Removed
+  // const numericFishCount = input.fishCount ?? parseFishCount(normalizedFishCountText); // Removed
 
   const [cultivationType, stageAssessment] = await Promise.all([
     ensureCultivationType(userId, input.farmType),
@@ -223,7 +222,7 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
           startDate: input.cycleStartDate ?? input.recordedAt,
           status: ProductionCycleStatus.STOCKING,
           farmType: input.farmType,
-          initialStockCount: numericFishCount ?? 0,
+          initialStockCount: input.fishReleased ?? 0,
           initialAvgWeightKg: input.averageFishWeightGr ? (input.averageFishWeightGr / 1000) : null,
         }
       });
@@ -246,8 +245,7 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
       harvestStatusReason: stageAssessment.harvestStatusReason,
       pondType: input.pondType ?? null,
       pondCount: applyNumeric(input.pondCount ?? null),
-      fishCount: numericFishCount,
-      fishCountText: normalizedFishCountText,
+      fishReleased: input.fishReleased ?? null,
       fishRemaining: input.fishRemaining ?? null,
       averageFishWeightGr: input.averageFishWeightGr ?? null,
       foodAmountKg: applyNumeric(input.foodAmountKg),
@@ -277,10 +275,8 @@ const updateEntry = async (id: string, input: UpdateEntryInput) => {
 
   if (input.recordedAt) data.recordedAt = input.recordedAt;
 
-  if (input.fishCountText !== undefined) {
-    data.fishCountText = input.fishCountText;
-    data.fishCount = parseFishCount(input.fishCountText);
-  }
+  if (input.fishReleased !== undefined) data.fishReleased = applyNumeric(input.fishReleased);
+  if (input.fishRemaining !== undefined) data.fishRemaining = applyNumeric(input.fishRemaining);
 
   if (input.pondType !== undefined) data.pondType = input.pondType ?? null;
   if (input.pondCount !== undefined) data.pondCount = applyNumeric(input.pondCount);
@@ -364,8 +360,8 @@ const getUserEntries = async (
       recordedAt: e.recordedAt.toISOString(),
       fishAgeLabel: e.fishAgeLabel,
       fishAgeDays: e.fishAgeDays,
-      fishCount: e.fishCount,
-      fishCountText: e.fishCountText,
+      fishReleased: e.fishReleased,
+      fishRemaining: e.fishRemaining,
       foodAmountKg: e.foodAmountKg,
       pondType: e.pondType,
       pondCount: e.pondCount,

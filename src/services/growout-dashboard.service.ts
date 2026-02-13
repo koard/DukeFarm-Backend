@@ -143,8 +143,8 @@ const getSurvivalAndCounts = async (
     where: whereClause,
     select: {
       recordedAt: true,
-      fishCount: true,
-      fishCountText: true,
+      fishReleased: true,
+      fishRemaining: true,
     },
     orderBy: {
       recordedAt: 'asc',
@@ -153,20 +153,19 @@ const getSurvivalAndCounts = async (
 
   const normalized = entries
     .map((entry) => {
-      const numeric = Number(entry.fishCount);
-      if (Number.isFinite(numeric)) {
-        return { recordedAt: entry.recordedAt, fishCount: numeric };
+      let released = 0;
+      let remaining: number | null = null;
+
+      if (typeof entry.fishReleased === 'number') {
+        released = entry.fishReleased;
       }
 
-      const digits = entry.fishCountText?.replace(/[^0-9]/g, '') ?? '';
-      const parsed = digits ? Number(digits) : NaN;
-      if (Number.isFinite(parsed)) {
-        return { recordedAt: entry.recordedAt, fishCount: parsed };
+      if (typeof entry.fishRemaining === 'number') {
+        remaining = entry.fishRemaining;
       }
 
-      return null;
-    })
-    .filter((entry): entry is { recordedAt: Date; fishCount: number } => Boolean(entry));
+      return { recordedAt: entry.recordedAt, fishReleased: released, fishRemaining: remaining };
+    });
 
   if (!normalized.length) {
     return {
@@ -178,40 +177,56 @@ const getSurvivalAndCounts = async (
     };
   }
 
-  const initialCount = Number(normalized[0]?.fishCount ?? NaN);
-  const currentCount = Number(normalized[normalized.length - 1]?.fishCount ?? NaN);
-  const releaseDate = normalized[0]?.recordedAt.toISOString() ?? null;
+  const totalReleased = normalized.reduce((sum, entry) => sum + (entry.fishReleased || 0), 0);
 
-  if (!Number.isFinite(initialCount) || initialCount <= 0) {
-    return {
-      survivalRatePct: null,
-      survivalSeries: [],
-      totalReleased: initialCount > 0 ? initialCount : null,
-      currentCount: Number.isFinite(currentCount) ? currentCount : null,
-      releaseDate
-    };
+  let currentCount = 0;
+  for (let i = normalized.length - 1; i >= 0; i--) {
+    if (normalized[i]?.fishRemaining !== null && normalized[i]?.fishRemaining !== undefined) {
+      currentCount = normalized[i]!.fishRemaining!;
+      break;
+    }
   }
 
-  const survivalSeries: MonthlyFeedingData[] = normalized.map((entry) => {
-    const current = Number(entry.fishCount);
-    const pct = Number.isFinite(current) && current >= 0
-      ? Math.max(0, Math.min(100, Math.round((current / initialCount) * 100)))
-      : 0;
-    return {
-      month: formatGraphLabel(entry.recordedAt),
-      value: pct,
-    };
-  });
+  const hasRemainingRecord = normalized.some(e => e.fishRemaining !== null);
+  if (!hasRemainingRecord && totalReleased > 0) {
+    currentCount = totalReleased;
+  }
 
-  const survivalRatePct = survivalSeries.length ? survivalSeries[survivalSeries.length - 1]?.value ?? null : null;
+  const releaseDate = normalized[0]?.recordedAt.toISOString() ?? null;
+
+  const improvedSeries: MonthlyFeedingData[] = [];
+  let runningReleased = 0;
+  let runningCount = 0;
+
+  for (const entry of normalized) {
+    if (entry.fishReleased) {
+      runningReleased += entry.fishReleased;
+      runningCount += entry.fishReleased;
+    }
+
+    if (entry.fishRemaining !== null) {
+      runningCount = entry.fishRemaining;
+    }
+
+    if (runningReleased === 0) continue;
+
+    const pct = Math.max(0, Math.min(100, Math.round((runningCount / runningReleased) * 100)));
+    improvedSeries.push({
+      month: formatGraphLabel(entry.recordedAt),
+      value: pct
+    });
+  }
+
   return {
-    survivalRatePct,
-    survivalSeries,
-    totalReleased: initialCount,
+    survivalRatePct: improvedSeries.length > 0 ? improvedSeries[improvedSeries.length - 1]!.value : null,
+    survivalSeries: improvedSeries,
+    totalReleased,
     currentCount,
     releaseDate
   };
 };
+
+
 
 const getLatestFishMetrics = async (userId: string, pondId?: string): Promise<LatestFishMetrics> => {
   const whereClause: any = {
