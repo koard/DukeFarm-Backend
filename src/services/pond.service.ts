@@ -47,8 +47,39 @@ export const PondService = {
     },
 
     /**
-     * Create a new cycle (implicitly or explicitly).
-     * Note: Usually created via first FarmDataEntry if no active cycle links?
-     * Or explicit start? Logic in FarmDataEntryService will handle auto-creation.
+     * Count total production cycles for a pond.
      */
+    countCycles: async (pondId: string) => {
+        return prisma.productionCycle.count({
+            where: { pondId }
+        });
+    },
+
+    /**
+     * Start a new production cycle for a pond.
+     * Closes any active cycle first, then creates a new one.
+     */
+    startNewCycle: async (pondId: string, farmType?: FarmType) => {
+        // Close active cycle if exists
+        const activeCycle = await PondService.getActiveCycle(pondId);
+        if (activeCycle) {
+            await prisma.productionCycle.update({
+                where: { id: activeCycle.id },
+                data: {
+                    status: ProductionCycleStatus.HARVESTED,
+                    endDate: new Date(),
+                }
+            });
+        }
+
+        // Create new cycle
+        return prisma.productionCycle.create({
+            data: {
+                pondId,
+                startDate: new Date(),
+                status: ProductionCycleStatus.STOCKING,
+                ...(farmType ? { farmType } : {}),
+            }
+        });
+    },
 };
