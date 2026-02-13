@@ -72,12 +72,12 @@ export const PondService = {
             });
         }
 
-        // Create new cycle
+        // Create new cycle in PLANNING status (waiting for first data entry)
         return prisma.productionCycle.create({
             data: {
                 pondId,
-                startDate: new Date(),
-                status: ProductionCycleStatus.STOCKING,
+                startDate: new Date(), // placeholder, will be updated on first record
+                status: ProductionCycleStatus.PLANNING,
                 ...(farmType ? { farmType } : {}),
             }
         });

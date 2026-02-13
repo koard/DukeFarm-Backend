@@ -214,6 +214,20 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
 
     if (activeCycle) {
       productionCycleId = activeCycle.id;
+
+      // If cycle is PLANNING, update it with initial data from first record
+      if (activeCycle.status === ProductionCycleStatus.PLANNING) {
+        await prisma.productionCycle.update({
+          where: { id: activeCycle.id },
+          data: {
+            startDate: input.cycleStartDate ?? input.recordedAt,
+            status: ProductionCycleStatus.STOCKING,
+            farmType: input.farmType,
+            initialStockCount: input.fishReleased ?? 0,
+            initialAvgWeightKg: input.averageFishWeightGr ? (input.averageFishWeightGr / 1000) : null,
+          }
+        });
+      }
     } else {
       // Create new cycle
       const newCycle = await prisma.productionCycle.create({
