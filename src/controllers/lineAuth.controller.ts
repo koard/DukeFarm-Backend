@@ -63,6 +63,23 @@ const handleLineCallback = async (req: Request, res: Response, next: NextFunctio
             farmLatitude: true,
             farmLongitude: true,
             farmAreaRai: true,
+            ponds: {
+              select: {
+                id: true,
+                pondType: true,
+                farmType: true,
+                widthM: true,
+                lengthM: true,
+                depthM: true,
+                volumeM3: true,
+              },
+              orderBy: { createdAt: 'asc' },
+            },
+          },
+        },
+        cultivationTypes: {
+          select: {
+            farmType: true,
           },
         },
         researcherProfile: {
@@ -81,7 +98,27 @@ const handleLineCallback = async (req: Request, res: Response, next: NextFunctio
     
     // Redirect to frontend with query parameters
     const { env } = await import('../config/env');
-    const userJson = JSON.stringify(fullUserData);
+
+    // Derive farmTypes from cultivationTypes + primaryFarmType
+    const farmTypesSet = new Set<FarmType>();
+    (fullUserData?.cultivationTypes ?? []).forEach((ct) => {
+      if (ct.farmType) farmTypesSet.add(ct.farmType);
+    });
+    if (fullUserData?.farmerProfile?.primaryFarmType) {
+      farmTypesSet.add(fullUserData.farmerProfile.primaryFarmType);
+    }
+    const farmTypes = Array.from(farmTypesSet);
+
+    // Build enhanced user data with farmTypes included in farmerProfile
+    const { cultivationTypes: _ct, ...userWithoutCT } = fullUserData ?? {} as NonNullable<typeof fullUserData>;
+    const enhancedUserData = {
+      ...userWithoutCT,
+      farmerProfile: userWithoutCT.farmerProfile
+        ? { ...userWithoutCT.farmerProfile, farmTypes, selectedFarmTypes: farmTypes }
+        : null,
+    };
+
+    const userJson = JSON.stringify(enhancedUserData);
     
     const params = new URLSearchParams({
       token: result.token,
@@ -123,6 +160,18 @@ const getMe = async (req: AuthenticatedRequest, res: Response, next: NextFunctio
             farmLatitude: true,
             farmLongitude: true,
             farmAreaRai: true,
+            ponds: {
+              select: {
+                id: true,
+                pondType: true,
+                farmType: true,
+                widthM: true,
+                lengthM: true,
+                depthM: true,
+                volumeM3: true,
+              },
+              orderBy: { createdAt: 'asc' },
+            },
           },
         },
         researcherProfile: {
