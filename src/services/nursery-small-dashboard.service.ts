@@ -1,5 +1,6 @@
 import { FarmType } from '@prisma/client';
 import { prisma } from '../clients/prisma';
+import { PondService } from './pond.service';
 import { WeatherService, type CurrentWeather, type DailyForecast, type HourlyForecast } from './weather.service';
 import { FeedingCalculator, type FeedingPlanRow } from './feeding-calculator.service';
 import { logger } from '../utils/logger';
@@ -73,6 +74,7 @@ const fetchWeather = async (
 const getLatestFishData = async (
   userId: string,
   pondId?: string,
+  productionCycleId?: string,
 ): Promise<{
   latestFishAgeLabel: string | null;
   latestFishAgeDays: number | null;
@@ -85,6 +87,9 @@ const getLatestFishData = async (
   };
   if (pondId) {
     whereClause.pondId = pondId;
+  }
+  if (productionCycleId) {
+    whereClause.productionCycleId = productionCycleId;
   }
 
   const entry = await prisma.farmDataEntry.findFirst({
@@ -123,6 +128,7 @@ const formatGraphLabel = (date: Date): string =>
 const getSurvivalAndCounts = async (
   userId: string,
   pondId?: string,
+  productionCycleId?: string,
 ): Promise<{
   survivalRatePct: number | null;
   survivalSeries: Array<{ month: string; value: number }>;
@@ -136,6 +142,9 @@ const getSurvivalAndCounts = async (
   };
   if (pondId) {
     whereClause.pondId = pondId;
+  }
+  if (productionCycleId) {
+    whereClause.productionCycleId = productionCycleId;
   }
 
   const entries = await prisma.farmDataEntry.findMany({
@@ -381,8 +390,12 @@ const getDashboard = async (userId: string, pondId?: string): Promise<NurserySma
     };
   });
 
-  const { latestFishAgeLabel, latestFishAgeDays, latestFishStageName, averageFishWeight } = await getLatestFishData(userId, pondId);
-  const { survivalRatePct, survivalSeries, totalReleased, currentCount, releaseDate } = await getSurvivalAndCounts(userId, pondId);
+  // Get active cycle to filter data
+  const activeCycle = pondId ? await PondService.getActiveCycle(pondId) : null;
+  const activeCycleId = activeCycle?.id;
+
+  const { latestFishAgeLabel, latestFishAgeDays, latestFishStageName, averageFishWeight } = await getLatestFishData(userId, pondId, activeCycleId);
+  const { survivalRatePct, survivalSeries, totalReleased, currentCount, releaseDate } = await getSurvivalAndCounts(userId, pondId, activeCycleId);
 
   return {
     group: FarmType.SMALL,

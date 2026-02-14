@@ -25,6 +25,17 @@ export const PondController = {
         }
     },
 
+    listCycles: async (req: Request, res: Response, next: NextFunction) => {
+        try {
+            const { id } = req.params;
+            if (!id) throw createHttpError(400, 'Pond ID is required');
+            const cycles = await PondService.listCycles(id);
+            res.json({ data: cycles });
+        } catch (error) {
+            next(error);
+        }
+    },
+
     getCycleCount: async (req: Request, res: Response, next: NextFunction) => {
         try {
             const { id } = req.params;

@@ -1,5 +1,6 @@
 import { FarmType, HarvestReadinessStatus } from '@prisma/client';
 import { prisma } from '../clients/prisma';
+import { PondService } from './pond.service';
 import { WeatherService, type CurrentWeather, type DailyForecast, type HourlyForecast } from './weather.service';
 import { FeedingCalculator, type FeedingPlanRow } from './feeding-calculator.service';
 import { logger } from '../utils/logger';
@@ -62,6 +63,7 @@ const formatGraphLabel = (date: Date): string =>
 const buildGrowthSeries = async (
   userId: string,
   pondId?: string,
+  productionCycleId?: string,
 ): Promise<{ points: MonthlyFeedingData[] }> => {
   const since = new Date(Date.now() - GRAPH_LOOKBACK_DAYS * DAY_IN_MS);
 
@@ -77,6 +79,9 @@ const buildGrowthSeries = async (
   };
   if (pondId) {
     whereClause.pondId = pondId;
+  }
+  if (productionCycleId) {
+    whereClause.productionCycleId = productionCycleId;
   }
 
   const entries = await prisma.farmDataEntry.findMany({
@@ -124,6 +129,7 @@ type LatestFishMetrics = {
 const getSurvivalAndCounts = async (
   userId: string,
   pondId?: string,
+  productionCycleId?: string,
 ): Promise<{
   survivalRatePct: number | null;
   survivalSeries: MonthlyFeedingData[];
@@ -137,6 +143,9 @@ const getSurvivalAndCounts = async (
   };
   if (pondId) {
     whereClause.pondId = pondId;
+  }
+  if (productionCycleId) {
+    whereClause.productionCycleId = productionCycleId;
   }
 
   const entries = await prisma.farmDataEntry.findMany({
@@ -243,13 +252,16 @@ const getSurvivalAndCounts = async (
 // Helper for replacement - keeping the function signature clean
 
 
-const getLatestFishMetrics = async (userId: string, pondId?: string): Promise<LatestFishMetrics> => {
+const getLatestFishMetrics = async (userId: string, pondId?: string, productionCycleId?: string): Promise<LatestFishMetrics> => {
   const whereClause: any = {
     userId,
     farmType: FarmType.LARGE,
   };
   if (pondId) {
     whereClause.pondId = pondId;
+  }
+  if (productionCycleId) {
+    whereClause.productionCycleId = productionCycleId;
   }
 
   const recentEntries = await prisma.farmDataEntry.findMany({
@@ -390,6 +402,10 @@ const getDashboard = async (userId: string, pondId?: string): Promise<NurseryLar
     };
   }
 
+  // Get active cycle to filter data
+  const activeCycle = pondId ? await PondService.getActiveCycle(pondId) : null;
+  const activeCycleId = activeCycle?.id;
+
   const [
     { points: monthlyFeedingData },
     {
@@ -403,9 +419,9 @@ const getDashboard = async (userId: string, pondId?: string): Promise<NurseryLar
     },
     { survivalRatePct, survivalSeries, totalReleased, currentCount, releaseDate },
   ] = await Promise.all([
-    buildGrowthSeries(userId, pondId),
-    getLatestFishMetrics(userId, pondId),
-    getSurvivalAndCounts(userId, pondId),
+    buildGrowthSeries(userId, pondId, activeCycleId),
+    getLatestFishMetrics(userId, pondId, activeCycleId),
+    getSurvivalAndCounts(userId, pondId, activeCycleId),
   ]);
 
   // Fetch weather using farmer profile location

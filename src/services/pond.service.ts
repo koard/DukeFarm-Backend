@@ -47,6 +47,24 @@ export const PondService = {
     },
 
     /**
+     * List all production cycles for a pond (newest first).
+     */
+    listCycles: async (pondId: string) => {
+        return prisma.productionCycle.findMany({
+            where: { pondId },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                startDate: true,
+                endDate: true,
+                status: true,
+                farmType: true,
+                createdAt: true,
+            }
+        });
+    },
+
+    /**
      * Count total production cycles for a pond.
      */
     countCycles: async (pondId: string) => {
