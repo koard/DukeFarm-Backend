@@ -354,15 +354,11 @@ nano .env.local
 ```env
 # Backend API URL (ผ่าน Nginx reverse proxy)
 NEXT_PUBLIC_API_BASE_URL=https://your-domain.com/api
-NEXT_PUBLIC_API_URL=https://your-domain.com/api
 ```
 
 > [!NOTE]
-> **Frontend ใช้ env var 2 ตัว** ที่ชี้ไปที่ Backend:
-> - `NEXT_PUBLIC_API_BASE_URL` — ใช้ในส่วนใหญ่ของ Frontend
-> - `NEXT_PUBLIC_API_URL` — ใช้ใน Disease Service
->
-> ทั้งสองตัวต้องตั้งค่าเหมือนกัน
+> Frontend ใช้ env var **ตัวเดียว** คือ `NEXT_PUBLIC_API_BASE_URL`
+> ซึ่งถูก centralize ไว้ที่ `src/config/api.ts` — ทุกไฟล์ import จากที่เดียว
 
 ### 8.4 Build Frontend
 
