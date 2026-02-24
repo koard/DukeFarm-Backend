@@ -9,30 +9,19 @@ import { createHttpError } from '../utils/httpError';
 
 import { AdminDashboardService } from './admin-dashboard.service';
 
-const getDashboard = async (userId: string, role: string, group: string, pondId?: string): Promise<any> => {
+const getDashboard = async (userId: string, role: string, group: string, pondId?: string, year?: number): Promise<any> => {
   // If Admin, utilize AdminDashboardService
   if (role === 'ADMIN') {
-    // group (farmType) and year (implicit or param? Let's parse year if passed, or default current)
-    // The current signature only has userId and group. We need role.
-    // Assuming group comes as query param 'farmType'.
-    // We might need year? Let's assume current year for now or pass 'year' param if updated.
-    // For now, hardcode 2025 or current year.
-    const year = new Date().getFullYear();
-    // Need to cast group to FarmType
-    // parseFarmTypeParam handles validation.
+    const dashboardYear = year || new Date().getFullYear();
 
-    // Correction: group is FarmTypeValue.
-
-    // We need to import FarmType enum from prisma
     const farmType = Object.values(FarmType).find(k => k === group) as FarmType;
     if (!farmType) throw createHttpError(400, "Invalid farm type for admin dashboard");
 
-    return AdminDashboardService.getDashboardStats(farmType, year);
-
+    return AdminDashboardService.getDashboardStats(farmType, dashboardYear);
   }
 
   // Existing Logic for Farmers
-  const farmType = group as FarmTypeValue; // Cast safely or validate
+  const farmType = group as FarmTypeValue;
   switch (farmType) {
     case FarmType.SMALL:
       return NurserySmallDashboardService.getDashboard(userId, pondId);

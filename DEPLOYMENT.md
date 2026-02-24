@@ -17,7 +17,8 @@
 | 5 | [ติดตั้ง PostgreSQL](#5-ติดตั้ง-postgresql) |
 | 6 | [ติดตั้ง Nginx](#6-ติดตั้ง-nginx) |
 | 7 | [Deploy Backend](#7-deploy-backend) |
-| 8 | [Deploy Frontend](#8-deploy-frontend) |
+| 8 | [Deploy Frontend (เกษตรกร)](#8-deploy-frontend) |
+| 8.5 | [Deploy Admin Panel](#85-deploy-admin-panel) |
 | 9 | [ตั้งค่า Nginx Reverse Proxy](#9-ตั้งค่า-nginx-reverse-proxy) |
 | 10 | [ตั้งค่า SSL (HTTPS)](#10-ตั้งค่า-ssl-https) |
 | 11 | [ตั้งค่า Firewall](#11-ตั้งค่า-firewall) |
@@ -30,30 +31,33 @@
 ## 1. ภาพรวมสถาปัตยกรรม
 
 ```
-                    ┌────────────────────────────────────────────────┐
-                    │              Ubuntu 22.04 Server               │
-                    │                                                │
-   Users ──────►   │   Nginx (Port 80/443)                          │
-                    │     │                                          │
-                    │     ├── / ───────────► Next.js (Port 3000)     │
-                    │     │                                          │
-                    │     ├── /api ─────────► Express (Port 4000)    │
-                    │     │                                          │
-                    │     └── /uploads ─────► Express (Port 4000)    │
-                    │                                                │
-                    │   PostgreSQL (Port 5432)                       │
-                    │                                                │
-                    │   PM2 (Process Manager)                        │
-                    └────────────────────────────────────────────────┘
+                    ┌──────────────────────────────────────────────────────┐
+                    │                 Ubuntu 22.04 Server                  │
+                    │                                                      │
+   Users ──────►   │   Nginx (Port 80/443)                                │
+                    │     │                                                │
+                    │     ├── / ───────────────► Next.js (Port 3000)       │  ← Frontend เกษตรกร
+                    │     │                                                │
+                    │     ├── /admin ──────────► Next.js (Port 3001)       │  ← Admin Panel
+                    │     │                                                │
+                    │     ├── /api ────────────► Express (Port 4000)       │  ← Backend API
+                    │     │                                                │
+                    │     └── /uploads ────────► Express (Port 4000)       │
+                    │                                                      │
+                    │   PostgreSQL (Port 5432)                             │
+                    │                                                      │
+                    │   PM2 (Process Manager)                              │
+                    └──────────────────────────────────────────────────────┘
 ```
 
-| Component | Tech Stack | Port |
-|---|---|---|
-| **Frontend** | Next.js 15, React 19, TailwindCSS 4 | 3000 |
-| **Backend** | Express 5, TypeScript, Prisma ORM | 4000 |
-| **Database** | PostgreSQL 14+ | 5432 |
-| **Reverse Proxy** | Nginx | 80 / 443 |
-| **Process Manager** | PM2 | — |
+| Component | Tech Stack | Port | Path |
+|---|---|---|---|
+| **Frontend (เกษตรกร)** | Next.js 15, React 19, TailwindCSS 4 | 3000 | `/` |
+| **Admin Panel** | Next.js 16, React 19, TailwindCSS 4, Recharts | 3001 | `/admin` |
+| **Backend** | Express 5, TypeScript, Prisma ORM | 4000 | `/api` |
+| **Database** | PostgreSQL 14+ | 5432 | — |
+| **Reverse Proxy** | Nginx | 80 / 443 | — |
+| **Process Manager** | PM2 | — | — |
 
 ---
 
@@ -391,6 +395,87 @@ pm2 save
 
 ---
 
+## 8.5 Deploy Admin Panel
+
+> [!NOTE]
+> Admin Panel เป็น Next.js App แยกจาก Frontend เกษตรกร ใช้สำหรับผู้ดูแลระบบดูข้อมูลเกษตรกร, Dashboard, จัดการข้อมูล
+
+### 8.5.1 Clone Repository
+
+```bash
+cd /var/www/dukefarm
+
+# Clone admin panel repository
+git clone <your-admin-repo-url> admin
+cd admin
+```
+
+### 8.5.2 ติดตั้ง Dependencies
+
+```bash
+npm install
+```
+
+### 8.5.3 ตั้งค่า Environment Variables
+
+```bash
+nano .env.local
+```
+
+```env
+# Backend API URL (ผ่าน Nginx reverse proxy)
+NEXT_PUBLIC_API_BASE_URL=https://your-domain.com/api
+```
+
+### 8.5.4 ตั้งค่า Base Path
+
+เนื่องจาก Admin Panel จะ serve อยู่ที่ `/admin` ต้องเพิ่ม `basePath` ใน `next.config.ts`:
+
+```bash
+nano next.config.ts
+```
+
+```typescript
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  basePath: '/admin',
+};
+
+export default nextConfig;
+```
+
+### 8.5.5 Build Admin Panel
+
+```bash
+npm run build
+```
+
+### 8.5.6 ทดสอบรัน
+
+```bash
+# รันบน port 3001
+npx next start -p 3001
+
+# เปิด terminal ใหม่ แล้วทดสอบ
+curl http://localhost:3001/admin
+# ควรได้ HTML กลับมา → หยุดด้วย Ctrl+C
+```
+
+### 8.5.7 ตั้งค่า PM2
+
+```bash
+pm2 start npx --name "dukefarm-admin" -- next start -p 3001
+
+# ตรวจสอบสถานะ
+pm2 status
+
+# บันทึก
+pm2 save
+```
+
+---
+
 ## 9. ตั้งค่า Nginx Reverse Proxy
 
 ### 9.1 สร้างไฟล์ Configuration
@@ -442,6 +527,19 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         expires 30d;
         add_header Cache-Control "public, immutable";
+    }
+
+    # ===== Admin Panel (Next.js on port 3001) =====
+    location /admin {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
     }
 
     # ===== Frontend (Next.js) =====
@@ -569,6 +667,18 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
+    location /admin {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
@@ -625,7 +735,8 @@ sudo ufw status
 > - `443` — HTTPS
 >
 > **Port ที่ไม่ต้องเปิด** (เพราะเข้าถึงผ่าน Nginx):
-> - `3000` — Frontend (เข้าถึงผ่าน Nginx)
+> - `3000` — Frontend เกษตรกร (เข้าถึงผ่าน Nginx)
+> - `3001` — Admin Panel (เข้าถึงผ่าน Nginx)
 > - `4000` — Backend (เข้าถึงผ่าน Nginx)
 > - `5432` — PostgreSQL (เข้าถึงเฉพาะ localhost)
 
@@ -665,6 +776,14 @@ npm install
 npm run build
 pm2 restart dukefarm-frontend
 
+# ===== Admin Panel =====
+echo "🛡️ Deploying Admin Panel..."
+cd /var/www/dukefarm/admin
+git pull origin main
+npm install
+npm run build
+pm2 restart dukefarm-admin
+
 echo "✅ Deployment complete!"
 pm2 status
 ```
@@ -687,8 +806,10 @@ chmod +x /var/www/dukefarm/deploy.sh
 | `pm2 logs` | ดู logs ทั้งหมด |
 | `pm2 logs dukefarm-backend` | ดู logs เฉพาะ backend |
 | `pm2 logs dukefarm-frontend` | ดู logs เฉพาะ frontend |
+| `pm2 logs dukefarm-admin` | ดู logs เฉพาะ admin panel |
 | `pm2 restart all` | รีสตาร์ททั้งหมด |
 | `pm2 restart dukefarm-backend` | รีสตาร์ทเฉพาะ backend |
+| `pm2 restart dukefarm-admin` | รีสตาร์ทเฉพาะ admin |
 | `pm2 stop all` | หยุดทั้งหมด |
 | `pm2 monit` | เปิด monitoring dashboard |
 
@@ -773,6 +894,20 @@ sudo cat /etc/postgresql/14/main/pg_hba.conf
 - ตรวจสอบว่าใช้ HTTPS (LINE กำหนดให้ใช้ HTTPS)
 - ตรวจสอบว่า `FRONTEND_CALLBACK_URL` ชี้ไปที่ Frontend ถูกต้อง
 
+### ❌ Admin Panel ไม่แสดงผล
+
+```bash
+# ดู logs
+pm2 logs dukefarm-admin --lines 50
+
+# ทดสอบเข้าถึงโดยตรง
+curl http://localhost:3001/admin
+
+# ถ้าได้ 404 → ตรวจสอบว่า next.config.ts มี basePath: '/admin'
+# ถ้า API เรียกไม่ได้ → ตรวจสอบ .env.local ว่า NEXT_PUBLIC_API_BASE_URL ถูกต้อง
+# (ต้อง rebuild หลังแก้ .env.local หรือ next.config.ts)
+```
+
 ---
 
 ## 14. Production Checklist
@@ -788,11 +923,13 @@ sudo cat /etc/postgresql/14/main/pg_hba.conf
 ### หลัง Deploy
 
 - [ ] เข้าเว็บผ่าน `https://your-domain.com` ได้
+- [ ] เข้า Admin Panel ผ่าน `https://your-domain.com/admin` ได้
 - [ ] Health check: `curl https://your-domain.com/healthz` ได้ `{"status":"ok"}`
 - [ ] ทดสอบ LINE Login ได้
-- [ ] ดูข้อมูล Dashboard ได้
+- [ ] ดูข้อมูล Dashboard ได้ (ทั้ง Farmer และ Admin)
 - [ ] Upload รูปได้
 - [ ] PM2 startup ตั้งค่าแล้ว (`pm2 save` + `pm2 startup`)
+- [ ] PM2 มี 3 processes: `dukefarm-backend`, `dukefarm-frontend`, `dukefarm-admin`
 - [ ] Firewall เปิดเฉพาะ port 22, 80, 443
 - [ ] SSL Certificate ติดตั้งแล้ว
 
@@ -840,9 +977,14 @@ crontab -e
 │   ├── prisma/                 # Database schema & migrations
 │   ├── uploads/                # User uploaded files
 │   └── node_modules/
-├── frontend/                   # Frontend source code
+├── frontend/                   # Frontend เกษตรกร (Port 3000)
 │   ├── .env.local              # Frontend environment variables
 │   ├── .next/                  # Next.js build output
+│   └── node_modules/
+├── admin/                      # Admin Panel (Port 3001)
+│   ├── .env.local              # Admin environment variables
+│   ├── .next/                  # Next.js build output
+│   ├── next.config.ts          # มี basePath: '/admin'
 │   └── node_modules/
 ├── backups/                    # Database backups
 ├── deploy.sh                   # Re-deployment script

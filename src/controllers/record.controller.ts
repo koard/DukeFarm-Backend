@@ -86,6 +86,13 @@ const getRecords = async (req: AuthenticatedRequest, res: Response, next: NextFu
       throw createHttpError(401, 'Unauthorized');
     }
 
+    // Allow ADMIN/RESEARCHER to query records for a specific farmer
+    const queryUserId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
+    let targetUserId = user.id;
+    if (queryUserId && (user.role === 'ADMIN' || user.role === 'RESEARCHER')) {
+      targetUserId = queryUserId;
+    }
+
     const pondId = typeof req.query.pondId === 'string' ? req.query.pondId : undefined;
     const productionCycleId = typeof req.query.productionCycleId === 'string' ? req.query.productionCycleId : undefined;
     const farmTypeParam = typeof req.query.farmType === 'string' ? req.query.farmType : undefined;
@@ -94,16 +101,17 @@ const getRecords = async (req: AuthenticatedRequest, res: Response, next: NextFu
       try {
         farmType = parseFarmType(farmTypeParam);
       } catch (e) {
-        // ignore or throw? Better to ignore invalid farmType filter for listing? 
-        // Or strict? strict is better.
         throw createHttpError(400, `Invalid farmType: ${farmTypeParam}`);
       }
     }
 
+    const startDate = typeof req.query.startDate === 'string' ? req.query.startDate : undefined;
+    const endDate = typeof req.query.endDate === 'string' ? req.query.endDate : undefined;
+
     const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(String(req.query.limit || '20'), 10) || 20));
 
-    const result = await FarmDataEntryService.getUserEntries(user.id, pondId, farmType, page, limit, productionCycleId);
+    const result = await FarmDataEntryService.getUserEntries(targetUserId, pondId, farmType, page, limit, productionCycleId, startDate, endDate);
     res.json({ data: result.data, pagination: result.pagination });
   } catch (error) {
     next(error);

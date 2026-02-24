@@ -18,8 +18,10 @@ const getDashboardByFarmType = async (req: AuthenticatedRequest, res: Response, 
     }
 
     const pondId = req.query.pondId as string | undefined;
+    const yearParam = req.query.year as string | undefined;
+    const year = yearParam ? parseInt(yearParam, 10) : undefined;
 
-    const dashboard = await DashboardService.getDashboard(user.id, user.role || '', farmType, pondId);
+    const dashboard = await DashboardService.getDashboard(user.id, user.role || '', farmType, pondId, year);
 
     res.json({ data: dashboard });
   } catch (error) {

@@ -1,7 +1,17 @@
 import { prisma } from '../clients/prisma';
-import { FarmType, Prisma, RegistrationStatus } from '@prisma/client';
+import { FarmType, PondType, Prisma, RegistrationStatus } from '@prisma/client';
 import { createHttpError } from '../utils/httpError';
 import { decimalToNumber } from '../utils/number';
+
+type PondInfo = {
+  id: string;
+  pondType: PondType;
+  farmType: FarmType;
+  widthM: number;
+  lengthM: number;
+  depthM: number;
+  volumeM3: number;
+};
 
 type FarmerListItem = {
   userId: string;
@@ -17,6 +27,7 @@ type FarmerListItem = {
   farmAreaRai: number | null;
   pondsPerRai: number | null;
   registeredAt: string;
+  ponds?: PondInfo[];
 };
 
 type PaginationParams = {
@@ -46,7 +57,11 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
         registrationStatus: 'COMPLETED',
       },
       include: {
-        farmerProfile: true,
+        farmerProfile: {
+          include: {
+            ponds: true,
+          },
+        },
         cultivationTypes: true,
       },
       orderBy: {
@@ -99,13 +114,21 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
 
 
 type FarmerDetailStats = {
-  averageFishWeight: number | null; // will be null for now
+  averageFishWeight: number | null;
   survivalRate: number | null;
-  survivalRatePct: number | null; // For compatibility
+  survivalRatePct: number | null;
   latestFishAgeDays: number | null;
   latestFishAgeLabel: string | null;
   latestFishCount: number | null;
   totalPonds: number | null;
+};
+
+type DashboardSummary = {
+  fishType: string;
+  avgWeight: number | null;
+  releaseCount: number | null;
+  remainingCount: number | null;
+  survivalRate: number | null;
 };
 
 type FarmerDetailEntry = {
@@ -119,14 +142,18 @@ type FarmerDetailEntry = {
   fishRemaining: number | null;
   fishReleased: number | null;
   foodAmountKg: number | null;
+  averageFishWeightGr: number | null;
+  feedFormulaName: string | null;
+  medicineName: string | null;
   weatherTemperatureC: number | null;
   weatherRainMm: number | null;
   weatherHumidityPct: number | null;
-  fishAverageWeight: number | null; // null for now
+  fishAverageWeight: number | null;
 };
 
 type FarmerDetailResponse = FarmerListItem & {
   stats: FarmerDetailStats;
+  dashboardSummary: DashboardSummary;
   entries: FarmerDetailEntry[];
   availableFarmTypes: FarmType[];
 };
@@ -142,7 +169,11 @@ const getFarmerById = async (
       registrationStatus: 'COMPLETED',
     },
     include: {
-      farmerProfile: true,
+      farmerProfile: {
+        include: {
+          ponds: true,
+        },
+      },
       cultivationTypes: true,
     },
   });
@@ -235,9 +266,51 @@ const getFarmerById = async (
     registeredAt: farmer.createdAt.toISOString(),
   };
 
+  // Calculate dashboard summary
+  const FARM_TYPE_LABELS: Record<string, string> = {
+    SMALL: 'ปลาตุ้ม',
+    LARGE: 'ปลานิ้ว',
+    MARKET: 'ปลาตลาด',
+  };
+
+  const activeFarmType = filterFarmType || farmer.farmerProfile?.primaryFarmType || FarmType.SMALL;
+  const fishType = FARM_TYPE_LABELS[activeFarmType] || activeFarmType;
+
+  // Avg weight from latest entry
+  const latestWithWeight = entries.find(e => e.averageFishWeightGr !== null);
+  const avgWeight = latestWithWeight?.averageFishWeightGr
+    ? Number(latestWithWeight.averageFishWeightGr)
+    : null;
+
+  // Release count from first entry, remaining from latest
+  const firstEntry = sortedAsc.find(e => (e.fishReleased !== null && e.fishReleased > 0));
+  const releaseCount = firstEntry?.fishReleased ?? null;
+  const remainingCount = latestEntry?.fishRemaining ?? null;
+
+  const dashboardSummary: DashboardSummary = {
+    fishType,
+    avgWeight,
+    releaseCount,
+    remainingCount,
+    survivalRate: entries.length > 0 ? survivalRatePct : null,
+  };
+
+  // Map ponds
+  const ponds: PondInfo[] = (farmer.farmerProfile?.ponds || []).map((p) => ({
+    id: p.id,
+    pondType: p.pondType,
+    farmType: p.farmType,
+    widthM: Number(p.widthM),
+    lengthM: Number(p.lengthM),
+    depthM: Number(p.depthM),
+    volumeM3: Number(p.volumeM3),
+  }));
+
   return {
     ...baseInfo,
+    ponds,
     stats,
+    dashboardSummary,
     entries: entries.map((e) => ({
       id: e.id,
       recordedAt: e.recordedAt.toISOString(),
@@ -249,10 +322,13 @@ const getFarmerById = async (
       fishRemaining: e.fishRemaining,
       fishReleased: e.fishReleased,
       foodAmountKg: e.foodAmountKg,
+      averageFishWeightGr: e.averageFishWeightGr ? Number(e.averageFishWeightGr) : null,
+      feedFormulaName: e.feedFormulaName,
+      medicineName: e.medicineName,
       weatherTemperatureC: e.weatherTemperatureC,
       weatherRainMm: e.weatherRainMm,
       weatherHumidityPct: e.weatherHumidityPct,
-      fishAverageWeight: null,
+      fishAverageWeight: e.averageFishWeightGr ? Number(e.averageFishWeightGr) : null,
     })),
     availableFarmTypes: farmer.cultivationTypes.map((t) => t.farmType),
   };

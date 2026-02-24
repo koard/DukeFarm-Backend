@@ -340,6 +340,8 @@ const getUserEntries = async (
   page: number = 1,
   limit: number = 20,
   productionCycleId?: string,
+  startDate?: string,
+  endDate?: string,
 ) => {
   const where: any = { userId };
   if (pondId) {
@@ -350,6 +352,11 @@ const getUserEntries = async (
   }
   if (productionCycleId) {
     where.productionCycleId = productionCycleId;
+  }
+  if (startDate || endDate) {
+    where.recordedAt = {};
+    if (startDate) where.recordedAt.gte = new Date(startDate);
+    if (endDate) where.recordedAt.lte = new Date(endDate);
   }
 
   const skip = (page - 1) * limit;
@@ -380,6 +387,9 @@ const getUserEntries = async (
       fishAgeDays: e.fishAgeDays,
       fishReleased: e.fishReleased,
       fishRemaining: e.fishRemaining,
+      averageFishWeightGr: e.averageFishWeightGr ? Number(e.averageFishWeightGr) : null,
+      feedFormulaName: e.feedFormulaName,
+      medicineName: e.medicineName,
       foodAmountKg: e.foodAmountKg,
       pondType: e.pondType,
       pondCount: e.pondCount,
