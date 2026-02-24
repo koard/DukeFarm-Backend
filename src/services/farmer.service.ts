@@ -29,7 +29,8 @@ type FarmerListItem = {
   pondsPerRai: number | null;
   registeredAt: string;
   ponds?: PondInfo[];
-  totalProductionCycles?: number;
+  totalRecords?: number;
+  lastRecordDate?: string | null;
 };
 
 type PaginationParams = {
@@ -97,20 +98,21 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
     }),
   ]);
 
-  // Get production cycle counts for all ponds of all fetched farmers
-  const allPondIds = farmers.flatMap((f) => (f.farmerProfile?.ponds || []).map((p) => p.id));
-  const cycleCounts = allPondIds.length > 0
-    ? await prisma.productionCycle.groupBy({
-      by: ['pondId'],
-      where: { pondId: { in: allPondIds } },
+  // Get record stats (count + last record date) for all fetched farmers
+  const farmerIds = farmers.map((f) => f.id);
+  const recordStats = farmerIds.length > 0
+    ? await prisma.farmDataEntry.groupBy({
+      by: ['userId'],
+      where: { userId: { in: farmerIds } },
       _count: { id: true },
+      _max: { recordedAt: true },
     })
     : [];
-  const cycleCountMap = new Map(cycleCounts.map((c) => [c.pondId, c._count.id]));
+  const recordStatsMap = new Map(recordStats.map((r) => [r.userId, { count: r._count.id, lastDate: r._max.recordedAt }]));
 
   const data: FarmerListItem[] = farmers.map((farmer, index) => {
     const ponds = farmer.farmerProfile?.ponds || [];
-    const totalCycles = ponds.reduce((sum, p) => sum + (cycleCountMap.get(p.id) || 0), 0);
+    const stats = recordStatsMap.get(farmer.id);
 
     return {
       userId: farmer.id,
@@ -131,7 +133,8 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
       farmAreaRai: decimalToNumber(farmer.farmerProfile?.farmAreaRai),
       pondsPerRai: decimalToNumber(farmer.farmerProfile?.pondsPerRai),
       registeredAt: farmer.createdAt.toISOString(),
-      totalProductionCycles: totalCycles,
+      totalRecords: stats?.count ?? 0,
+      lastRecordDate: stats?.lastDate?.toISOString() ?? null,
     };
   });
 
