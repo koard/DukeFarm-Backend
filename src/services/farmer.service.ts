@@ -19,6 +19,7 @@ type FarmerListItem = {
   no: number;
   fullName: string;
   phone: string;
+  pictureUrl: string | null;
   farmType: FarmType;
   farmTypes: FarmType[];
   registrationStatus: RegistrationStatus;
@@ -121,6 +122,7 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
         ? `${farmer.farmerProfile.firstName} ${farmer.farmerProfile.lastName}`
         : farmer.displayName || 'N/A',
       phone: farmer.farmerProfile?.phone || '-',
+      pictureUrl: farmer.pictureUrl || null,
       farmType:
         farmer.farmerProfile?.primaryFarmType ||
         farmer.cultivationTypes[0]?.farmType ||
@@ -294,6 +296,7 @@ const getFarmerById = async (
       ? `${farmer.farmerProfile.firstName} ${farmer.farmerProfile.lastName}`
       : farmer.displayName || 'N/A',
     phone: farmer.farmerProfile?.phone || '-',
+    pictureUrl: farmer.pictureUrl || null,
     farmType: filterFarmType || farmer.farmerProfile?.primaryFarmType || FarmType.SMALL, // Just show something representative
     farmTypes: farmer.cultivationTypes.map((item) => item.farmType),
     registrationStatus: farmer.registrationStatus,
