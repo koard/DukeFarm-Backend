@@ -29,11 +29,14 @@ type FarmerListItem = {
   pondsPerRai: number | null;
   registeredAt: string;
   ponds?: PondInfo[];
+  totalProductionCycles?: number;
 };
 
 type PaginationParams = {
   page: number;
   limit: number;
+  search?: string;
+  farmType?: FarmType;
 };
 
 type FarmerListResponse = {
@@ -47,16 +50,34 @@ type FarmerListResponse = {
 };
 
 const getFarmerList = async (params: PaginationParams): Promise<FarmerListResponse> => {
-  const { page, limit } = params;
+  const { page, limit, search, farmType: filterFarmType } = params;
   const skip = (page - 1) * limit;
 
-  // Get farmers with FARMER role and COMPLETED registration
+  // Build where clause with search and farmType filters
+  const whereClause: Prisma.UserWhereInput = {
+    role: 'FARMER',
+    registrationStatus: 'COMPLETED',
+  };
+
+  if (search) {
+    whereClause.OR = [
+      { farmerProfile: { firstName: { contains: search, mode: 'insensitive' } } },
+      { farmerProfile: { lastName: { contains: search, mode: 'insensitive' } } },
+      { farmerProfile: { phone: { contains: search } } },
+      { displayName: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  if (filterFarmType) {
+    whereClause.cultivationTypes = {
+      some: { farmType: filterFarmType },
+    };
+  }
+
+  // Get farmers with filters
   const [farmers, totalCount] = await Promise.all([
     prisma.user.findMany({
-      where: {
-        role: 'FARMER',
-        registrationStatus: 'COMPLETED',
-      },
+      where: whereClause,
       include: {
         farmerProfile: {
           include: {
@@ -72,33 +93,47 @@ const getFarmerList = async (params: PaginationParams): Promise<FarmerListRespon
       take: limit,
     }),
     prisma.user.count({
-      where: {
-        role: 'FARMER',
-        registrationStatus: 'COMPLETED',
-      },
+      where: whereClause,
     }),
   ]);
 
-  const data: FarmerListItem[] = farmers.map((farmer, index) => ({
-    userId: farmer.id,
-    no: skip + index + 1,
-    fullName: farmer.farmerProfile
-      ? `${farmer.farmerProfile.firstName} ${farmer.farmerProfile.lastName}`
-      : farmer.displayName || 'N/A',
-    phone: farmer.farmerProfile?.phone || '-',
-    farmType:
-      farmer.farmerProfile?.primaryFarmType ||
-      farmer.cultivationTypes[0]?.farmType ||
-      FarmType.SMALL,
-    farmTypes: farmer.cultivationTypes.map((item) => item.farmType),
-    registrationStatus: farmer.registrationStatus,
-    pondCount: farmer.farmerProfile?.declaredPondCount || null,
-    latitude: farmer.farmerProfile?.farmLatitude || null,
-    longitude: farmer.farmerProfile?.farmLongitude || null,
-    farmAreaRai: decimalToNumber(farmer.farmerProfile?.farmAreaRai),
-    pondsPerRai: decimalToNumber(farmer.farmerProfile?.pondsPerRai),
-    registeredAt: farmer.createdAt.toISOString(),
-  }));
+  // Get production cycle counts for all ponds of all fetched farmers
+  const allPondIds = farmers.flatMap((f) => (f.farmerProfile?.ponds || []).map((p) => p.id));
+  const cycleCounts = allPondIds.length > 0
+    ? await prisma.productionCycle.groupBy({
+      by: ['pondId'],
+      where: { pondId: { in: allPondIds } },
+      _count: { id: true },
+    })
+    : [];
+  const cycleCountMap = new Map(cycleCounts.map((c) => [c.pondId, c._count.id]));
+
+  const data: FarmerListItem[] = farmers.map((farmer, index) => {
+    const ponds = farmer.farmerProfile?.ponds || [];
+    const totalCycles = ponds.reduce((sum, p) => sum + (cycleCountMap.get(p.id) || 0), 0);
+
+    return {
+      userId: farmer.id,
+      no: skip + index + 1,
+      fullName: farmer.farmerProfile
+        ? `${farmer.farmerProfile.firstName} ${farmer.farmerProfile.lastName}`
+        : farmer.displayName || 'N/A',
+      phone: farmer.farmerProfile?.phone || '-',
+      farmType:
+        farmer.farmerProfile?.primaryFarmType ||
+        farmer.cultivationTypes[0]?.farmType ||
+        FarmType.SMALL,
+      farmTypes: farmer.cultivationTypes.map((item) => item.farmType),
+      registrationStatus: farmer.registrationStatus,
+      pondCount: ponds.length || farmer.farmerProfile?.declaredPondCount || null,
+      latitude: farmer.farmerProfile?.farmLatitude || null,
+      longitude: farmer.farmerProfile?.farmLongitude || null,
+      farmAreaRai: decimalToNumber(farmer.farmerProfile?.farmAreaRai),
+      pondsPerRai: decimalToNumber(farmer.farmerProfile?.pondsPerRai),
+      registeredAt: farmer.createdAt.toISOString(),
+      totalProductionCycles: totalCycles,
+    };
+  });
 
   const totalPages = Math.ceil(totalCount / limit);
 

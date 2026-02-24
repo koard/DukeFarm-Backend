@@ -5,6 +5,10 @@ import { FarmerService } from '../services/farmer.service';
 const getFarmerList = async (req: AuthenticatedRequest, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 10;
+  const search = typeof req.query.search === 'string' ? req.query.search.trim() : undefined;
+  const farmType = typeof req.query.farmType === 'string' && ['SMALL', 'LARGE', 'MARKET'].includes(req.query.farmType)
+    ? (req.query.farmType as any)
+    : undefined;
 
   // Validate pagination params
   if (page < 1 || limit < 1 || limit > 100) {
@@ -13,7 +17,11 @@ const getFarmerList = async (req: AuthenticatedRequest, res: Response) => {
     });
   }
 
-  const result = await FarmerService.getFarmerList({ page, limit });
+  const params: Parameters<typeof FarmerService.getFarmerList>[0] = { page, limit };
+  if (search) params.search = search;
+  if (farmType) params.farmType = farmType;
+
+  const result = await FarmerService.getFarmerList(params);
 
   return res.json({ data: result });
 };
