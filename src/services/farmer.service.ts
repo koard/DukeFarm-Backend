@@ -11,6 +11,7 @@ type PondInfo = {
   lengthM: number;
   depthM: number;
   volumeM3: number;
+  productionCycleCount: number;
 };
 
 type FarmerListItem = {
@@ -295,7 +296,17 @@ const getFarmerById = async (
     survivalRate: entries.length > 0 ? survivalRatePct : null,
   };
 
-  // Map ponds
+  // Map ponds with production cycle count
+  const pondIds = (farmer.farmerProfile?.ponds || []).map((p) => p.id);
+  const cycleCounts = pondIds.length > 0
+    ? await prisma.productionCycle.groupBy({
+      by: ['pondId'],
+      where: { pondId: { in: pondIds } },
+      _count: { id: true },
+    })
+    : [];
+  const cycleCountMap = new Map(cycleCounts.map((c) => [c.pondId, c._count.id]));
+
   const ponds: PondInfo[] = (farmer.farmerProfile?.ponds || []).map((p) => ({
     id: p.id,
     pondType: p.pondType,
@@ -304,6 +315,7 @@ const getFarmerById = async (
     lengthM: Number(p.lengthM),
     depthM: Number(p.depthM),
     volumeM3: Number(p.volumeM3),
+    productionCycleCount: cycleCountMap.get(p.id) || 0,
   }));
 
   return {
