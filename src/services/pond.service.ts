@@ -59,6 +59,8 @@ export const PondService = {
                 endDate: true,
                 status: true,
                 farmType: true,
+                initialStockCount: true,
+                initialAvgWeightKg: true,
                 createdAt: true,
             }
         });

@@ -391,6 +391,8 @@ const getUserEntries = async (
       feedFormulaName: e.feedFormulaName,
       medicineName: e.medicineName,
       foodAmountKg: e.foodAmountKg,
+      foodCostBaht: e.foodCostBaht,
+      medicineCostBaht: e.medicineCostBaht,
       pondType: e.pondType,
       pondCount: e.pondCount,
       weatherTemperatureC: e.weatherTemperatureC,
