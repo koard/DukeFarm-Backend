@@ -242,6 +242,15 @@ const createEntry = async (userId: string, input: CreateEntryInput) => {
       });
       productionCycleId = newCycle.id;
     }
+
+    // Sync pond farmType if it differs from the record's farmType
+    const pond = await prisma.pond.findUnique({ where: { id: input.pondId }, select: { farmType: true } });
+    if (pond && pond.farmType !== input.farmType) {
+      await prisma.pond.update({
+        where: { id: input.pondId },
+        data: { farmType: input.farmType },
+      });
+    }
   }
 
   return prisma.farmDataEntry.create({
