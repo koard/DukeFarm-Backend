@@ -186,8 +186,8 @@ const getSurvivalAndCounts = async (
     };
   }
 
-  // Total released is the sum of all released amounts
-  const totalReleased = normalized.reduce((sum, entry) => sum + (entry.fishReleased || 0), 0);
+  // fishReleased is the same constant in every record (not additive), so take the first non-zero value
+  const totalReleased = normalized.find(e => e.fishReleased > 0)?.fishReleased ?? 0;
 
   // Current count is the latest non-null remaining count
   let currentCount = 0;
@@ -211,29 +211,15 @@ const getSurvivalAndCounts = async (
   // The map above uses `count` which might be 0 if fishRemaining is null and fishReleased is 0.
   // We need a stateful map to carry forward `lastKnownCount`.
 
-  let lastKnownCount = totalReleased; // Start with total (assumption: at start we have full count)
-  // Wait, totalReleased is sum of all releases.
-  // At index 0, if it's a release, fishRemaining might be null, but fishReleased is set.
-  // So `lastKnownCount` should track.
-
   const improvedSeries: MonthlyFeedingData[] = [];
-  let runningReleased = 0;
-  let runningCount = 0;
 
   for (const entry of normalized) {
-    if (entry.fishReleased) {
-      runningReleased += entry.fishReleased;
-      runningCount += entry.fishReleased; // Add to current stock
-    }
+    // Use the constant totalReleased as denominator (fishReleased is not additive)
+    const count = entry.fishRemaining !== null ? entry.fishRemaining : totalReleased;
 
-    if (entry.fishRemaining !== null) {
-      runningCount = entry.fishRemaining; // Update to exact count
-    }
+    if (totalReleased === 0) continue;
 
-    // If we haven't released anything yet, skip
-    if (runningReleased === 0) continue;
-
-    const pct = Math.max(0, Math.min(100, Math.round((runningCount / runningReleased) * 100)));
+    const pct = Math.max(0, Math.min(100, Math.round((count / totalReleased) * 100)));
     improvedSeries.push({
       month: formatGraphLabel(entry.recordedAt),
       value: pct

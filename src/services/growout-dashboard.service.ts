@@ -186,7 +186,8 @@ const getSurvivalAndCounts = async (
     };
   }
 
-  const totalReleased = normalized.reduce((sum, entry) => sum + (entry.fishReleased || 0), 0);
+  // fishReleased is the same constant in every record (not additive), so take the first non-zero value
+  const totalReleased = normalized.find(e => e.fishReleased > 0)?.fishReleased ?? 0;
 
   let currentCount = 0;
   for (let i = normalized.length - 1; i >= 0; i--) {
@@ -204,22 +205,14 @@ const getSurvivalAndCounts = async (
   const releaseDate = normalized[0]?.recordedAt.toISOString() ?? null;
 
   const improvedSeries: MonthlyFeedingData[] = [];
-  let runningReleased = 0;
-  let runningCount = 0;
 
   for (const entry of normalized) {
-    if (entry.fishReleased) {
-      runningReleased += entry.fishReleased;
-      runningCount += entry.fishReleased;
-    }
+    // Use the constant totalReleased as denominator (fishReleased is not additive)
+    const count = entry.fishRemaining !== null ? entry.fishRemaining : totalReleased;
 
-    if (entry.fishRemaining !== null) {
-      runningCount = entry.fishRemaining;
-    }
+    if (totalReleased === 0) continue;
 
-    if (runningReleased === 0) continue;
-
-    const pct = Math.max(0, Math.min(100, Math.round((runningCount / runningReleased) * 100)));
+    const pct = Math.max(0, Math.min(100, Math.round((count / totalReleased) * 100)));
     improvedSeries.push({
       month: formatGraphLabel(entry.recordedAt),
       value: pct
