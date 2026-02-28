@@ -285,17 +285,17 @@ const getLatestFishMetrics = async (userId: string, pondId?: string, productionC
   const latestWeightEntry = weightEntries[0];
   const previousWeightEntry = weightEntries[1];
 
-  const latestWeightKg = latestWeightEntry?.averageFishWeightGr
-    ? Number(latestWeightEntry.averageFishWeightGr) / 1000
+  const latestWeightGr = latestWeightEntry?.averageFishWeightGr
+    ? Number(latestWeightEntry.averageFishWeightGr)
     : null;
 
-  const previousWeightKg = previousWeightEntry?.averageFishWeightGr
-    ? Number(previousWeightEntry.averageFishWeightGr) / 1000
+  const previousWeightGr = previousWeightEntry?.averageFishWeightGr
+    ? Number(previousWeightEntry.averageFishWeightGr)
     : null;
 
   return {
-    averageFishWeight: latestWeightKg,
-    weightChange: calculateWeightChangePct(latestWeightKg, previousWeightKg),
+    averageFishWeight: latestWeightGr,
+    weightChange: calculateWeightChangePct(latestWeightGr, previousWeightGr),
     latestFishAgeLabel,
     latestFishAgeDays,
     latestFishStageName,
