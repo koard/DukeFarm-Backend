@@ -251,4 +251,117 @@ export const DiseaseAnalyzerService = {
       'ครีบกร่อน', 'เหงือกอักเสบ', 'ปรสิตเกาะ', 'กะโหลกร้าว', 'ซึม'
     ];
   },
+
+  // ─── Disease CRUD ────────────────────────────────────────────────
+
+  createDisease: async (data: {
+    name: string;
+    category: string;
+    symptoms: string;
+    causes?: string;
+    treatment?: string;
+    prevention?: string;
+    icon?: string;
+    treatmentSummary?: string;
+    tags?: string[];
+  }) => {
+    const { tags, ...diseaseData } = data;
+
+    return prisma.disease.create({
+      data: {
+        ...diseaseData,
+        ...(tags?.length
+          ? { tags: { create: tags.map((label) => ({ label })) } }
+          : {}),
+      },
+      include: { tags: true },
+    });
+  },
+
+  updateDisease: async (
+    id: string,
+    data: {
+      name?: string;
+      category?: string;
+      symptoms?: string;
+      causes?: string;
+      treatment?: string;
+      prevention?: string;
+      icon?: string;
+      treatmentSummary?: string;
+      tags?: string[];
+    },
+  ) => {
+    const { tags, ...diseaseData } = data;
+
+    // If tags are provided, delete old ones and create new ones
+    if (tags !== undefined) {
+      await prisma.diseaseSymptom.deleteMany({ where: { diseaseId: id } });
+    }
+
+    return prisma.disease.update({
+      where: { id },
+      data: {
+        ...diseaseData,
+        ...(tags !== undefined
+          ? { tags: { create: tags.map((label) => ({ label })) } }
+          : {}),
+      },
+      include: { tags: true },
+    });
+  },
+
+  deleteDisease: async (id: string) => {
+    // Cascade handled by Prisma onDelete: Cascade for tags and matches
+    return prisma.disease.delete({ where: { id } });
+  },
+
+  // ─── Analysis Requests Listing ───────────────────────────────────
+
+  listAnalysisRequests: async ({
+    search,
+    page,
+    limit,
+  }: {
+    search?: string;
+    page: number;
+    limit: number;
+  }) => {
+    const skip = (page - 1) * limit;
+
+    const where: any = {};
+    if (search) {
+      where.OR = [
+        { symptomText: { contains: search, mode: 'insensitive' } },
+        { symptomTags: { hasSome: [search] } },
+      ];
+    }
+
+    const [data, totalItems] = await Promise.all([
+      prisma.diseaseAnalysisRequest.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          photo: true,
+          matches: {
+            orderBy: { rank: 'asc' },
+            include: { disease: true },
+          },
+        },
+      }),
+      prisma.diseaseAnalysisRequest.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalItems / limit),
+        totalItems,
+        itemsPerPage: limit,
+      },
+    };
+  },
 };

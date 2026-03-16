@@ -31,10 +31,14 @@ const diseaseAnalyzerRouter = Router();
 // Disease database endpoints
 diseaseAnalyzerRouter.get('/diseases', DiseaseAnalyzerController.searchDiseases);
 diseaseAnalyzerRouter.get('/diseases/:id', DiseaseAnalyzerController.getDisease);
+diseaseAnalyzerRouter.post('/diseases', DiseaseAnalyzerController.createDisease);
+diseaseAnalyzerRouter.put('/diseases/:id', DiseaseAnalyzerController.updateDisease);
+diseaseAnalyzerRouter.delete('/diseases/:id', DiseaseAnalyzerController.deleteDisease);
 
 // Disease analyzer endpoints
 diseaseAnalyzerRouter.get('/symptoms', DiseaseAnalyzerController.getSymptomChips);
 diseaseAnalyzerRouter.post('/disease-analyzer', upload.single('photo'), DiseaseAnalyzerController.analyze);
+diseaseAnalyzerRouter.get('/disease-analyzer/requests', DiseaseAnalyzerController.listAnalysisRequests);
 diseaseAnalyzerRouter.get('/disease-analyzer/:id', DiseaseAnalyzerController.getResult);
 
 export { diseaseAnalyzerRouter };

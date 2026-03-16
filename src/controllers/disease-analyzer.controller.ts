@@ -91,4 +91,60 @@ export const DiseaseAnalyzerController = {
     const chips = await DiseaseAnalyzerService.getSymptomChips();
     return res.json({ data: chips });
   },
+
+  // ─── Disease CRUD ────────────────────────────────────────────────
+
+  createDisease: async (req: AuthenticatedRequest, res: Response) => {
+    const { name, category, symptoms, causes, treatment, prevention, icon, treatmentSummary, tags } = req.body;
+    if (!name || !category || !symptoms) {
+      return res.status(400).json({ message: 'name, category, and symptoms are required' });
+    }
+
+    const disease = await DiseaseAnalyzerService.createDisease({
+      name, category, symptoms, causes, treatment, prevention, icon, treatmentSummary, tags,
+    });
+    return res.status(201).json({ data: disease });
+  },
+
+  updateDisease: async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ message: 'id is required' });
+
+    const disease = await DiseaseAnalyzerService.updateDisease(id, req.body);
+    if (!disease) return res.status(404).json({ message: 'Disease not found' });
+
+    return res.json({ data: disease });
+  },
+
+  deleteDisease: async (req: AuthenticatedRequest, res: Response) => {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ message: 'id is required' });
+
+    await DiseaseAnalyzerService.deleteDisease(id);
+    return res.status(204).send();
+  },
+
+  // ─── Analysis Requests ──────────────────────────────────────────
+
+  listAnalysisRequests: async (req: AuthenticatedRequest, res: Response) => {
+    const { search, page = '1', limit = '10' } = req.query;
+
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+
+    if (isNaN(pageNum) || pageNum < 1) {
+      return res.status(400).json({ message: 'page must be a positive integer' });
+    }
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+      return res.status(400).json({ message: 'limit must be between 1 and 100' });
+    }
+
+    const result = await DiseaseAnalyzerService.listAnalysisRequests({
+      ...(typeof search === 'string' ? { search } : {}),
+      page: pageNum,
+      limit: limitNum,
+    });
+
+    return res.json({ data: result });
+  },
 };
