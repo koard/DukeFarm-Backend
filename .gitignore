@@ -4,3 +4,4 @@ dist
 .prisma
 npm-debug.log*
 coverage
+uploads
