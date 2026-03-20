@@ -40,37 +40,6 @@ export type NurserySmallDashboard = {
   feedingPlan: FeedingPlanRow[];
 };
 
-const pickFarmWithLocation = (
-  farms: Array<{ id: string; latitude: number | null; longitude: number | null }>,
-) =>
-  farms.find(
-    (f) =>
-      f.latitude !== null &&
-      f.latitude !== undefined &&
-      f.longitude !== null &&
-      f.longitude !== undefined,
-  );
-
-const fetchWeather = async (
-  farms: Array<{ id: string; latitude: number | null; longitude: number | null }>,
-): Promise<CurrentWeather | null> => {
-  const farm = pickFarmWithLocation(farms);
-  if (!farm) return null;
-
-  try {
-    return await WeatherService.getCurrentWeather(
-      farm.latitude as number,
-      farm.longitude as number,
-    );
-  } catch (error) {
-    logger.warn('Unable to fetch weather for nursery small dashboard', {
-      farmId: farm.id,
-      error,
-    });
-    return null;
-  }
-};
-
 const getLatestFishData = async (
   userId: string,
   pondId?: string,

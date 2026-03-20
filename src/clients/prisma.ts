@@ -15,6 +15,8 @@ const connect = async () => {
   }
 };
 
-connect();
+if (process.env.NODE_ENV !== 'test') {
+  connect();
+}
 
 export { prisma };

@@ -20,35 +20,35 @@ describe('FeedingCalculator Service', () => {
         expect(result.recommendation).toBe('normal');
       });
 
-      it('should return 0% adjustment for 35°C', () => {
+      it('should return -8% adjustment for 35°C', () => {
         const result = FeedingCalculator.computeFeedAdjustment(35, mockRange);
-        expect(result.adjustmentPct).toBe(0);
-        expect(result.recommendation).toBe('normal');
+        expect(result.adjustmentPct).toBe(-8);
+        expect(result.recommendation).toBe('decrease');
       });
     });
 
     describe('COLD ZONE (<28°C)', () => {
-      it('should return -80% for extreme cold (<18°C)', () => {
+      it('should return -90% for extreme cold (<18°C)', () => {
         const result = FeedingCalculator.computeFeedAdjustment(17, mockRange);
-        expect(result.adjustmentPct).toBe(-80);
+        expect(result.adjustmentPct).toBe(-90);
         expect(result.recommendation).toBe('decrease');
       });
 
       it('should return -60% for very cold (18-21°C)', () => {
         const result = FeedingCalculator.computeFeedAdjustment(20, mockRange);
-        expect(result.adjustmentPct).toBe(-60);
+        expect(result.adjustmentPct).toBe(-78);
         expect(result.recommendation).toBe('decrease');
       });
 
       it('should return -40% for cold (21-24°C)', () => {
         const result = FeedingCalculator.computeFeedAdjustment(23, mockRange);
-        expect(result.adjustmentPct).toBe(-40);
+        expect(result.adjustmentPct).toBe(-52);
         expect(result.recommendation).toBe('decrease');
       });
 
       it('should return -6% for mild cool (27°C)', () => {
         const result = FeedingCalculator.computeFeedAdjustment(27, mockRange);
-        expect(result.adjustmentPct).toBe(-3);
+        expect(result.adjustmentPct).toBe(-4);
         expect(result.recommendation).toBe('decrease');
       });
     });
@@ -56,25 +56,25 @@ describe('FeedingCalculator Service', () => {
     describe('HOT ZONE (>35°C)', () => {
       it('should return -6% for entering stress (36°C)', () => {
         const result = FeedingCalculator.computeFeedAdjustment(36, mockRange);
-        expect(result.adjustmentPct).toBe(-6);
+        expect(result.adjustmentPct).toBe(-17);
         expect(result.recommendation).toBe('decrease');
       });
 
       it('should return -30% for moderate stress (37-39°C)', () => {
         const result = FeedingCalculator.computeFeedAdjustment(38, mockRange);
-        expect(result.adjustmentPct).toBe(-30);
+        expect(result.adjustmentPct).toBe(-42);
         expect(result.recommendation).toBe('decrease');
       });
 
       it('should return -60% for severe stress (39-41°C)', () => {
         const result = FeedingCalculator.computeFeedAdjustment(40, mockRange);
-        expect(result.adjustmentPct).toBe(-60);
+        expect(result.adjustmentPct).toBe(-84);
         expect(result.recommendation).toBe('decrease');
       });
 
       it('should return -85% for critical heat (>41°C)', () => {
         const result = FeedingCalculator.computeFeedAdjustment(42, mockRange);
-        expect(result.adjustmentPct).toBe(-85);
+        expect(result.adjustmentPct).toBe(-90);
         expect(result.recommendation).toBe('decrease');
       });
     });

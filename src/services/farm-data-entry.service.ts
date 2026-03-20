@@ -152,24 +152,6 @@ const applyNumeric = (value: number | null | undefined): number | null => {
   return value;
 };
 
-const parseFishCount = (raw: string | null | undefined): number | null => {
-  if (!raw) {
-    return null;
-  }
-
-  const digits = raw.replace(/[^0-9]/g, '');
-  if (!digits) {
-    return null;
-  }
-
-  const parsed = Number(digits);
-  if (Number.isNaN(parsed)) {
-    return null;
-  }
-
-  return parsed;
-};
-
 const ensureCultivationType = async (userId: string, farmType: FarmType) =>
   prisma.farmerCultivationType.upsert({
     where: {
